@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap');
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply text-text bg-smoke font-sans;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  h1, h2, h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-aria text-white px-4 py-2 rounded-sm font-medium text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply border border-border text-text px-4 py-2 rounded-sm font-medium text-sm hover:bg-smoke transition-colors;
+  }
+  .btn-danger {
+    @apply bg-red-sov text-white px-4 py-2 rounded-sm font-medium text-sm hover:bg-red-800 transition-colors;
+  }
+  .card {
+    @apply bg-white rounded-md border border-border shadow-card;
+  }
+  .form-input {
+    @apply w-full border border-border rounded-sm px-3 py-2 text-sm text-text bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent placeholder:text-muted;
+  }
+  .form-label {
+    @apply block text-xs font-medium text-muted mb-1 uppercase tracking-wide;
+  }
+  .form-textarea {
+    @apply w-full border border-border rounded-sm px-3 py-2 text-sm text-text bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent placeholder:text-muted resize-none;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-sm text-sm font-medium transition-colors cursor-pointer;
+  }
+  .sidebar-item-active {
+    @apply bg-blue-aria/10 text-blue-aria;
+  }
+  .sidebar-item-inactive {
+    @apply text-slate-300 hover:text-white hover:bg-white/5;
+  }
+  .sovereignty-green {
+    @apply bg-green-sov-light text-green-sov border border-green-sov/20;
+  }
+  .sovereignty-amber {
+    @apply bg-amber-sov-light text-amber-sov border border-amber-sov/20;
+  }
+  .sovereignty-red {
+    @apply bg-red-sov-light text-red-sov border border-red-sov/20;
+  }
+  .block-b1 { @apply bg-slate-100 text-slate-700 border border-slate-200; }
+  .block-b2 { @apply bg-red-sov-light text-red-sov border border-red-sov/20; }
+  .block-b3, .block-b4, .block-b5 { @apply bg-purple-aria-light text-purple-aria border border-purple-aria/20; }
+  .block-b6, .block-b7 { @apply bg-blue-pale text-blue-aria border border-blue-aria/20; }
+  .block-b8 { @apply bg-teal-poc-light text-teal-poc border border-teal-poc/20; }
+  .score-quick-win { @apply bg-green-sov-light text-green-sov; }
+  .score-mid-term { @apply bg-blue-pale text-blue-aria; }
+  .score-strategic { @apply bg-purple-aria-light text-purple-aria; }
+}

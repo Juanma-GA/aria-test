@@ -1,0 +1,118 @@
+================================================================================
+ARIA — GUÍA DE INSTALACIÓN
+================================================================================
+
+REQUISITOS PREVIOS
+------------------
+- Node.js 18+       → https://nodejs.org
+- npm 9+            → (incluido con Node.js)
+- MongoDB 6+        → https://www.mongodb.com/try/download/community
+
+
+--------------------------------------------------------------------------------
+1. OBTENER EL PROYECTO
+--------------------------------------------------------------------------------
+
+Copiar la carpeta del proyecto al equipo destino.
+Se pueden eliminar estas carpetas para reducir el tamaño antes de copiar:
+  - node_modules/
+  - .next/
+
+
+--------------------------------------------------------------------------------
+2. INSTALAR DEPENDENCIAS
+--------------------------------------------------------------------------------
+
+Abrir una terminal en la carpeta raíz del proyecto y ejecutar:
+
+    npm install
+
+
+--------------------------------------------------------------------------------
+3. CONFIGURAR VARIABLES DE ENTORNO
+--------------------------------------------------------------------------------
+
+Crear un archivo llamado exactamente ".env.local" en la raíz del proyecto
+con el siguiente contenido:
+
+    MONGODB_URI=mongodb://localhost:27017/aria-audit
+    JWT_SECRET=aria-super-secret-key-change-in-production-2025
+    NEXT_PUBLIC_APP_URL=http://localhost:3000
+    NODE_ENV=development
+
+Si MongoDB está en otro servidor, cambiar MONGODB_URI por la URL correcta:
+    mongodb://usuario:contraseña@servidor:27017/aria-audit
+
+IMPORTANTE: Este archivo NO debe subirse a ningún repositorio git.
+
+
+--------------------------------------------------------------------------------
+4. INICIAR MONGODB
+--------------------------------------------------------------------------------
+
+Asegurarse de que MongoDB esté corriendo antes de arrancar la app.
+
+  Windows (si está instalado como servicio):
+    net start MongoDB
+
+  O arrancar manualmente:
+    mongod --dbpath C:\data\db
+
+
+--------------------------------------------------------------------------------
+5. ARRANCAR LA APLICACIÓN
+--------------------------------------------------------------------------------
+
+    npm run dev
+
+La aplicación estará disponible en: http://localhost:3000
+
+
+--------------------------------------------------------------------------------
+6. CREAR USUARIO Y DATOS DE DEMO (solo la primera vez)
+--------------------------------------------------------------------------------
+
+Con la aplicación corriendo, abrir el navegador en:
+
+    http://localhost:3000
+
+Abrir la consola del navegador (F12 → Console) y ejecutar:
+
+    fetch('/api/seed', { method: 'POST' }).then(r => r.json()).then(console.log)
+
+Esto crea el usuario administrador y un conjunto de datos de demo.
+
+
+--------------------------------------------------------------------------------
+7. INICIAR SESIÓN
+--------------------------------------------------------------------------------
+
+    Email:    admin@atexis.com
+    Password: aria-demo-2025
+
+
+--------------------------------------------------------------------------------
+ESTRUCTURA DEL PROYECTO
+--------------------------------------------------------------------------------
+
+    IA Audit/
+    ├── app/              → Páginas y API routes (Next.js App Router)
+    │   ├── (app)/        → Páginas protegidas (requieren login)
+    │   └── api/          → Endpoints REST
+    ├── components/       → Componentes reutilizables de UI
+    ├── lib/              → Modelos Mongoose, autenticación, tipos
+    ├── public/           → Assets estáticos
+    ├── .env.local        → Variables de entorno (NO subir a git)
+    └── package.json      → Dependencias y scripts
+
+
+--------------------------------------------------------------------------------
+SCRIPTS DISPONIBLES
+--------------------------------------------------------------------------------
+
+    npm run dev      → Desarrollo con hot reload
+    npm run build    → Compilar para producción
+    npm run start    → Arrancar en modo producción
+
+
+================================================================================
