@@ -25,7 +25,7 @@ function getCompletion(process: any, ucCount: number) {
   const b3Done = (process.b3?.activities?.length ?? 0) >= 3;
   const b5Done = ucCount > 0;
 
-  return { b1: b1Done, b2: b2Done, b3: b3Done, b4: false, b5: b5Done, b6: false, b7: false };
+  return { b1: b1Done, b2: b2Done, b3: b3Done, b5: b5Done, b6: false, b7: false };
 }
 
 export async function GET(
@@ -66,7 +66,7 @@ export async function PATCH(
     const { auditId, procId } = params;
     const body = await req.json();
 
-    const { b1, b2, b3, b4, ...rest } = body;
+    const { b1, b2, b3, ...rest } = body;
 
     // Build a flat $set map so MongoDB writes data directly without Mongoose casting.
     // This avoids issues with the 'id' virtual field name in nested subdocuments.
@@ -74,7 +74,6 @@ export async function PATCH(
 
     if (b1 !== undefined) setOps['b1'] = b1;
     if (b3 !== undefined) setOps['b3'] = b3;
-    if (b4 !== undefined) setOps['b4'] = b4;
 
     // B2: merge axes individually so partial updates don't wipe other axes
     if (b2?.axes) {

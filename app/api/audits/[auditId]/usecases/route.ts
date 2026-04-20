@@ -142,16 +142,11 @@ export async function POST(
     } else {
       useCaseData.score = {
         dimensions: {
-          d1_efficiencyImpact: { value: 3, justification: '' },
-          d2_qualityImpact: { value: 3, justification: '' },
-          d3_techMaturity: { value: 3, justification: '' },
-          d4_dataReadiness: { value: 3, justification: '' },
           d5_sovereigntyIndex: {
             value: d5Value,
             justification: 'Auto-filled from B2 sovereignty index',
             autoFilled: true,
           },
-          d6_governanceComplexity: { value: 3, justification: '' },
         },
         scoringNotes: '',
         scoredBy: '',

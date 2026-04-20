@@ -155,37 +155,6 @@ export interface B3_ProcessMap {
   notes: string;
 }
 
-// ── B4 FRICTION (deprecated UI, kept for data) ─────────────────────────────────
-export type FrictionType = 'time' | 'quality' | 'knowledge' | 'integration' | 'scale';
-export type ImpactScore = 1 | 2 | 3 | 4 | 5;
-
-export interface PainPoint {
-  id: string;
-  description: string;
-  frictionType: FrictionType;
-  processStage: string;
-  currentMetric: string;
-  estimatedImpact: ImpactScore;
-  rootCause: string;
-  notes: string;
-}
-
-export interface BaseMetrics {
-  avgOutputTimeHours: number;
-  reworkRatePercent: number;
-  avgReviewCycles: number;
-  hourlyRateEur: number;
-  queueWasteHoursPerWeek: number;
-  contentReusePercent: number;
-  metricNotes: string;
-}
-
-export interface B4_Friction {
-  processId: string;
-  painPoints: PainPoint[];
-  baseMetrics: BaseMetrics;
-}
-
 // ── B5 USE CASES ───────────────────────────────────────────────────────────────
 export type AIType = 'generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag' | 'validation' | 'prediction' | 'intelligent_automation' | 'agentic_ai' | 'other';
 export type UseCaseStatus = 'eligible' | 'blocked' | 'pending_review';
@@ -426,7 +395,6 @@ export interface BlockCompletion {
   b1: boolean;
   b2: boolean;
   b3: boolean;
-  b4: boolean;
   b5: boolean;
   b6: boolean;
   b7: boolean;

@@ -6,7 +6,6 @@ interface BlockCompletion {
   b1: boolean;
   b2: boolean;
   b3: boolean;
-  b4: boolean;
   b5: boolean;
   b6: boolean;
   b7: boolean;

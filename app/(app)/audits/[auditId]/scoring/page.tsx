@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Info, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { calculateScore } from '@/lib/calculations';
 import { SCORING_RUBRIC } from '@/lib/types';
 import type { UseCase, ScoreValue } from '@/lib/types';
@@ -16,18 +17,21 @@ const DIM_KEYS = ['d1_efficiencyImpact', 'd2_qualityImpact', 'd3_techMaturity', 
 const DIM_SHORT = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
 const RUBRIC_KEYS = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const;
 
-function ScoreCell({ value, dimKey, useCaseId, auditId, autoFilled, onChange }: {
-  value: number; dimKey: string; useCaseId: string; auditId: string;
-  autoFilled?: boolean; onChange: (v: ScoreValue) => void;
+function ScoreCell({ value, autoFilled, onChange }: {
+  value: number | undefined;
+  autoFilled?: boolean;
+  onChange: (v: ScoreValue) => void;
 }) {
+  const unset = value === undefined;
   return (
     <div className="flex flex-col items-center gap-0.5">
       <select
-        value={value}
+        value={unset ? '' : value}
         onChange={e => onChange(Number(e.target.value) as ScoreValue)}
         className={`w-14 text-center text-sm border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-aria
-          ${autoFilled ? 'border-amber-sov bg-amber-sov-light text-amber-sov' : 'border-border'}`}
+          ${autoFilled ? 'border-amber-sov bg-amber-sov-light text-amber-sov' : unset ? 'border-dashed border-border text-muted' : 'border-border'}`}
       >
+        {unset && <option value="" disabled>—</option>}
         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
       </select>
       {autoFilled && <span className="text-xs text-amber-sov" title="Auto-filled from B2">↗B2</span>}
@@ -40,23 +44,26 @@ function TotalBadge({ total }: { total: number }) {
   return <span className={`inline-flex items-center justify-center w-10 h-7 rounded font-bold text-sm ${color}`}>{total}</span>;
 }
 
-function TooltipHeader({ short, dimKey }: { short: string; dimKey: string }) {
-  const [show, setShow] = useState(false);
+function TooltipHeader({ short }: { short: string }) {
   const rubricKey = RUBRIC_KEYS[DIM_SHORT.indexOf(short)];
   const rubric = SCORING_RUBRIC[rubricKey];
   return (
-    <th className="py-2 px-2 text-center relative cursor-help" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      <span className="flex items-center gap-1 justify-center text-xs font-medium text-muted">
-        {short} <Info size={11} />
-      </span>
-      {show && rubric && (
-        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-60 bg-navy text-white text-xs rounded p-3 shadow-xl space-y-1">
-          <div className="font-semibold text-blue-light mb-2">{rubric.label}</div>
-          {Object.entries(rubric.descriptions).map(([k, v]) => v && (
-            <div key={k} className="flex gap-2"><span className="text-blue-light font-mono">{k}:</span><span>{v}</span></div>
-          ))}
-        </div>
-      )}
+    <th className="py-2 px-2 text-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex items-center gap-1 justify-center text-xs font-medium text-muted cursor-help">
+            {short} <Info size={11} />
+          </span>
+        </TooltipTrigger>
+        {rubric && (
+          <TooltipContent side="bottom" className="w-60 space-y-1 p-3">
+            <div className="font-semibold text-blue-light mb-2">{rubric.label}</div>
+            {Object.entries(rubric.descriptions).map(([k, v]) => v && (
+              <div key={k} className="flex gap-2"><span className="text-blue-light font-mono">{k}:</span><span>{v}</span></div>
+            ))}
+          </TooltipContent>
+        )}
+      </Tooltip>
     </th>
   );
 }
@@ -70,6 +77,7 @@ export default function ScoringPage() {
   const [filterProcess, setFilterProcess] = useState('all');
   const [processes, setProcesses] = useState<{ _id: string; procId: string; name: string }[]>([]);
   const savingRef = useRef<Record<string, boolean>>({});
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [saveStatus, setSaveStatus] = useState<Record<string, 'saved' | 'saving'>>({});
 
   useEffect(() => {
@@ -82,6 +90,13 @@ export default function ScoringPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [auditId]);
+
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   const saveScore = useCallback(async (ucId: string, dimensions: UseCase['score']) => {
     if (savingRef.current[ucId]) return;
@@ -101,14 +116,19 @@ export default function ScoringPage() {
   }, [auditId]);
 
   const updateDimension = (ucId: string, dimKey: string, value: ScoreValue) => {
+    let pendingScore: UseCase['score'] | undefined;
     setUseCases(prev => prev.map(u => {
       if (u._id !== ucId) return u;
       const newDims = { ...(u.score?.dimensions || {}), [dimKey]: { ...(u.score?.dimensions?.[dimKey as keyof typeof u.score.dimensions] || {}), value } };
       const updated = { ...u, score: { ...u.score, dimensions: newDims } as UseCase['score'] };
-      // Debounce save
-      setTimeout(() => saveScore(ucId, updated.score), 1000);
+      pendingScore = updated.score;
       return updated;
     }));
+    if (debounceTimers.current[ucId]) clearTimeout(debounceTimers.current[ucId]);
+    debounceTimers.current[ucId] = setTimeout(() => {
+      if (pendingScore) saveScore(ucId, pendingScore);
+      delete debounceTimers.current[ucId];
+    }, 1000);
   };
 
   const filtered = filterProcess === 'all' ? useCases : useCases.filter(u => u.processId === filterProcess);
@@ -126,6 +146,7 @@ export default function ScoringPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -165,7 +186,7 @@ export default function ScoringPage() {
                 <th className="text-left py-2 px-3 text-xs font-medium text-muted w-20">CU-ID</th>
                 <th className="text-left py-2 px-3 text-xs font-medium text-muted w-20">PROC</th>
                 <th className="text-left py-2 px-3 text-xs font-medium text-muted">Description</th>
-                {DIM_SHORT.map((d, i) => <TooltipHeader key={d} short={d} dimKey={DIM_KEYS[i]} />)}
+                {DIM_SHORT.map(d => <TooltipHeader key={d} short={d} />)}
                 <th className="py-2 px-3 text-center text-xs font-medium text-muted w-16">Total</th>
                 <th className="py-2 px-3 text-xs font-medium text-muted w-28">Category</th>
                 <th className="py-2 px-3 text-xs font-medium text-muted w-20">Status</th>
@@ -188,16 +209,13 @@ export default function ScoringPage() {
                     <td className="py-3 px-3 max-w-xs">
                       <p className="text-sm line-clamp-2" title={uc.description}>{uc.description}</p>
                     </td>
-                    {DIM_KEYS.map((dimKey, i) => {
+                    {DIM_KEYS.map(dimKey => {
                       const dim = dims?.[dimKey];
                       const isD5 = dimKey === 'd5_sovereigntyIndex';
                       return (
                         <td key={dimKey} className="py-3 px-2 text-center">
                           <ScoreCell
-                            value={dim?.value || 3}
-                            dimKey={dimKey}
-                            useCaseId={uc._id}
-                            auditId={auditId}
+                            value={dim?.value}
                             autoFilled={isD5 && (dim as { autoFilled?: boolean })?.autoFilled}
                             onChange={v => updateDimension(uc._id, dimKey, v)}
                           />
@@ -240,5 +258,6 @@ export default function ScoringPage() {
         · D5 (amber border) = auto-filled from B2 Sovereignty Index
       </div>
     </div>
+    </TooltipProvider>
   );
 }

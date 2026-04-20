@@ -97,7 +97,7 @@ function getSovereigntyVariant(idx: number | null): 'green' | 'amber' | 'red' | 
 }
 
 const EMPTY_COMPLETION: BlockCompletion = {
-  b1: false, b2: false, b3: false, b4: false, b5: false, b6: false, b7: false,
+  b1: false, b2: false, b3: false, b5: false, b6: false, b7: false,
 };
 
 const AUDIT_STATUSES: AuditStatus[] = ['draft', 'active', 'review', 'completed'];
