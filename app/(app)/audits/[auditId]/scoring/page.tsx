@@ -183,7 +183,7 @@ export default function ScoringPage() {
                       <span className="font-mono text-xs text-blue-aria font-medium">{uc.cuId}</span>
                     </td>
                     <td className="py-3 px-3">
-                      <Badge variant="amber">{(uc as UseCase & { procId?: string }).procId || '—'}</Badge>
+                      <Badge variant="amber">{uc.procId || '—'}</Badge>
                     </td>
                     <td className="py-3 px-3 max-w-xs">
                       <p className="text-sm line-clamp-2" title={uc.description}>{uc.description}</p>

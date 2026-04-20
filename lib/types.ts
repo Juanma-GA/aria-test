@@ -197,10 +197,40 @@ export interface TimeSavedEntry {
   hoursPerExecution: number;
 }
 
+export type DeploymentModel = 'cloud_api' | 'on_premise' | 'hybrid';
+export type GpuModel = 'rtx_4090' | 'a100_40gb' | 'a100_80gb' | 'h100';
+
+export interface ComputeSubscription {
+  tool: string;
+  users: number;
+  monthlyPerUser: number;
+}
+
+export interface ComputeCostConfig {
+  deploymentModel: DeploymentModel;
+  annualReps: number;
+  concurrentUsers: number;
+  avgResponseTimeSec: number;
+  // Cloud API
+  inputTokensPerExec: number;
+  outputTokensPerExec: number;
+  pricePerMInputTokens: number;
+  pricePerMOutputTokens: number;
+  // On-premise
+  gpuModel: GpuModel;
+  nGpus: number;
+  amortizationYears: number;
+  electricityRateEur: number;
+  // Hybrid
+  onPremPct: number;
+  subscriptions: ComputeSubscription[];
+}
+
 export interface UseCase {
   _id: string;
   auditId: string;
   processId: string;
+  procId?: string;
   cuId: string;
   description: string;
   aiTypes: AIType[];
@@ -218,7 +248,7 @@ export interface UseCase {
   reviewDate?: Date;
   notes: string;
   sovereigntyAnalysis?: string;
-  computeCost?: any;
+  computeCost?: Partial<ComputeCostConfig>;
   createdAt: Date;
   // B6 score embedded in the use case document
   score?: {
@@ -375,7 +405,7 @@ export interface POC {
   execution: POC_Execution;
   evaluation: POC_Evaluation;
   decision: POC_Decision;
-  computeCost?: any;
+  computeCost?: Partial<ComputeCostConfig>;
   createdAt: Date;
   updatedAt: Date;
 }

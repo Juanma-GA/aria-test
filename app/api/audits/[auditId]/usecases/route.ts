@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
+import { nextSequence } from '@/lib/models/Counter';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -62,8 +63,8 @@ export async function POST(
       ? await Process.findById(body.processId).select('procId').lean() as any
       : null;
     const procIdStr = proc?.procId ?? 'PROC';
-    const count = await UseCase.countDocuments({ processId: body.processId });
-    const cuId = `${procIdStr}-C${String(count + 1).padStart(2, '0')}`;
+    const seq = await nextSequence(`usecase:${body.processId}`);
+    const cuId = `${procIdStr}-C${String(seq).padStart(2, '0')}`;
 
     // Determine status based on B2 compatibility
     let status = body.status || 'eligible';

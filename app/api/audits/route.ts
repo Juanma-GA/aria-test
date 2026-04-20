@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC } from '@/lib/models';
+import { calculateScore } from '@/lib/calculations';
+import { nextSequence } from '@/lib/models/Counter';
 
 export async function GET(_req: NextRequest) {
   try {
@@ -95,10 +97,9 @@ export async function GET(_req: NextRequest) {
           savingsByCategory.strategic += ucSaving;
           continue;
         }
-        const scoreTotal: number = Object.values(dims).reduce((s: number, d: any) => s + (d?.value ?? 0), 0);
-        const d6: number = (dims as any).d6_governanceComplexity?.value ?? 0;
-        if (scoreTotal >= 22 && d6 >= 4) { byCategory.quickWin++; savingsByCategory.quickWin += ucSaving; }
-        else if (scoreTotal >= 14) { byCategory.midTerm++; savingsByCategory.midTerm += ucSaving; }
+        const { category } = calculateScore(dims);
+        if (category === 'quick_win') { byCategory.quickWin++; savingsByCategory.quickWin += ucSaving; }
+        else if (category === 'mid_term') { byCategory.midTerm++; savingsByCategory.midTerm += ucSaving; }
         else { byCategory.strategic++; savingsByCategory.strategic += ucSaving; }
       }
 
@@ -131,8 +132,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess } = body;
 
-    const auditCount = await Audit.countDocuments({});
-    const auditCode = `AUD-${String(auditCount + 1).padStart(3, '0')}`;
+    const auditSeq = await nextSequence('audit');
+    const auditCode = `AUD-${String(auditSeq).padStart(3, '0')}`;
 
     const audit = await Audit.create({
       name,

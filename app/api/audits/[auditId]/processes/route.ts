@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process, Audit } from '@/lib/models';
+import { nextSequence } from '@/lib/models/Counter';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -44,12 +45,10 @@ export async function POST(
     const { auditId } = params;
     const body = await req.json();
 
-    const [count, audit] = await Promise.all([
-      Process.countDocuments({ auditId }),
-      Audit.findById(auditId).select('auditCode').lean() as any,
-    ]);
+    const audit = await Audit.findById(auditId).select('auditCode').lean() as any;
     const prefix = audit?.auditCode ?? 'AUD';
-    const procId = `${prefix}-P${String(count + 1).padStart(2, '0')}`;
+    const seq = await nextSequence(`process:${auditId}`);
+    const procId = `${prefix}-P${String(seq).padStart(2, '0')}`;
 
     const process = await Process.create({
       auditId,
