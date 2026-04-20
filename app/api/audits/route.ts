@@ -148,17 +148,21 @@ export async function POST(req: NextRequest) {
       auditCode,
     });
 
-    const process = await Process.create({
-      auditId: audit._id,
-      procId: `${auditCode}-P01`,
-      name: firstProcess.name,
-      department: firstProcess.department || '',
-      responsible: firstProcess.responsible || '',
-      sector,
-      applicableNorms: firstProcess.applicableNorms || [],
-      priority: firstProcess.priority || 'medium',
-      status: 'pending',
-    });
+    let process = null;
+    if (firstProcess?.name?.trim()) {
+      const procSeq = await nextSequence(`process:${audit._id}`);
+      process = await Process.create({
+        auditId: audit._id,
+        procId: `${auditCode}-P${String(procSeq).padStart(2, '0')}`,
+        name: firstProcess.name,
+        department: firstProcess.department || '',
+        responsible: firstProcess.responsible || '',
+        sector,
+        applicableNorms: firstProcess.applicableNorms || [],
+        priority: firstProcess.priority || 'medium',
+        status: 'pending',
+      });
+    }
 
     return NextResponse.json({ audit, process }, { status: 201 });
   } catch (err) {

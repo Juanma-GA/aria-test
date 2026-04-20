@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, FolderOpen, Archive } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Search, FolderOpen, Archive, Columns } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -259,7 +260,25 @@ function SavingsInfographic({ audits, totalSaving, savingsByCategory, ucsByCateg
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
+type ColKey = 'audit' | 'client' | 'status' | 'sector' | 'procs' | 'people' | 'ucs' | 'pocs' | 'saving' | 'categories' | 'updated';
+const ALL_COLUMNS: { key: ColKey; label: string; always?: boolean }[] = [
+  { key: 'audit', label: 'Audit', always: true },
+  { key: 'client', label: 'Client' },
+  { key: 'status', label: 'Status' },
+  { key: 'sector', label: 'Sector' },
+  { key: 'procs', label: 'Procs' },
+  { key: 'people', label: 'People' },
+  { key: 'ucs', label: 'UCs' },
+  { key: 'pocs', label: 'POCs' },
+  { key: 'saving', label: 'Annual Saving' },
+  { key: 'categories', label: 'Categories' },
+  { key: 'updated', label: 'Updated' },
+];
+const DEFAULT_VISIBLE: ColKey[] = ['audit', 'client', 'status', 'procs', 'ucs', 'saving', 'updated'];
+const COLUMN_STORAGE_KEY = 'aria.dashboard.columns.v1';
+
 export default function DashboardPage() {
+  const router = useRouter();
   const [audits, setAudits] = useState<AuditSummary[]>([]);
   const [archivedAudits, setArchivedAudits] = useState<AuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,6 +287,31 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [loadingArchived, setLoadingArchived] = useState(false);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(() => new Set(DEFAULT_VISIBLE));
+  const [showColPicker, setShowColPicker] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw) as ColKey[];
+        if (Array.isArray(arr) && arr.length > 0) setVisibleCols(new Set(arr));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleCol = (key: ColKey) => {
+    if (ALL_COLUMNS.find(c => c.key === key)?.always) return;
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(Array.from(next))); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const isVisible = (key: ColKey) => visibleCols.has(key);
 
   useEffect(() => {
     fetch('/api/audits')
@@ -408,6 +452,30 @@ export default function DashboardPage() {
             className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
           />
         </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowColPicker(v => !v)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-sm border border-border bg-white text-muted hover:border-blue-aria hover:text-blue-aria transition-colors"
+          >
+            <Columns size={13} /> Columns
+          </button>
+          {showColPicker && (
+            <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-sm border border-border bg-white shadow-lg p-2 text-xs">
+              {ALL_COLUMNS.map(c => (
+                <label key={c.key} className={`flex items-center gap-2 px-2 py-1 rounded ${c.always ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'}`}>
+                  <input
+                    type="checkbox"
+                    disabled={c.always}
+                    checked={c.always || isVisible(c.key)}
+                    onChange={() => toggleCol(c.key)}
+                  />
+                  {c.label}{c.always && <span className="text-muted">(required)</span>}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -434,85 +502,111 @@ export default function DashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-slate-50">
-                {['Audit', 'Client', 'Status', 'Sector', 'Procs', 'People', 'UCs', 'POCs', 'Annual Saving', 'Categories', 'Updated'].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">
-                    {h}
+                {ALL_COLUMNS.filter(c => isVisible(c.key)).map((c) => (
+                  <th key={c.key} className="text-left py-3 px-4 text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">
+                    {c.label}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((audit) => (
-                <tr key={audit._id} className="border-b border-border/50 hover:bg-slate-50">
-                  <td className="py-3 px-4">
-                    <Link href={`/audits/${audit._id}`} className="font-semibold text-text hover:text-blue-aria transition-colors line-clamp-1 block max-w-[220px]">
-                      {audit.name}
-                    </Link>
-                    <p className="text-[10px] text-muted mt-0.5">{getLeadName(audit.leadConsultant)}</p>
-                  </td>
-                  <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">{audit.client}</td>
-                  <td className="py-3 px-4">
-                    <Badge variant={STATUS_VARIANTS[audit.status]}>
-                      {audit.status.charAt(0).toUpperCase() + audit.status.slice(1)}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge variant={SECTOR_VARIANTS[audit.sector]}>
-                      {audit.sector.charAt(0).toUpperCase() + audit.sector.slice(1)}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-center text-xs font-semibold text-text">{audit.processCount ?? 0}</td>
-                  <td className="py-3 px-4 text-center">
-                    {(audit.totalPeople ?? 0) > 0 ? (
-                      <span className="text-xs font-bold text-blue-aria">{audit.totalPeople}</span>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-center text-xs font-semibold text-text">{audit.useCaseCount ?? 0}</td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="text-xs font-semibold text-text">{audit.pocCount ?? 0}</span>
-                    {(audit.pocCount ?? 0) > 0 && (
-                      <div className="flex justify-center gap-1 mt-0.5 flex-wrap">
-                        {(audit.pocsByPhase?.execution ?? 0) > 0 && (
-                          <span className="text-[9px] text-blue-aria font-bold">E{audit.pocsByPhase.execution}</span>
+                <tr
+                  key={audit._id}
+                  onClick={() => router.push(`/audits/${audit._id}`)}
+                  className="border-b border-border/50 hover:bg-slate-50 cursor-pointer"
+                >
+                  {isVisible('audit') && (
+                    <td className="py-3 px-4">
+                      <span className="font-semibold text-text hover:text-blue-aria transition-colors line-clamp-1 block max-w-[220px]">
+                        {audit.name}
+                      </span>
+                      <p className="text-[10px] text-muted mt-0.5">{getLeadName(audit.leadConsultant)}</p>
+                    </td>
+                  )}
+                  {isVisible('client') && (
+                    <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">{audit.client}</td>
+                  )}
+                  {isVisible('status') && (
+                    <td className="py-3 px-4">
+                      <Badge variant={STATUS_VARIANTS[audit.status]}>
+                        {audit.status.charAt(0).toUpperCase() + audit.status.slice(1)}
+                      </Badge>
+                    </td>
+                  )}
+                  {isVisible('sector') && (
+                    <td className="py-3 px-4">
+                      <Badge variant={SECTOR_VARIANTS[audit.sector]}>
+                        {audit.sector.charAt(0).toUpperCase() + audit.sector.slice(1)}
+                      </Badge>
+                    </td>
+                  )}
+                  {isVisible('procs') && (
+                    <td className="py-3 px-4 text-center text-xs font-semibold text-text">{audit.processCount ?? 0}</td>
+                  )}
+                  {isVisible('people') && (
+                    <td className="py-3 px-4 text-center">
+                      {(audit.totalPeople ?? 0) > 0 ? (
+                        <span className="text-xs font-bold text-blue-aria">{audit.totalPeople}</span>
+                      ) : (
+                        <span className="text-xs text-muted">—</span>
+                      )}
+                    </td>
+                  )}
+                  {isVisible('ucs') && (
+                    <td className="py-3 px-4 text-center text-xs font-semibold text-text">{audit.useCaseCount ?? 0}</td>
+                  )}
+                  {isVisible('pocs') && (
+                    <td className="py-3 px-4 text-center">
+                      <span className="text-xs font-semibold text-text">{audit.pocCount ?? 0}</span>
+                      {(audit.pocCount ?? 0) > 0 && (
+                        <div className="flex justify-center gap-1 mt-0.5 flex-wrap">
+                          {(audit.pocsByPhase?.execution ?? 0) > 0 && (
+                            <span className="text-[9px] text-blue-aria font-bold">E{audit.pocsByPhase.execution}</span>
+                          )}
+                          {(audit.pocsByPhase?.closed ?? 0) > 0 && (
+                            <span className="text-[9px] text-green-600 font-bold">C{audit.pocsByPhase.closed}</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  )}
+                  {isVisible('saving') && (
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {(audit.totalAnnualSavingEur ?? 0) > 0 ? (
+                        <>
+                          <span className="text-xs font-bold text-green-600">€{fmt(audit.totalAnnualSavingEur)}/yr</span>
+                          {(audit.totalProcessHoursPerRun ?? 0) > 0 && (
+                            <p className="text-[10px] text-muted">
+                              {Math.round(((audit.totalHoursSavedPerRun ?? 0) / audit.totalProcessHoursPerRun) * 100)}% automation
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted">—</span>
+                      )}
+                    </td>
+                  )}
+                  {isVisible('categories') && (
+                    <td className="py-3 px-4">
+                      <div className="flex flex-col gap-0.5">
+                        {(audit.useCasesByCategory?.quickWin ?? 0) > 0 && (
+                          <span className="text-[10px] text-green-700 font-medium">QW ×{audit.useCasesByCategory.quickWin}</span>
                         )}
-                        {(audit.pocsByPhase?.closed ?? 0) > 0 && (
-                          <span className="text-[9px] text-green-600 font-bold">C{audit.pocsByPhase.closed}</span>
+                        {(audit.useCasesByCategory?.midTerm ?? 0) > 0 && (
+                          <span className="text-[10px] text-amber-600 font-medium">MT ×{audit.useCasesByCategory.midTerm}</span>
+                        )}
+                        {(audit.useCasesByCategory?.strategic ?? 0) > 0 && (
+                          <span className="text-[10px] text-blue-aria font-medium">ST ×{audit.useCasesByCategory.strategic}</span>
                         )}
                       </div>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    {(audit.totalAnnualSavingEur ?? 0) > 0 ? (
-                      <>
-                        <span className="text-xs font-bold text-green-600">€{fmt(audit.totalAnnualSavingEur)}/yr</span>
-                        {(audit.totalProcessHoursPerRun ?? 0) > 0 && (
-                          <p className="text-[10px] text-muted">
-                            {Math.round(((audit.totalHoursSavedPerRun ?? 0) / audit.totalProcessHoursPerRun) * 100)}% automation
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex flex-col gap-0.5">
-                      {(audit.useCasesByCategory?.quickWin ?? 0) > 0 && (
-                        <span className="text-[10px] text-green-700 font-medium">QW ×{audit.useCasesByCategory.quickWin}</span>
-                      )}
-                      {(audit.useCasesByCategory?.midTerm ?? 0) > 0 && (
-                        <span className="text-[10px] text-amber-600 font-medium">MT ×{audit.useCasesByCategory.midTerm}</span>
-                      )}
-                      {(audit.useCasesByCategory?.strategic ?? 0) > 0 && (
-                        <span className="text-[10px] text-blue-aria font-medium">ST ×{audit.useCasesByCategory.strategic}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-[10px] text-muted whitespace-nowrap">
-                    {new Date(audit.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                  </td>
+                    </td>
+                  )}
+                  {isVisible('updated') && (
+                    <td className="py-3 px-4 text-[10px] text-muted whitespace-nowrap">
+                      {new Date(audit.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

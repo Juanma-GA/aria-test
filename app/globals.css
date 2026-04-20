@@ -61,6 +61,23 @@
   .sovereignty-red {
     @apply bg-red-sov-light text-red-sov border border-red-sov/20;
   }
+  .mobile-unsupported-banner {
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    .mobile-unsupported-banner {
+      display: block;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0.75rem 1rem;
+      background-color: #fef3c7;
+      border-bottom: 1px solid #f59e0b;
+      color: #92400e;
+      font-size: 0.8125rem;
+      text-align: center;
+    }
+  }
   .block-b1 { @apply bg-slate-100 text-slate-700 border border-slate-200; }
   .block-b2 { @apply bg-red-sov-light text-red-sov border border-red-sov/20; }
   .block-b3, .block-b5 { @apply bg-purple-aria-light text-purple-aria border border-purple-aria/20; }

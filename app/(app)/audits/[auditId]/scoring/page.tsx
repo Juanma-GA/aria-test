@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Info, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SaveIndicator } from '@/components/ui/SaveIndicator';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import { calculateScore } from '@/lib/calculations';
 import { SCORING_RUBRIC } from '@/lib/types';
 import type { UseCase, ScoreValue } from '@/lib/types';
@@ -22,19 +25,35 @@ function ScoreCell({ value, autoFilled, onChange }: {
   autoFilled?: boolean;
   onChange: (v: ScoreValue) => void;
 }) {
-  const unset = value === undefined;
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <select
-        value={unset ? '' : value}
-        onChange={e => onChange(Number(e.target.value) as ScoreValue)}
-        className={`w-14 text-center text-sm border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-aria
-          ${autoFilled ? 'border-amber-sov bg-amber-sov-light text-amber-sov' : unset ? 'border-dashed border-border text-muted' : 'border-border'}`}
+      <div
+        role="radiogroup"
+        className={`inline-flex overflow-hidden rounded border ${
+          autoFilled ? 'border-amber-sov' : value === undefined ? 'border-dashed border-border' : 'border-border'
+        }`}
       >
-        {unset && <option value="" disabled>—</option>}
-        {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-      </select>
-      {autoFilled && <span className="text-xs text-amber-sov" title="Auto-filled from B2">↗B2</span>}
+        {[1, 2, 3, 4, 5].map(n => {
+          const active = value === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(n as ScoreValue)}
+              className={`w-5 h-6 text-xs leading-none font-medium transition-colors
+                ${active
+                  ? autoFilled ? 'bg-amber-sov text-white' : 'bg-blue-aria text-white'
+                  : 'bg-white text-muted hover:bg-blue-pale hover:text-blue-aria'}
+                ${n < 5 ? 'border-r border-border' : ''}`}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+      {autoFilled && <span className="text-[10px] text-amber-sov leading-none" title="Auto-filled from B2">↗B2</span>}
     </div>
   );
 }
@@ -74,18 +93,24 @@ export default function ScoringPage() {
 
   const [loading, setLoading] = useState(true);
   const [useCases, setUseCases] = useState<UseCase[]>([]);
+  const [blockedCount, setBlockedCount] = useState(0);
   const [filterProcess, setFilterProcess] = useState('all');
   const [processes, setProcesses] = useState<{ _id: string; procId: string; name: string }[]>([]);
   const savingRef = useRef<Record<string, boolean>>({});
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const [saveStatus, setSaveStatus] = useState<Record<string, 'saved' | 'saving'>>({});
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'saved' | 'saving' | 'unsaved'>>({});
+
+  const hasUnsaved = Object.values(saveStatus).some(s => s === 'saving' || s === 'unsaved');
+  useBeforeUnload(hasUnsaved);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/audits/${auditId}/usecases`, { credentials: 'include' }).then(r => r.json()),
       fetch(`/api/audits/${auditId}/processes`, { credentials: 'include' }).then(r => r.json()),
     ]).then(([ucs, procs]) => {
-      setUseCases(Array.isArray(ucs) ? ucs.filter((u: UseCase) => u.status !== 'blocked') : []);
+      const all = Array.isArray(ucs) ? (ucs as UseCase[]) : [];
+      setBlockedCount(all.filter(u => u.status === 'blocked').length);
+      setUseCases(all.filter(u => u.status !== 'blocked'));
       setProcesses(Array.isArray(procs) ? procs : []);
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -124,6 +149,7 @@ export default function ScoringPage() {
       pendingScore = updated.score;
       return updated;
     }));
+    setSaveStatus(s => ({ ...s, [ucId]: 'unsaved' }));
     if (debounceTimers.current[ucId]) clearTimeout(debounceTimers.current[ucId]);
     debounceTimers.current[ucId] = setTimeout(() => {
       if (pendingScore) saveScore(ucId, pendingScore);
@@ -164,6 +190,18 @@ export default function ScoringPage() {
           </span>
         </div>
       </div>
+
+      {blockedCount > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded border border-amber-sov/40 bg-amber-sov-light px-4 py-3 text-sm">
+          <span className="flex items-center gap-2 text-amber-sov">
+            <AlertTriangle size={16} />
+            <strong>{blockedCount}</strong> use {blockedCount === 1 ? 'case is' : 'cases are'} blocked (B2 sovereignty) and excluded from scoring.
+          </span>
+          <Link href={`/audits/${auditId}/usecases?status=blocked`} className="text-amber-sov font-medium hover:underline">
+            View →
+          </Link>
+        </div>
+      )}
 
       {/* Filter */}
       <div className="flex items-center gap-3 mb-4">
@@ -233,8 +271,8 @@ export default function ScoringPage() {
                       )}
                     </td>
                     <td className="py-3 px-3">
-                      {saveStatus[uc._id] === 'saving' ? (
-                        <span className="text-xs text-muted">Saving…</span>
+                      {saveStatus[uc._id] ? (
+                        <SaveIndicator status={saveStatus[uc._id]} />
                       ) : dims && hasAllDims ? (
                         <span className="text-xs text-green-sov flex items-center gap-1"><CheckCircle2 size={12} />Scored</span>
                       ) : (
