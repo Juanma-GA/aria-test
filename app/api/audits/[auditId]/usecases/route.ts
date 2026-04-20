@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
 import { nextSequence } from '@/lib/models/Counter';
+import { createUseCaseSchema, validationErrorResponse } from '@/lib/validators';
+import { requireRole } from '@/lib/auth';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -53,10 +55,16 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
+  const forbidden = requireRole(req, ['admin', 'consultant']);
+  if (forbidden) return forbidden;
   try {
     await dbConnect();
     const { auditId } = params;
     const body = await req.json();
+    const parsed = createUseCaseSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+    }
 
     // Auto-generate cuId unique per process, compound with procId
     const proc = body.processId

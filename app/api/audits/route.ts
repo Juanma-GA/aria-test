@@ -3,21 +3,32 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC } from '@/lib/models';
 import { calculateScore } from '@/lib/calculations';
 import { nextSequence } from '@/lib/models/Counter';
+import { createAuditSchema, validationErrorResponse } from '@/lib/validators';
+import { requireRole } from '@/lib/auth';
 
 export async function GET(_req: NextRequest) {
   try {
     await dbConnect();
 
-    // Batch all collection reads in one round-trip
     const { searchParams } = new URL(_req.url);
     const showArchived = searchParams.get('archived') === 'true';
     const auditFilter = showArchived ? { isArchived: true } : { isArchived: { $ne: true } };
+    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+    const limitRaw = parseInt(searchParams.get('limit') ?? '0', 10);
+    const limit = limitRaw > 0 && limitRaw <= 100 ? limitRaw : 0;
+    const skip = limit > 0 ? (page - 1) * limit : 0;
 
-    const [audits, allPocs, allProcesses, allUseCases] = await Promise.all([
-      Audit.find(auditFilter).sort({ updatedAt: -1 }).populate('leadConsultant', 'name').lean(),
-      POC.find({}).select('auditId phase').lean(),
-      Process.find({}).select('auditId _id b1 b3').lean(),
-      UseCase.find({}).select('auditId processId score status timeSavedPerProfile').lean(),
+    const auditQuery = Audit.find(auditFilter)
+      .sort({ updatedAt: -1 })
+      .populate('leadConsultant', 'name');
+    if (limit > 0) auditQuery.skip(skip).limit(limit);
+    const audits = await auditQuery.lean();
+
+    const auditIds = audits.map((a) => a._id);
+    const [allPocs, allProcesses, allUseCases] = await Promise.all([
+      POC.find({ auditId: { $in: auditIds } }).select('auditId phase').lean(),
+      Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
+      UseCase.find({ auditId: { $in: auditIds } }).select('auditId processId score status timeSavedPerProfile').lean(),
     ]);
 
     // Group POCs by audit → phase counts
@@ -126,11 +137,17 @@ export async function GET(_req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const forbidden = requireRole(req, ['admin', 'consultant']);
+  if (forbidden) return forbidden;
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const body = await req.json();
-    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess } = body;
+    const parsed = createAuditSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+    }
+    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess } = parsed.data;
 
     const auditSeq = await nextSequence('audit');
     const auditCode = `AUD-${String(auditSeq).padStart(3, '0')}`;
