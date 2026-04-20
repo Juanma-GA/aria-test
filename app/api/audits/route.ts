@@ -159,8 +159,8 @@ export async function POST(req: NextRequest) {
       sector,
       classification,
       leadConsultant: userId,
-      startDate: new Date(startDate),
-      targetEndDate: new Date(targetEndDate),
+      startDate: startDate ? new Date(startDate) : undefined,
+      targetEndDate: targetEndDate ? new Date(targetEndDate) : undefined,
       status: 'active',
       auditCode,
     });
