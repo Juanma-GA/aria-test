@@ -41,7 +41,7 @@ const BLOCKS = [
   { key: 'b1', label: 'B1 Context' },
   { key: 'b2', label: 'B2 Sovereignty' },
   { key: 'b3', label: 'B3 Process Map' },
-  { key: 'b5', label: 'B4 Use Cases' },
+  { key: 'b5', label: 'B5 Use Cases' },
 ];
 
 export function Sidebar() {

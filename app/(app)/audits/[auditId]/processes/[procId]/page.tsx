@@ -242,7 +242,7 @@ export default function ProcessPage() {
     },
     {
       key: 'b5' as keyof BlockCompletion,
-      label: 'B4', name: 'Use Cases',
+      label: 'B5', name: 'Use Cases',
       href: `/audits/${auditId}/processes/${procId}/b5`,
       color: 'blue' as const,
       preview: <p className="text-xs text-muted">{useCases.length} use cases identified</p>,

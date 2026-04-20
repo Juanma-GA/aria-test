@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
 import { Modal } from '@/components/ui/Modal';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { ProcessActivity, ProcessTask, ProfileHours, FileAttachment, ProfileEntry } from '@/lib/types';
 
 // ── File list with real upload ─────────────────────────────────────────────────
@@ -340,6 +341,8 @@ ${body}
   };
 
   const markUnsaved = () => setSaved(false);
+
+  useBeforeUnload(!saved);
 
   const recalcTime = (ph: ProfileHours[], stepReps: number): number =>
     Math.round(ph.reduce((s, p) => s + (p.hours ?? 0), 0) * stepReps * 10) / 10;

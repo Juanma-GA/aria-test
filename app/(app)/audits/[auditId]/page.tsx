@@ -7,6 +7,7 @@ import { Plus, Pencil, X, Clock, TrendingUp, Archive, Trash2 } from 'lucide-reac
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { BlockProgressBar } from '@/components/layout/BlockProgressBar';
 import type {
   AuditStatus,
@@ -104,6 +105,7 @@ const AUDIT_STATUSES: AuditStatus[] = ['draft', 'active', 'review', 'completed']
 
 export default function AuditPage() {
   const params = useParams();
+  const router = useRouter();
   const auditId = params?.auditId as string;
 
   const [audit, setAudit] = useState<AuditData | null>(null);
@@ -112,6 +114,8 @@ export default function AuditPage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   // Edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -179,7 +183,6 @@ export default function AuditPage() {
   };
 
   const handleArchive = async () => {
-    if (!confirm('Archive this audit? It will be hidden from the main dashboard.')) return;
     setArchiving(true);
     try {
       const res = await fetch(`/api/audits/${auditId}`, {
@@ -189,6 +192,7 @@ export default function AuditPage() {
       });
       if (!res.ok) throw new Error('Failed');
       toast.success('Audit archived');
+      setArchiveModalOpen(false);
       router.push('/dashboard');
     } catch {
       toast.error('Failed to archive audit');
@@ -198,12 +202,12 @@ export default function AuditPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Permanently delete "${audit?.name}"? This cannot be undone.`)) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/audits/${auditId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed');
       toast.success('Audit deleted');
+      setDeleteModalOpen(false);
       router.push('/dashboard');
     } catch {
       toast.error('Failed to delete audit');
@@ -279,7 +283,7 @@ export default function AuditPage() {
               Edit
             </button>
             <button
-              onClick={handleArchive}
+              onClick={() => setArchiveModalOpen(true)}
               disabled={archiving}
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-amber-500 hover:text-amber-600 transition-colors disabled:opacity-50"
             >
@@ -287,7 +291,7 @@ export default function AuditPage() {
               {archiving ? '…' : 'Archive'}
             </button>
             <button
-              onClick={handleDelete}
+              onClick={() => setDeleteModalOpen(true)}
               disabled={deleting}
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-sm hover:border-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
             >
@@ -458,6 +462,28 @@ export default function AuditPage() {
           </div>
         )}
       </div>
+
+      {/* Archive confirm */}
+      <ConfirmModal
+        isOpen={archiveModalOpen}
+        onClose={() => setArchiveModalOpen(false)}
+        onConfirm={handleArchive}
+        title="Archive audit"
+        message="Archive this audit? It will be hidden from the main dashboard but can be restored later."
+        confirmLabel={archiving ? 'Archiving…' : 'Archive'}
+        isLoading={archiving}
+      />
+
+      {/* Delete confirm */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete audit"
+        message={`Permanently delete "${audit.name}"? This cannot be undone.`}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+        isLoading={deleting}
+      />
 
       {/* Edit Audit Modal */}
       {editOpen && (

@@ -6,6 +6,7 @@ import { Plus, Trash2, CheckCircle2, ArrowLeft, Save } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { Stakeholder, InfluenceLevel, AIAttitude, ProfileEntry } from '@/lib/types';
 
 const AI_ATTITUDE_COLORS: Record<AIAttitude, 'green' | 'teal' | 'slate' | 'amber' | 'red'> = {
@@ -114,6 +115,8 @@ export default function B1Page() {
   };
 
   const markUnsaved = () => setSaved(false);
+
+  useBeforeUnload(!saved);
 
   const updateB1 = (field: string, value: string | number) => {
     setB1(prev => ({ ...prev, [field]: value }));

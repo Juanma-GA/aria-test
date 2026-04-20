@@ -6,6 +6,7 @@ import { Plus, X, Pencil, Trash2, CheckCircle2, ArrowLeft, AlertTriangle, FlaskC
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { UseCase, AIType, ProcessActivity, TimeSavedEntry, ScoreValue, ProfileEntry } from '@/lib/types';
 import { AI_TYPE_LABELS } from '@/lib/types';
 import { calculateSovereigntyIndex, calculateScore } from '@/lib/calculations';
@@ -987,6 +988,8 @@ export default function B5Page() {
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
   const [importing, setImporting] = useState(false);
 
+  useBeforeUnload(slideOver || generateModal);
+
   const load = useCallback(async () => {
     const [procRes, ucRes] = await Promise.all([
       fetch(`/api/audits/${auditId}/processes/${procId}`, { credentials: 'include' }),
@@ -1069,8 +1072,8 @@ export default function B5Page() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="text-muted hover:text-text"><ArrowLeft size={18} /></button>
-          <Badge variant="blue">B4</Badge>
-          <h1 className="text-xl font-display font-bold text-text">AI Opportunities</h1>
+          <Badge variant="blue">B5</Badge>
+          <h1 className="text-xl font-display font-bold text-text">Use Cases</h1>
           <span className="text-muted text-sm">— {processName}</span>
           {useCases.length > 0 && <Badge variant="green"><CheckCircle2 size={12} className="mr-1" />Complete</Badge>}
         </div>

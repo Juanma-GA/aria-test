@@ -30,7 +30,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   b1: 'B1 Context',
   b2: 'B2 Sovereignty',
   b3: 'B3 Process Map',
-  b5: 'B4 AI Opportunities',
+  b5: 'B5 Use Cases',
   usecases: 'Use Cases',
   new: 'New',
 };

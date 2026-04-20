@@ -5,7 +5,12 @@ import { useParams, usePathname } from 'next/navigation';
 import { usePageCode } from '@/context/PageCodeContext';
 import { useBreadcrumb } from '@/context/BreadcrumbContext';
 
-const BLOCK_SEGMENTS = ['b1', 'b2', 'b3', 'b5'] as const;
+const BLOCK_LABELS: Record<string, string> = {
+  b1: 'B1 Context',
+  b2: 'B2 Sovereignty',
+  b3: 'B3 Process Map',
+  b5: 'B5 Use Cases',
+};
 
 export default function ProcessLayout({ children }: { children: React.ReactNode }) {
   const { auditId, procId } = useParams<{ auditId: string; procId: string }>();
@@ -25,9 +30,7 @@ export default function ProcessLayout({ children }: { children: React.ReactNode 
       const auditLabel = audit?.name ?? 'Audit';
       const procLabel = proc?.procId ? `${proc.procId} — ${proc.name ?? ''}`.trim() : 'Process';
       const lastSeg = (pathname?.split('/').pop() ?? '').toLowerCase();
-      const blockLabel = (BLOCK_SEGMENTS as readonly string[]).includes(lastSeg)
-        ? `B${lastSeg.slice(1).toUpperCase()}`
-        : null;
+      const blockLabel = BLOCK_LABELS[lastSeg] ?? null;
       const items = [
         { label: 'Dashboard', href: '/dashboard' },
         { label: auditLabel, href: `/audits/${auditId}` },

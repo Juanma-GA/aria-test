@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { SaveIndicator } from '@/components/ui/SaveIndicator';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import { calculateSovereigntyIndex } from '@/lib/calculations';
 import type { B2_Sovereignty, SovereigntyAxis, SovereigntyStatus, SovereigntyLevel, InfraMode } from '@/lib/types';
 
@@ -240,6 +241,8 @@ export default function B2Page() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ axis1_InfoClassification: true });
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; axisKey: string; newStatus: SovereigntyStatus }>({ open: false, axisKey: '', newStatus: 'red' });
   const saveRef = useRef(axes);
+
+  useBeforeUnload(saveStatus !== 'saved');
 
   useEffect(() => {
     fetch(`/api/audits/${auditId}/processes/${procId}`, { credentials: 'include' })
