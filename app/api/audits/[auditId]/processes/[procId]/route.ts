@@ -52,7 +52,8 @@ export async function GET(
       useCaseCount: ucCount,
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -102,7 +103,8 @@ export async function PATCH(
     });
   } catch (err) {
     console.error('PATCH process error:', err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -124,6 +126,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Process and related use cases deleted' });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

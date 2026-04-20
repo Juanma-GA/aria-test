@@ -69,6 +69,7 @@ Return ONLY valid JSON.`;
 
     return NextResponse.json({ poc: poc.toObject(), fields });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -17,7 +17,8 @@ export async function GET(
 
     return NextResponse.json(poc);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -61,7 +62,8 @@ export async function PATCH(
 
     return NextResponse.json(poc.toObject());
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -81,6 +83,7 @@ export async function DELETE(
     await poc.deleteOne();
     return NextResponse.json({ message: 'POC deleted successfully' });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

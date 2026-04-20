@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import dbConnect from '@/lib/mongodb';
@@ -33,7 +33,12 @@ function score(d1: number, d2: number, d3: number, d4: number, d5: number, d6: n
 
 // ── POST /api/seed ─────────────────────────────────────────────────────────────
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const role = req.headers.get('x-user-role');
+  if (role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     await dbConnect();
 
@@ -687,7 +692,7 @@ export async function POST() {
     });
 
   } catch (err) {
-    console.error('Seed error:', err);
-    return NextResponse.json({ error: 'Seed failed', details: String(err) }, { status: 500 });
+    console.error('[API] Seed error:', err);
+    return NextResponse.json({ error: 'Seed failed' }, { status: 500 });
   }
 }

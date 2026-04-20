@@ -119,7 +119,8 @@ export async function GET(_req: NextRequest) {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -160,6 +161,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ audit, process }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

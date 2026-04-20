@@ -39,7 +39,8 @@ export async function GET(
 
     return NextResponse.json(useCase);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -95,7 +96,8 @@ export async function PATCH(
     const updated = await UseCase.findOne({ _id: cuId }).lean();
     return NextResponse.json(updated);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -115,6 +117,7 @@ export async function DELETE(
     await useCase.deleteOne();
     return NextResponse.json({ message: 'Use case deleted successfully' });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

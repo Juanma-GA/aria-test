@@ -43,7 +43,8 @@ export async function GET(
 
     return NextResponse.json(useCases);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -159,6 +160,7 @@ export async function POST(
     const useCase = await UseCase.create(useCaseData);
     return NextResponse.json(useCase, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

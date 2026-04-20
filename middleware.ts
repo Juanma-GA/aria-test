@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'aria-secret-key-change-in-production-2025'
-);
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+const SECRET = new TextEncoder().encode(JWT_SECRET);
 
 async function verifyToken(token: string) {
   try {
@@ -12,7 +14,7 @@ async function verifyToken(token: string) {
   } catch { return null; }
 }
 
-const PUBLIC_PATHS = ['/auth/login', '/api/auth/login', '/api/health', '/api/seed'];
+const PUBLIC_PATHS = ['/auth/login', '/api/auth/login', '/api/health'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
