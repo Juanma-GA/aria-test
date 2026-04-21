@@ -3,6 +3,7 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/lib/store/authStore";
+import { apiUrl } from "@/lib/utils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,10 +16,7 @@ export default function LoginPage() {
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
-    // Get basePath dynamically from current URL
-    const basePath =
-      window.location.pathname.match(/^\/Customizations\/Aria/)?.[0] || "";
-    const res = await fetch(`${basePath}/api/auth/login`, {
+    const res = await fetch(apiUrl('/api/auth/login'), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -31,7 +29,7 @@ export default function LoginPage() {
 
     const data = await res.json();
     setUser(data.user, data.accessToken);
-    router.push(`${basePath}/dashboard`);
+    router.push('/dashboard');
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -51,9 +49,7 @@ export default function LoginPage() {
     setError("");
     setIsDemoLoading(true);
     try {
-      const basePath =
-        window.location.pathname.match(/^\/Customizations\/Aria/)?.[0] || "";
-      const seedRes = await fetch(`${basePath}/api/seed`, { method: "POST" });
+      const seedRes = await fetch(apiUrl('/api/seed'), { method: "POST" });
       if (!seedRes.ok) {
         const data = await seedRes.json().catch(() => ({}));
         throw new Error(data.error || "Seed failed");

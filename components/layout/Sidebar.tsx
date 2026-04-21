@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAuthStore } from "@/lib/store/authStore";
-import { apiUrl, getBasePath } from "@/lib/utils";
+import { apiUrl } from "@/lib/utils";
 
 interface NavItem {
   href: string;
@@ -151,7 +151,7 @@ export function Sidebar() {
       // ignore errors
     }
     clearAuth();
-    router.push(`${getBasePath()}/auth/login`);
+    router.push('/auth/login');
   };
 
   const isActive = (href: string) =>
