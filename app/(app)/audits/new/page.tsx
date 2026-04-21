@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronRight, Check } from 'lucide-react';
-import { TagInput } from '@/components/ui/TagInput';
-import { Spinner } from '@/components/ui/Spinner';
-import { apiUrl } from '@/lib/utils';
-import type { SectorType, Priority } from '@/lib/types';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronRight, Check } from "lucide-react";
+import { TagInput } from "@/components/ui/TagInput";
+import { Spinner } from "@/components/ui/Spinner";
+import { apiUrl } from "@/lib/utils";
+import type { SectorType, Priority } from "@/lib/types";
 
 interface Step1Data {
   name: string;
@@ -26,18 +26,18 @@ interface Step2Data {
 }
 
 const SECTORS: { value: SectorType; label: string }[] = [
-  { value: 'defence', label: 'Defence' },
-  { value: 'aerospace', label: 'Aerospace' },
-  { value: 'naval', label: 'Naval' },
-  { value: 'railway', label: 'Railway' },
-  { value: 'internal', label: 'Internal' },
-  { value: 'other', label: 'Other' },
+  { value: "defence", label: "Defence" },
+  { value: "aerospace", label: "Aerospace" },
+  { value: "naval", label: "Naval" },
+  { value: "railway", label: "Railway" },
+  { value: "internal", label: "Internal" },
+  { value: "other", label: "Other" },
 ];
 
 const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
 ];
 
 function FieldError({ message }: { message?: string }) {
@@ -52,30 +52,34 @@ export default function NewAuditPage() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const [step1, setStep1] = useState<Step1Data>({
-    name: '',
-    client: '',
-    project: '',
-    sector: 'aerospace',
-    startDate: '',
-    targetEndDate: '',
+    name: "",
+    client: "",
+    project: "",
+    sector: "aerospace",
+    startDate: "",
+    targetEndDate: "",
   });
 
   const [step2, setStep2] = useState<Step2Data>({
-    processName: '',
-    department: '',
-    responsible: '',
+    processName: "",
+    department: "",
+    responsible: "",
     applicableNorms: [],
-    priority: 'medium',
+    priority: "medium",
   });
 
-  const [step1Errors, setStep1Errors] = useState<Partial<Record<keyof Step1Data, string>>>({});
-  const [step2Errors, setStep2Errors] = useState<Partial<Record<keyof Step2Data, string>>>({});
+  const [step1Errors, setStep1Errors] = useState<
+    Partial<Record<keyof Step1Data, string>>
+  >({});
+  const [step2Errors, setStep2Errors] = useState<
+    Partial<Record<keyof Step2Data, string>>
+  >({});
 
   const validateStep1 = (): boolean => {
     const errors: Partial<Record<keyof Step1Data, string>> = {};
-    if (!step1.name.trim()) errors.name = 'Audit name is required';
-    if (!step1.client.trim()) errors.client = 'Client is required';
-    if (!step1.project.trim()) errors.project = 'Project is required';
+    if (!step1.name.trim()) errors.name = "Audit name is required";
+    if (!step1.client.trim()) errors.client = "Client is required";
+    if (!step1.project.trim()) errors.project = "Project is required";
     setStep1Errors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -95,9 +99,9 @@ export default function NewAuditPage() {
     setServerError(null);
     try {
       const hasProcess = !!step2.processName.trim();
-      const res = await fetch(apiUrl('/api/audits'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(apiUrl("/api/audits"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: step1.name,
           client: step1.client,
@@ -105,13 +109,15 @@ export default function NewAuditPage() {
           sector: step1.sector,
           startDate: step1.startDate || new Date().toISOString(),
           targetEndDate: step1.targetEndDate || new Date().toISOString(),
-          firstProcess: hasProcess ? {
-            name: step2.processName,
-            department: step2.department,
-            responsible: step2.responsible,
-            applicableNorms: step2.applicableNorms,
-            priority: step2.priority,
-          } : null,
+          firstProcess: hasProcess
+            ? {
+                name: step2.processName,
+                department: step2.department,
+                responsible: step2.responsible,
+                applicableNorms: step2.applicableNorms,
+                priority: step2.priority,
+              }
+            : null,
         }),
       });
       if (!res.ok) {
@@ -121,15 +127,15 @@ export default function NewAuditPage() {
       const data = await res.json();
       router.push(`/audits/${data.audit._id}`);
     } catch (e: any) {
-      setServerError(e.message ?? 'Failed to create audit');
+      setServerError(e.message ?? "Failed to create audit");
     } finally {
       setSubmitting(false);
     }
   };
 
   const steps = [
-    { num: 1, label: 'Audit Identity' },
-    { num: 2, label: 'First Process' },
+    { num: 1, label: "Audit Identity" },
+    { num: 2, label: "First Process" },
   ];
 
   return (
@@ -137,7 +143,9 @@ export default function NewAuditPage() {
       {/* Page header */}
       <div>
         <h1 className="font-display text-2xl font-bold text-text">New Audit</h1>
-        <p className="text-sm text-muted mt-0.5">Create a new AI readiness audit</p>
+        <p className="text-sm text-muted mt-0.5">
+          Create a new AI readiness audit
+        </p>
       </div>
 
       {/* Stepper */}
@@ -149,17 +157,17 @@ export default function NewAuditPage() {
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                     step > s.num
-                      ? 'bg-green-sov text-white'
+                      ? "bg-green-sov text-white"
                       : step === s.num
-                      ? 'bg-blue-aria text-white'
-                      : 'bg-slate-100 text-muted'
+                        ? "bg-blue-aria text-white"
+                        : "bg-slate-100 text-muted"
                   }`}
                 >
                   {step > s.num ? <Check size={13} /> : s.num}
                 </div>
                 <span
                   className={`text-sm font-medium ${
-                    step === s.num ? 'text-text' : 'text-muted'
+                    step === s.num ? "text-text" : "text-muted"
                   }`}
                 >
                   {s.label}
@@ -194,7 +202,9 @@ export default function NewAuditPage() {
       {/* Step 1 */}
       {step === 1 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
-          <h2 className="font-display font-semibold text-lg text-text">Audit Identity</h2>
+          <h2 className="font-display font-semibold text-lg text-text">
+            Audit Identity
+          </h2>
 
           <div className="grid grid-cols-1 gap-4">
             {/* Name */}
@@ -235,7 +245,9 @@ export default function NewAuditPage() {
               <input
                 type="text"
                 value={step1.project}
-                onChange={(e) => setStep1({ ...step1, project: e.target.value })}
+                onChange={(e) =>
+                  setStep1({ ...step1, project: e.target.value })
+                }
                 placeholder="e.g. NGAD Programme Phase 2"
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               />
@@ -244,10 +256,14 @@ export default function NewAuditPage() {
 
             {/* Sector */}
             <div>
-              <label className="block text-sm font-medium text-text mb-1">Sector</label>
+              <label className="block text-sm font-medium text-text mb-1">
+                Sector
+              </label>
               <select
                 value={step1.sector}
-                onChange={(e) => setStep1({ ...step1, sector: e.target.value as SectorType })}
+                onChange={(e) =>
+                  setStep1({ ...step1, sector: e.target.value as SectorType })
+                }
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               >
                 {SECTORS.map((s) => (
@@ -261,20 +277,28 @@ export default function NewAuditPage() {
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Start Date</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Start Date
+                </label>
                 <input
                   type="date"
                   value={step1.startDate}
-                  onChange={(e) => setStep1({ ...step1, startDate: e.target.value })}
+                  onChange={(e) =>
+                    setStep1({ ...step1, startDate: e.target.value })
+                  }
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Target End Date</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Target End Date
+                </label>
                 <input
                   type="date"
                   value={step1.targetEndDate}
-                  onChange={(e) => setStep1({ ...step1, targetEndDate: e.target.value })}
+                  onChange={(e) =>
+                    setStep1({ ...step1, targetEndDate: e.target.value })
+                  }
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
               </div>
@@ -296,9 +320,13 @@ export default function NewAuditPage() {
       {/* Step 2 */}
       {step === 2 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
-          <h2 className="font-display font-semibold text-lg text-text">First Process <span className="text-muted font-normal text-sm">(optional)</span></h2>
+          <h2 className="font-display font-semibold text-lg text-text">
+            First Process{" "}
+            <span className="text-muted font-normal text-sm">(optional)</span>
+          </h2>
           <p className="text-sm text-muted">
-            Optionally define the first process now, or skip and add processes later.
+            Optionally define the first process now, or skip and add processes
+            later.
           </p>
 
           <div className="grid grid-cols-1 gap-4">
@@ -310,7 +338,9 @@ export default function NewAuditPage() {
               <input
                 type="text"
                 value={step2.processName}
-                onChange={(e) => setStep2({ ...step2, processName: e.target.value })}
+                onChange={(e) =>
+                  setStep2({ ...step2, processName: e.target.value })
+                }
                 placeholder="e.g. Technical Documentation Review"
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               />
@@ -320,21 +350,29 @@ export default function NewAuditPage() {
             {/* Department + Responsible */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Department</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Department
+                </label>
                 <input
                   type="text"
                   value={step2.department}
-                  onChange={(e) => setStep2({ ...step2, department: e.target.value })}
+                  onChange={(e) =>
+                    setStep2({ ...step2, department: e.target.value })
+                  }
                   placeholder="e.g. Engineering"
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Responsible</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Responsible
+                </label>
                 <input
                   type="text"
                   value={step2.responsible}
-                  onChange={(e) => setStep2({ ...step2, responsible: e.target.value })}
+                  onChange={(e) =>
+                    setStep2({ ...step2, responsible: e.target.value })
+                  }
                   placeholder="e.g. Jean Dupont"
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
@@ -343,21 +381,31 @@ export default function NewAuditPage() {
 
             {/* Applicable norms */}
             <div>
-              <label className="block text-sm font-medium text-text mb-1">Applicable Norms</label>
+              <label className="block text-sm font-medium text-text mb-1">
+                Applicable Norms
+              </label>
               <TagInput
                 value={step2.applicableNorms}
-                onChange={(tags) => setStep2({ ...step2, applicableNorms: tags })}
+                onChange={(tags) =>
+                  setStep2({ ...step2, applicableNorms: tags })
+                }
                 placeholder="Add norm and press Enter…"
               />
-              <p className="text-[11px] text-muted mt-1">Press Enter or comma to add a norm</p>
+              <p className="text-[11px] text-muted mt-1">
+                Press Enter or comma to add a norm
+              </p>
             </div>
 
             {/* Priority */}
             <div>
-              <label className="block text-sm font-medium text-text mb-1">Priority</label>
+              <label className="block text-sm font-medium text-text mb-1">
+                Priority
+              </label>
               <select
                 value={step2.priority}
-                onChange={(e) => setStep2({ ...step2, priority: e.target.value as Priority })}
+                onChange={(e) =>
+                  setStep2({ ...step2, priority: e.target.value as Priority })
+                }
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               >
                 {PRIORITIES.map((p) => (
@@ -382,7 +430,11 @@ export default function NewAuditPage() {
               className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting && <Spinner size="sm" />}
-              {submitting ? 'Creating…' : step2.processName.trim() ? 'Create Audit' : 'Create Audit (no process)'}
+              {submitting
+                ? "Creating…"
+                : step2.processName.trim()
+                  ? "Create Audit"
+                  : "Create Audit (no process)"}
             </button>
           </div>
         </div>

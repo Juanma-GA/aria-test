@@ -1,5 +1,5 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,10 +10,10 @@ export function cn(...inputs: ClassValue[]) {
  * Extracts '/Customizations/Aria' from current URL if present
  */
 export function getBasePath(): string {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === "undefined") return "";
   const pathname = window.location.pathname;
   const match = pathname.match(/^\/Customizations\/Aria/);
-  return match ? match[0] : '';
+  return match ? match[0] : "";
 }
 
 /**
@@ -24,6 +24,6 @@ export function getBasePath(): string {
 export function apiUrl(path: string): string {
   const base = getBasePath();
   // Ensure path starts with /
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${base}${normalizedPath}`;
 }

@@ -1,18 +1,23 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { X, TrendingUp, AlertTriangle, Pencil } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
-import { Spinner } from '@/components/ui/Spinner';
-import { apiUrl } from '@/lib/utils';
-import { AI_TYPE_LABELS } from '@/lib/types';
-import type { AIType, UseCaseStatus } from '@/lib/types';
-import { calculateScore } from '@/lib/calculations';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { X, TrendingUp, AlertTriangle, Pencil } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { Spinner } from "@/components/ui/Spinner";
+import { apiUrl } from "@/lib/utils";
+import { AI_TYPE_LABELS } from "@/lib/types";
+import type { AIType, UseCaseStatus } from "@/lib/types";
+import { calculateScore } from "@/lib/calculations";
 
 interface ProcessData {
-  b1Profiles: { id: string; role: string; hourlyRateEur: number; count: number }[];
+  b1Profiles: {
+    id: string;
+    role: string;
+    hourlyRateEur: number;
+    count: number;
+  }[];
   annualRepetitions: number;
   totalProcessHoursPerRun: number;
   activities: { id: string; name: string }[];
@@ -26,7 +31,11 @@ interface GlobalUseCase {
   status: UseCaseStatus;
   estimatedDevCostEur: number;
   estimatedImplWeeks: number;
-  timeSavedPerProfile: { profileId: string; role: string; hoursPerExecution: number }[];
+  timeSavedPerProfile: {
+    profileId: string;
+    role: string;
+    hoursPerExecution: number;
+  }[];
   targetActivities?: string[];
   blockedReason?: string;
   blockedAxis?: string;
@@ -50,30 +59,33 @@ interface GlobalUseCase {
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
-  d1_efficiencyImpact: 'Efficiency Impact',
-  d2_qualityImpact: 'Quality Impact',
-  d3_techMaturity: 'Tech Maturity',
-  d4_dataReadiness: 'Data Readiness',
-  d5_sovereigntyIndex: 'Sovereignty Index',
-  d6_governanceComplexity: 'Governance Complexity',
+  d1_efficiencyImpact: "Efficiency Impact",
+  d2_qualityImpact: "Quality Impact",
+  d3_techMaturity: "Tech Maturity",
+  d4_dataReadiness: "Data Readiness",
+  d5_sovereigntyIndex: "Sovereignty Index",
+  d6_governanceComplexity: "Governance Complexity",
 };
 
-const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'red' | 'amber'> = {
-  eligible: 'green',
-  blocked: 'red',
-  pending_review: 'amber',
+const STATUS_VARIANTS: Record<UseCaseStatus, "green" | "red" | "amber"> = {
+  eligible: "green",
+  blocked: "red",
+  pending_review: "amber",
 };
 
-const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'> = {
-  generative_llm: 'purple',
-  extraction_nlp: 'blue',
-  classification_ml: 'teal',
-  rag: 'blue',
-  validation: 'amber',
-  prediction: 'green',
-  intelligent_automation: 'teal',
-  agentic_ai: 'purple',
-  other: 'slate',
+const AI_TYPE_COLORS: Record<
+  AIType,
+  "purple" | "blue" | "teal" | "amber" | "green" | "slate"
+> = {
+  generative_llm: "purple",
+  extraction_nlp: "blue",
+  classification_ml: "teal",
+  rag: "blue",
+  validation: "amber",
+  prediction: "green",
+  intelligent_automation: "teal",
+  agentic_ai: "purple",
+  other: "slate",
 };
 
 function fmt(n: number) {
@@ -81,7 +93,6 @@ function fmt(n: number) {
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
   return String(Math.round(n));
 }
-
 
 function peopleImpacted(uc: GlobalUseCase): number {
   const profiles = uc.processData?.b1Profiles ?? [];
@@ -94,16 +105,24 @@ function peopleImpacted(uc: GlobalUseCase): number {
 function computeRoi(uc: GlobalUseCase) {
   const pd = uc.processData;
   if (!pd) return null;
-  const timeSaved = (uc.timeSavedPerProfile ?? []).reduce((s, e) => s + (e.hoursPerExecution ?? 0), 0);
+  const timeSaved = (uc.timeSavedPerProfile ?? []).reduce(
+    (s, e) => s + (e.hoursPerExecution ?? 0),
+    0,
+  );
   if (timeSaved === 0 || pd.annualRepetitions === 0) return null;
   const rates = pd.b1Profiles.map((p) => p.hourlyRateEur).filter((r) => r > 0);
-  const avgRate = rates.length > 0 ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
+  const avgRate =
+    rates.length > 0 ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
   if (avgRate === 0) return null;
   const annualSaving = timeSaved * avgRate * pd.annualRepetitions;
-  const paybackMonths = uc.estimatedDevCostEur > 0 ? (uc.estimatedDevCostEur / annualSaving) * 12 : 0;
-  const savingPct = pd.totalProcessHoursPerRun > 0
-    ? Math.round((timeSaved / pd.totalProcessHoursPerRun) * 100)
-    : null;
+  const paybackMonths =
+    uc.estimatedDevCostEur > 0
+      ? (uc.estimatedDevCostEur / annualSaving) * 12
+      : 0;
+  const savingPct =
+    pd.totalProcessHoursPerRun > 0
+      ? Math.round((timeSaved / pd.totalProcessHoursPerRun) * 100)
+      : null;
   return { timeSaved, annualSaving, paybackMonths, savingPct, avgRate };
 }
 
@@ -114,7 +133,7 @@ function ScoreBar({ value }: { value: number }) {
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
-            className={`w-4 h-2 rounded-sm ${i <= value ? 'bg-blue-aria' : 'bg-slate-200'}`}
+            className={`w-4 h-2 rounded-sm ${i <= value ? "bg-blue-aria" : "bg-slate-200"}`}
           />
         ))}
       </div>
@@ -123,9 +142,19 @@ function ScoreBar({ value }: { value: number }) {
   );
 }
 
-function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }) {
+function UCSlideOver({
+  uc,
+  onClose,
+}: {
+  uc: GlobalUseCase;
+  onClose: () => void;
+}) {
   const router = useRouter();
-  const scoreResult = uc.score?.dimensions ? calculateScore(uc.score.dimensions as Parameters<typeof calculateScore>[0]) : null;
+  const scoreResult = uc.score?.dimensions
+    ? calculateScore(
+        uc.score.dimensions as Parameters<typeof calculateScore>[0],
+      )
+    : null;
   const total = scoreResult?.total ?? null;
   const cat = scoreResult?.category;
   const roi = computeRoi(uc);
@@ -145,13 +174,27 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-slate-50">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-sm font-bold text-blue-aria">{uc.cuId}</span>
+            <span className="font-mono text-sm font-bold text-blue-aria">
+              {uc.cuId}
+            </span>
             <Badge variant={STATUS_VARIANTS[uc.status]}>
-              {uc.status.replace('_', ' ')}
+              {uc.status.replace("_", " ")}
             </Badge>
             {total !== null && (
-              <Badge variant={cat === 'quick_win' ? 'green' : cat === 'mid_term' ? 'amber' : 'blue'}>
-                {cat === 'quick_win' ? 'Quick Win' : cat === 'mid_term' ? 'Mid-term' : 'Strategic'}
+              <Badge
+                variant={
+                  cat === "quick_win"
+                    ? "green"
+                    : cat === "mid_term"
+                      ? "amber"
+                      : "blue"
+                }
+              >
+                {cat === "quick_win"
+                  ? "Quick Win"
+                  : cat === "mid_term"
+                    ? "Mid-term"
+                    : "Strategic"}
               </Badge>
             )}
           </div>
@@ -160,7 +203,9 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
               <button
                 onClick={() => {
                   onClose();
-                  router.push(`/audits/${uc.audit!._id}/processes/${uc.process!._id}/b5?edit=${uc._id}`);
+                  router.push(
+                    `/audits/${uc.audit!._id}/processes/${uc.process!._id}/b5?edit=${uc._id}`,
+                  );
                 }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium text-blue-aria border border-blue-aria/30 hover:bg-blue-aria hover:text-white transition-colors"
               >
@@ -168,7 +213,10 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
                 Edit
               </button>
             )}
-            <button onClick={onClose} className="p-1.5 rounded hover:bg-slate-200 text-muted hover:text-text transition-colors">
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded hover:bg-slate-200 text-muted hover:text-text transition-colors"
+            >
               <X size={16} />
             </button>
           </div>
@@ -181,10 +229,14 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
 
           {/* AI Types */}
           <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">AI Types</p>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+              AI Types
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {(uc.aiTypes ?? []).map((t) => (
-                <Badge key={t} variant={AI_TYPE_COLORS[t]}>{AI_TYPE_LABELS[t]?.label ?? t}</Badge>
+                <Badge key={t} variant={AI_TYPE_COLORS[t]}>
+                  {AI_TYPE_LABELS[t]?.label ?? t}
+                </Badge>
               ))}
             </div>
           </div>
@@ -192,17 +244,26 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
           {/* Audit / Process */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Audit</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">
+                Audit
+              </p>
               {uc.audit ? (
-                <Link href={`/audits/${uc.audit._id}`} className="text-blue-aria hover:underline text-xs">
+                <Link
+                  href={`/audits/${uc.audit._id}`}
+                  className="text-blue-aria hover:underline text-xs"
+                >
                   {uc.audit.name}
                 </Link>
-              ) : <span className="text-muted text-xs">—</span>}
+              ) : (
+                <span className="text-muted text-xs">—</span>
+              )}
             </div>
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Process</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">
+                Process
+              </p>
               <span className="text-xs text-text">
-                {uc.process ? `${uc.process.procId} · ${uc.process.name}` : '—'}
+                {uc.process ? `${uc.process.procId} · ${uc.process.name}` : "—"}
               </span>
             </div>
           </div>
@@ -210,10 +271,15 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
           {/* Target Activities */}
           {targetActivityNames.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Target Activities</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                Target Activities
+              </p>
               <ul className="space-y-1">
                 {targetActivityNames.map((name, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-text">
+                  <li
+                    key={i}
+                    className="flex items-center gap-2 text-xs text-text"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-aria flex-shrink-0" />
                     {name}
                   </li>
@@ -225,18 +291,29 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
           {/* Time Saved Per Profile */}
           {(uc.timeSavedPerProfile ?? []).length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Hours Saved Per Run</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                Hours Saved Per Run
+              </p>
               <div className="space-y-1">
                 {uc.timeSavedPerProfile.map((e, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between text-xs"
+                  >
                     <span className="text-muted">{e.role}</span>
-                    <span className="font-medium text-text">{e.hoursPerExecution}h</span>
+                    <span className="font-medium text-text">
+                      {e.hoursPerExecution}h
+                    </span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between text-xs border-t border-border pt-1 mt-1">
                   <span className="font-semibold text-text">Total</span>
                   <span className="font-bold text-text">
-                    {uc.timeSavedPerProfile.reduce((s, e) => s + e.hoursPerExecution, 0)}h/run
+                    {uc.timeSavedPerProfile.reduce(
+                      (s, e) => s + e.hoursPerExecution,
+                      0,
+                    )}
+                    h/run
                   </span>
                 </div>
               </div>
@@ -246,14 +323,21 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
           {/* ROI Block */}
           {roi ? (
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">ROI Estimate</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                ROI Estimate
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 {/* Annual Saving */}
                 <div className="rounded-sm bg-green-50 border border-green-200 p-3">
-                  <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide">Annual Saving</p>
-                  <p className="text-xl font-bold text-green-700 mt-0.5">€{fmt(roi.annualSaving)}</p>
+                  <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide">
+                    Annual Saving
+                  </p>
+                  <p className="text-xl font-bold text-green-700 mt-0.5">
+                    €{fmt(roi.annualSaving)}
+                  </p>
                   <p className="text-[10px] text-green-600 mt-1">
-                    {roi.timeSaved}h/run × {pd!.annualRepetitions} runs × €{Math.round(roi.avgRate)}/h
+                    {roi.timeSaved}h/run × {pd!.annualRepetitions} runs × €
+                    {Math.round(roi.avgRate)}/h
                   </p>
                   {roi.savingPct !== null && (
                     <p className="text-[11px] font-semibold text-green-700 mt-1">
@@ -263,10 +347,16 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
                 </div>
                 {/* Dev Cost */}
                 <div className="rounded-sm bg-red-50 border border-red-200 p-3">
-                  <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide">Dev Cost</p>
-                  <p className="text-xl font-bold text-red-700 mt-0.5">€{fmt(uc.estimatedDevCostEur)}</p>
+                  <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide">
+                    Dev Cost
+                  </p>
+                  <p className="text-xl font-bold text-red-700 mt-0.5">
+                    €{fmt(uc.estimatedDevCostEur)}
+                  </p>
                   {uc.estimatedImplWeeks > 0 && (
-                    <p className="text-[10px] text-red-600 mt-1">{uc.estimatedImplWeeks}w implementation</p>
+                    <p className="text-[10px] text-red-600 mt-1">
+                      {uc.estimatedImplWeeks}w implementation
+                    </p>
                   )}
                   {roi.paybackMonths > 0 && (
                     <p className="text-[11px] font-semibold text-red-700 mt-1">
@@ -277,13 +367,15 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
               </div>
               {/* Process context */}
               <div className="mt-2 text-[10px] text-muted bg-slate-50 rounded-sm px-3 py-2 border border-border">
-                Process: {pd!.totalProcessHoursPerRun}h/run · {pd!.annualRepetitions} runs/yr ·{' '}
-                Avg rate €{Math.round(roi.avgRate)}/h
+                Process: {pd!.totalProcessHoursPerRun}h/run ·{" "}
+                {pd!.annualRepetitions} runs/yr · Avg rate €
+                {Math.round(roi.avgRate)}/h
               </div>
             </div>
           ) : (
             <div className="rounded-sm bg-slate-50 border border-border p-3 text-xs text-muted">
-              ROI cannot be computed — missing process profiles or annual repetitions data.
+              ROI cannot be computed — missing process profiles or annual
+              repetitions data.
             </div>
           )}
 
@@ -291,18 +383,26 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
           {uc.score?.dimensions && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wide">Score</p>
-                <span className="text-xs font-mono font-bold text-text">{total}/30</span>
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide">
+                  Score
+                </p>
+                <span className="text-xs font-mono font-bold text-text">
+                  {total}/30
+                </span>
               </div>
               <div className="space-y-2">
                 {Object.entries(uc.score.dimensions).map(([key, dim]) => (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs text-muted">{DIMENSION_LABELS[key] ?? key}</span>
+                      <span className="text-xs text-muted">
+                        {DIMENSION_LABELS[key] ?? key}
+                      </span>
                       <ScoreBar value={dim.value} />
                     </div>
                     {dim.justification && (
-                      <p className="text-[10px] text-muted italic pl-1">{dim.justification}</p>
+                      <p className="text-[10px] text-muted italic pl-1">
+                        {dim.justification}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -316,29 +416,42 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
           )}
 
           {/* Blocked info */}
-          {uc.status === 'blocked' && (uc.blockedReason || uc.unblockCondition) && (
-            <div className="rounded-sm bg-red-50 border border-red-200 p-4 space-y-2">
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertTriangle size={14} />
-                <span className="text-xs font-semibold uppercase tracking-wide">Blocked</span>
-              </div>
-              {uc.blockedReason && <p className="text-xs text-red-700">{uc.blockedReason}</p>}
-              {uc.blockedAxis && (
-                <p className="text-[10px] text-red-600 font-mono">{uc.blockedAxis}</p>
-              )}
-              {uc.unblockCondition && (
-                <div>
-                  <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide">To unblock:</p>
-                  <p className="text-xs text-red-700">{uc.unblockCondition}</p>
+          {uc.status === "blocked" &&
+            (uc.blockedReason || uc.unblockCondition) && (
+              <div className="rounded-sm bg-red-50 border border-red-200 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-red-700">
+                  <AlertTriangle size={14} />
+                  <span className="text-xs font-semibold uppercase tracking-wide">
+                    Blocked
+                  </span>
                 </div>
-              )}
-            </div>
-          )}
+                {uc.blockedReason && (
+                  <p className="text-xs text-red-700">{uc.blockedReason}</p>
+                )}
+                {uc.blockedAxis && (
+                  <p className="text-[10px] text-red-600 font-mono">
+                    {uc.blockedAxis}
+                  </p>
+                )}
+                {uc.unblockCondition && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide">
+                      To unblock:
+                    </p>
+                    <p className="text-xs text-red-700">
+                      {uc.unblockCondition}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Notes */}
           {uc.notes && (
             <div>
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">
+                Notes
+              </p>
               <p className="text-xs text-text leading-relaxed">{uc.notes}</p>
             </div>
           )}
@@ -351,26 +464,29 @@ function UCSlideOver({ uc, onClose }: { uc: GlobalUseCase; onClose: () => void }
 export default function GlobalUseCasesPage() {
   const [useCases, setUseCases] = useState<GlobalUseCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | UseCaseStatus>('all');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<"all" | UseCaseStatus>("all");
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<GlobalUseCase | null>(null);
 
   useEffect(() => {
-    fetch(apiUrl('/api/usecases'), { credentials: 'include' })
+    fetch(apiUrl("/api/usecases"), { credentials: "include" })
       .then((r) => r.json())
-      .then((data) => { setUseCases(Array.isArray(data) ? data : []); setLoading(false); })
+      .then((data) => {
+        setUseCases(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
   const filtered = useCases.filter((uc) => {
-    if (filter !== 'all' && uc.status !== filter) return false;
+    if (filter !== "all" && uc.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
         uc.description.toLowerCase().includes(q) ||
         uc.cuId.toLowerCase().includes(q) ||
-        (uc.audit?.name ?? '').toLowerCase().includes(q) ||
-        (uc.process?.name ?? '').toLowerCase().includes(q)
+        (uc.audit?.name ?? "").toLowerCase().includes(q) ||
+        (uc.process?.name ?? "").toLowerCase().includes(q)
       );
     }
     return true;
@@ -378,9 +494,10 @@ export default function GlobalUseCasesPage() {
 
   const counts = {
     all: useCases.length,
-    eligible: useCases.filter((u) => u.status === 'eligible').length,
-    blocked: useCases.filter((u) => u.status === 'blocked').length,
-    pending_review: useCases.filter((u) => u.status === 'pending_review').length,
+    eligible: useCases.filter((u) => u.status === "eligible").length,
+    blocked: useCases.filter((u) => u.status === "blocked").length,
+    pending_review: useCases.filter((u) => u.status === "pending_review")
+      .length,
   };
 
   if (loading) {
@@ -393,27 +510,35 @@ export default function GlobalUseCasesPage() {
 
   return (
     <div className="space-y-5">
-      {selected && <UCSlideOver uc={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <UCSlideOver uc={selected} onClose={() => setSelected(null)} />
+      )}
 
       <div>
         <h1 className="font-display text-2xl font-bold text-text">Use Cases</h1>
-        <p className="text-sm text-muted mt-0.5">All AI opportunities across all audits</p>
+        <p className="text-sm text-muted mt-0.5">
+          All AI opportunities across all audits
+        </p>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
-          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${
-                filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'
-              }`}
-            >
-              {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
-            </button>
-          ))}
+          {(["all", "eligible", "blocked", "pending_review"] as const).map(
+            (f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${
+                  filter === f
+                    ? "bg-blue-aria text-white"
+                    : "text-muted hover:text-text"
+                }`}
+              >
+                {f === "pending_review" ? "Pending" : f} ({counts[f]})
+              </button>
+            ),
+          )}
         </div>
         <input
           type="text"
@@ -434,8 +559,22 @@ export default function GlobalUseCasesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-slate-50">
-                {['ID', 'Description', 'Audit / Process', 'Client', 'AI Types', 'People', 'Score', 'Category', 'Status', 'ROI'].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">
+                {[
+                  "ID",
+                  "Description",
+                  "Audit / Process",
+                  "Client",
+                  "AI Types",
+                  "People",
+                  "Score",
+                  "Category",
+                  "Status",
+                  "ROI",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left py-3 px-4 text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap"
+                  >
                     {h}
                   </th>
                 ))}
@@ -443,7 +582,13 @@ export default function GlobalUseCasesPage() {
             </thead>
             <tbody>
               {filtered.map((uc) => {
-                const scoreResult = uc.score?.dimensions ? calculateScore(uc.score.dimensions as Parameters<typeof calculateScore>[0]) : null;
+                const scoreResult = uc.score?.dimensions
+                  ? calculateScore(
+                      uc.score.dimensions as Parameters<
+                        typeof calculateScore
+                      >[0],
+                    )
+                  : null;
                 const total = scoreResult?.total ?? null;
                 const cat = scoreResult?.category;
                 const roi = computeRoi(uc);
@@ -462,18 +607,28 @@ export default function GlobalUseCasesPage() {
                     <td className="py-3 px-4 max-w-xs">
                       <p className="text-text line-clamp-2">{uc.description}</p>
                     </td>
-                    <td className="py-3 px-4 text-xs text-muted whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="py-3 px-4 text-xs text-muted whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {uc.audit ? (
-                        <Link href={`/audits/${uc.audit._id}`} className="text-blue-aria hover:underline block">
+                        <Link
+                          href={`/audits/${uc.audit._id}`}
+                          className="text-blue-aria hover:underline block"
+                        >
                           {uc.audit.name}
                         </Link>
-                      ) : '—'}
+                      ) : (
+                        "—"
+                      )}
                       {uc.process && (
-                        <span className="text-muted">{uc.process.procId} · {uc.process.name}</span>
+                        <span className="text-muted">
+                          {uc.process.procId} · {uc.process.name}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">
-                      {uc.audit?.client ?? '—'}
+                      {uc.audit?.client ?? "—"}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex flex-wrap gap-1">
@@ -485,20 +640,34 @@ export default function GlobalUseCasesPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {people > 0
-                        ? <span className="font-bold text-text text-sm">{people}</span>
-                        : <span className="text-muted text-xs">—</span>}
+                      {people > 0 ? (
+                        <span className="font-bold text-text text-sm">
+                          {people}
+                        </span>
+                      ) : (
+                        <span className="text-muted text-xs">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-center">
                       {total !== null ? (
-                        <span className="font-mono font-bold text-text">{total}</span>
+                        <span className="font-mono font-bold text-text">
+                          {total}
+                        </span>
                       ) : (
                         <span className="text-muted text-xs">—</span>
                       )}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       {total !== null ? (
-                        <Badge variant={cat === 'quick_win' ? 'green' : cat === 'mid_term' ? 'amber' : 'blue'}>
+                        <Badge
+                          variant={
+                            cat === "quick_win"
+                              ? "green"
+                              : cat === "mid_term"
+                                ? "amber"
+                                : "blue"
+                          }
+                        >
                           {cat}
                         </Badge>
                       ) : (
@@ -507,7 +676,7 @@ export default function GlobalUseCasesPage() {
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant={STATUS_VARIANTS[uc.status]}>
-                        {uc.status.replace('_', ' ')}
+                        {uc.status.replace("_", " ")}
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-xs whitespace-nowrap">
@@ -517,10 +686,14 @@ export default function GlobalUseCasesPage() {
                             <TrendingUp size={11} />€{fmt(roi.annualSaving)}/yr
                           </span>
                           {roi.savingPct !== null && (
-                            <span className="text-muted">{roi.savingPct}% process time</span>
+                            <span className="text-muted">
+                              {roi.savingPct}% process time
+                            </span>
                           )}
                           {roi.paybackMonths > 0 && (
-                            <span className="text-muted">{roi.paybackMonths.toFixed(1)}mo payback</span>
+                            <span className="text-muted">
+                              {roi.paybackMonths.toFixed(1)}mo payback
+                            </span>
                           )}
                         </div>
                       ) : (
