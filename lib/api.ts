@@ -1,6 +1,17 @@
 'use client';
 
-const BASE = '/api';
+// Get basePath from Next.js config - works in production with IIS
+const getBasePath = () => {
+  if (typeof window !== 'undefined') {
+    // Extract basePath from current URL pathname
+    const pathname = window.location.pathname;
+    const match = pathname.match(/^\/Customizations\/Aria/);
+    return match ? match[0] : '';
+  }
+  return '';
+};
+
+const BASE = `${getBasePath()}/api`;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

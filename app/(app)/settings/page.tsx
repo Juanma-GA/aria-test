@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Settings, User, Lock, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 
 export default function SettingsPage() {
   const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
@@ -14,7 +15,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
+    fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
       .then(r => r.json())
       .then(data => { setUser(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -26,7 +27,7 @@ export default function SettingsPage() {
     if (newPwd.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setSaving(true);
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch(apiUrl('/api/auth/me'), {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 import type { POCPhase, POCDecisionType } from '@/lib/types';
 
 interface GlobalPOC {
@@ -69,7 +70,7 @@ export default function GlobalPOCsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/pocs', { credentials: 'include' })
+    fetch(apiUrl('/api/pocs'), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => { setPocs(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, Check } from 'lucide-react';
 import { TagInput } from '@/components/ui/TagInput';
 import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 import type { SectorType, Priority } from '@/lib/types';
 
 interface Step1Data {
@@ -94,7 +95,7 @@ export default function NewAuditPage() {
     setServerError(null);
     try {
       const hasProcess = !!step2.processName.trim();
-      const res = await fetch('/api/audits', {
+      const res = await fetch(apiUrl('/api/audits'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

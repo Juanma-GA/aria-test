@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { apiUrl } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 type UserRole = 'admin' | 'consultant' | 'viewer';
@@ -58,7 +59,7 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch(apiUrl('/api/users'));
       if (!res.ok) throw new Error('Failed to load users');
       setUsers(await res.json());
     } catch {
@@ -105,7 +106,7 @@ export default function UsersPage() {
         if (!res.ok) { toast.error(data.error ?? 'Error updating user'); return; }
         toast.success('User updated');
       } else {
-        const res = await fetch('/api/users', {
+        const res = await fetch(apiUrl('/api/users'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),

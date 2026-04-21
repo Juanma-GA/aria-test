@@ -18,7 +18,7 @@ export async function GET() {
       ...(r.horizons?.h2_midTerm ?? []),
       ...(r.horizons?.h3_strategic ?? []),
     ]);
-    const ucIds = [...new Set(allInitiatives.map((i) => String(i.useCaseId)).filter(Boolean))];
+    const ucIds = Array.from(new Set(allInitiatives.map((i: any) => String(i.useCaseId)).filter(Boolean)));
     const useCases = await UseCase.find({ _id: { $in: ucIds } }).select('cuId').lean();
     const ucMap = Object.fromEntries(useCases.map((u) => [String(u._id), u]));
 

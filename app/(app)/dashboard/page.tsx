@@ -7,6 +7,7 @@ import { Plus, Search, FolderOpen, Archive, Columns } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 import type { AuditStatus, SectorType } from '@/lib/types';
 
 interface AuditSummary {
@@ -314,7 +315,7 @@ export default function DashboardPage() {
   const isVisible = (key: ColKey) => visibleCols.has(key);
 
   useEffect(() => {
-    fetch('/api/audits')
+    fetch(apiUrl('/api/audits'))
       .then((r) => { if (!r.ok) throw new Error(`Error ${r.status}`); return r.json(); })
       .then(setAudits)
       .catch((e: any) => setError(e.message ?? 'Failed to load'))
@@ -325,7 +326,7 @@ export default function DashboardPage() {
     if (!showArchived && archivedAudits.length === 0) {
       setLoadingArchived(true);
       try {
-        const r = await fetch('/api/audits?archived=true');
+        const r = await fetch(apiUrl('/api/audits?archived=true'));
         const data = await r.json();
         setArchivedAudits(data);
       } finally {

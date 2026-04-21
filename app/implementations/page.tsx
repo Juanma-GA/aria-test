@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { apiUrl } from '@/lib/utils'
 
 interface Implementation {
   _id: string
@@ -14,7 +15,7 @@ export default function Implementations() {
   const [implementations, setImplementations] = useState<Implementation[]>([])
 
   useEffect(() => {
-    fetch('/api/implementations')
+    fetch(apiUrl('/api/implementations'))
       .then(res => res.json())
       .then(data => setImplementations(data))
   }, [])

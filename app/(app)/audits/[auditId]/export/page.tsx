@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Download, FileSpreadsheet, Lightbulb, FlaskConical, GitBranch, RefreshCw, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiUrl } from '@/lib/utils';
 
 export default function ExportPage() {
   const { auditId } = useParams<{ auditId: string }>();
@@ -34,7 +35,7 @@ export default function ExportPage() {
   const runMigration = async () => {
     setMigrating(true);
     try {
-      const res = await fetch('/api/migrate', { method: 'POST' });
+      const res = await fetch(apiUrl('/api/migrate'), { method: 'POST' });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error ?? 'Migration failed');
       const { updated } = data;

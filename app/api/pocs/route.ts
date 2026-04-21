@@ -11,8 +11,8 @@ export async function GET() {
       .lean();
 
     // Enrich with audit name and use case description
-    const auditIds = [...new Set(pocs.map((p) => String(p.auditId)))];
-    const ucIds = [...new Set(pocs.map((p) => String(p.useCaseId)))];
+    const auditIds = Array.from(new Set(pocs.map((p) => String(p.auditId))));
+    const ucIds = Array.from(new Set(pocs.map((p) => String(p.useCaseId))));
 
     const [audits, useCases] = await Promise.all([
       Audit.find({ _id: { $in: auditIds } }).select('name client').lean(),

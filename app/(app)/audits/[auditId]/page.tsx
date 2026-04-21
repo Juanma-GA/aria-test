@@ -104,6 +104,7 @@ const AUDIT_STATUSES: AuditStatus[] = ['draft', 'active', 'review', 'completed']
 
 export default function AuditPage() {
   const params = useParams();
+  const router = useRouter();
   const auditId = params?.auditId as string;
 
   const [audit, setAudit] = useState<AuditData | null>(null);
@@ -189,7 +190,7 @@ export default function AuditPage() {
       });
       if (!res.ok) throw new Error('Failed');
       toast.success('Audit archived');
-      router.push('/dashboard');
+      router.push(`${window.location.pathname.match(/^\/Customizations\/Aria/)?.[0] || ''}/dashboard`);
     } catch {
       toast.error('Failed to archive audit');
     } finally {
@@ -204,7 +205,7 @@ export default function AuditPage() {
       const res = await fetch(`/api/audits/${auditId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed');
       toast.success('Audit deleted');
-      router.push('/dashboard');
+      router.push(`${window.location.pathname.match(/^\/Customizations\/Aria/)?.[0] || ''}/dashboard`);
     } catch {
       toast.error('Failed to delete audit');
     } finally {

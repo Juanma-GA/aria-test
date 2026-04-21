@@ -21,9 +21,9 @@ function scoreCategory(score: any): string {
 function sovereigntyLevel(axes: Record<string, any>): { index: number; level: string } {
   const vals = Object.values(axes).map((a: any) =>
     a.status === 'green' ? 5 : a.status === 'amber' ? 3 : a.status === 'red' ? 1 : 0
-  ).filter(v => v > 0);
+  ).filter(v => v > 0) as number[];
   if (!vals.length) return { index: 0, level: 'Not assessed' };
-  const index = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const index = vals.reduce<number>((s, v) => s + v, 0) / vals.length;
   const level =
     index >= 4.5 ? 'Full Autonomy' :
     index >= 3.5 ? 'Managed' :

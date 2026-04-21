@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 
 const PHASE_COLORS: Record<string, string> = {
   design: '#94a3b8',
@@ -82,7 +83,7 @@ export default function GlobalRoadmapPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/pocs', { credentials: 'include' })
+    fetch(apiUrl('/api/pocs'), { credentials: 'include' })
       .then(r => r.json())
       .then(data => { setPocs(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -204,7 +205,7 @@ export default function GlobalRoadmapPage() {
             </div>
 
             {/* Audit groups */}
-            {[...auditGroups.entries()].map(([auditId, group]) => (
+            {Array.from(auditGroups.entries()).map(([auditId, group]) => (
               <div key={auditId}>
                 {/* Audit header row */}
                 <div className="flex bg-slate-50/80 border-b border-border/40">

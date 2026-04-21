@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { X, TrendingUp, AlertTriangle, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 import { AI_TYPE_LABELS } from '@/lib/types';
 import type { AIType, UseCaseStatus } from '@/lib/types';
 import { calculateScore } from '@/lib/calculations';
@@ -355,7 +356,7 @@ export default function GlobalUseCasesPage() {
   const [selected, setSelected] = useState<GlobalUseCase | null>(null);
 
   useEffect(() => {
-    fetch('/api/usecases', { credentials: 'include' })
+    fetch(apiUrl('/api/usecases'), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => { setUseCases(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -497,7 +498,7 @@ export default function GlobalUseCasesPage() {
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       {total !== null ? (
-                        <Badge variant={cat === 'Quick Win' ? 'green' : cat === 'Mid-term' ? 'amber' : 'blue'}>
+                        <Badge variant={cat === 'quick_win' ? 'green' : cat === 'mid_term' ? 'amber' : 'blue'}>
                           {cat}
                         </Badge>
                       ) : (

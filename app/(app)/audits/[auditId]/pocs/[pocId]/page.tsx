@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { SaveIndicator } from '@/components/ui/SaveIndicator';
+import { apiUrl } from '@/lib/utils';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -477,7 +478,7 @@ export default function POCDetailPage() {
                       e.stopPropagation();
                       setRefreshingCompute(true);
                       try {
-                        const res = await fetch('/api/ai/refresh-compute-estimates', {
+                        const res = await fetch(apiUrl('/api/ai/refresh-compute-estimates'), {
                           method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ computeCost: cc, useCaseDescription: (poc as any).cuId }),

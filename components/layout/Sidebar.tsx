@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/lib/store/authStore';
+import { apiUrl, getBasePath } from '@/lib/utils';
 
 interface NavItem {
   href: string;
@@ -106,12 +107,12 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST' });
     } catch {
       // ignore errors
     }
     clearAuth();
-    router.push('/auth/login');
+    router.push(`${getBasePath()}/auth/login`);
   };
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/');

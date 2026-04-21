@@ -7,8 +7,8 @@ export async function GET() {
     await dbConnect();
     const useCases = await UseCase.find({}).sort({ createdAt: -1 }).lean();
 
-    const auditIds = [...new Set(useCases.map((u) => String((u as any).auditId)))];
-    const processIds = [...new Set(useCases.map((u) => String((u as any).processId)))];
+    const auditIds = Array.from(new Set(useCases.map((u) => String((u as any).auditId))));
+    const processIds = Array.from(new Set(useCases.map((u) => String((u as any).processId))));
 
     const [audits, processes] = await Promise.all([
       Audit.find({ _id: { $in: auditIds } }).select('name client').lean(),

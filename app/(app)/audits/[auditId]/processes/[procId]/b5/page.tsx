@@ -205,7 +205,7 @@ function SlideOver({
     let requiresClientITAuto = false;
     if (b2Axes && Object.keys(b2Axes).length > 0) {
       try {
-        const sovResult = calculateSovereigntyIndex(b2Axes);
+        const sovResult = calculateSovereigntyIndex(b2Axes as any);
         d5AutoValue = sovereigntyLevelToD5(sovResult.level);
         const LEVEL_LABELS: Record<string, string> = {
           full_autonomy: 'Full Autonomy', managed: 'Managed', conditioned: 'Conditioned',
@@ -240,7 +240,7 @@ function SlideOver({
           setDims(existingDims);
         }
       } else {
-        setDims({ ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } });
+        setDims({ ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification } });
       }
     } else {
       const base = emptyForm(processId);
@@ -248,7 +248,7 @@ function SlideOver({
       (base as any).requiresClientIT = requiresClientITAuto;
       (base as any).sovereigntyAnalysis = '';
       setForm(base as any);
-      setDims({ ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } });
+      setDims({ ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification } });
     }
     d1ManualRef.current = false;
     d5ManualRef.current = false;
@@ -1313,7 +1313,7 @@ export default function B5Page() {
                     if (selectedSuggestions.size === 0) return;
                     setImporting(true);
                     try {
-                      const toImport = [...selectedSuggestions].map(i => suggestions[i]);
+                      const toImport = Array.from(selectedSuggestions).map(i => suggestions[i]);
                       for (const s of toImport) {
                         const score = s.score ? { dimensions: s.score, scoringNotes: '', scoredBy: 'ai', scoredAt: new Date().toISOString() } : undefined;
                         await fetch(`/api/audits/${auditId}/usecases`, {
