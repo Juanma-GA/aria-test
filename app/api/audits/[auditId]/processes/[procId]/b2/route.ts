@@ -1,19 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import { Process } from '@/lib/models';
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import { Process } from "@/lib/models";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; procId: string } }
+  { params }: { params: Promise<{ auditId: string; procId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = params;
+    const { auditId, procId } = await params;
     const body = await req.json();
 
     const process = await Process.findOne({ auditId, _id: procId });
     if (!process) {
-      return NextResponse.json({ error: 'Process not found' }, { status: 404 });
+      return NextResponse.json({ error: "Process not found" }, { status: 404 });
     }
 
     // Merge incoming axes into existing b2
@@ -31,6 +31,9 @@ export async function PATCH(
     return NextResponse.json({ process: process.toObject() });
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

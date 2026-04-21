@@ -28,6 +28,7 @@ import type {
   ProfileEntry,
 } from "@/lib/types";
 import { AI_TYPE_LABELS } from "@/lib/types";
+import { apiUrl } from "@/lib/utils";
 import { calculateSovereigntyIndex, calculateScore } from "@/lib/calculations";
 
 const AI_TYPE_COLORS: Record<
@@ -191,9 +192,7 @@ function d1FromPct(pct: number): ScoreValue {
   return 5;
 }
 
-function emptyForm(
-  processId: string,
-): Partial<UseCase> & {
+function emptyForm(processId: string): Partial<UseCase> & {
   aiTypes: AIType[];
   timeSavedPerProfile: TimeSavedEntry[];
   targetActivities: string[];
@@ -897,16 +896,19 @@ function SlideOver({
             const handleComputeRefresh = async () => {
               setRefreshingCompute(true);
               try {
-                const res = await fetch("/api/ai/refresh-compute-estimates", {
-                  method: "POST",
-                  credentials: "include",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    computeCost: cc,
-                    useCaseDescription: form.description,
-                    aiTypes: form.aiTypes,
-                  }),
-                });
+                const res = await fetch(
+                  apiUrl("/api/ai/refresh-compute-estimates"),
+                  {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      computeCost: cc,
+                      useCaseDescription: form.description,
+                      aiTypes: form.aiTypes,
+                    }),
+                  },
+                );
                 const data = await res.json();
                 if (data.estimates) {
                   const e = data.estimates;
@@ -1729,10 +1731,10 @@ export default function B5Page() {
 
   const load = useCallback(async () => {
     const [procRes, ucRes] = await Promise.all([
-      fetch(`/api/audits/${auditId}/processes/${procId}`, {
+      fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
         credentials: "include",
       }),
-      fetch(`/api/audits/${auditId}/usecases?processId=${procId}`, {
+      fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}`), {
         credentials: "include",
       }),
     ]);
@@ -1797,10 +1799,13 @@ export default function B5Page() {
 
   const handleDelete = async () => {
     if (!deleteModal.uc) return;
-    await fetch(`/api/audits/${auditId}/usecases/${deleteModal.uc._id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    await fetch(
+      apiUrl(`/api/audits/${auditId}/usecases/${deleteModal.uc._id}`),
+      {
+        method: "DELETE",
+        credentials: "include",
+      },
+    );
     setUseCases((prev) => prev.filter((u) => u._id !== deleteModal.uc!._id));
     setDeleteModal({ open: false, uc: null });
   };
@@ -2227,7 +2232,7 @@ export default function B5Page() {
                               scoredAt: new Date().toISOString(),
                             }
                           : undefined;
-                        await fetch(`/api/audits/${auditId}/usecases`, {
+                        await fetch(apiUrl(`/api/audits/${auditId}/usecases`), {
                           method: "POST",
                           credentials: "include",
                           headers: { "Content-Type": "application/json" },

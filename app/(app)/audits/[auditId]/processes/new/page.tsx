@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { TagInput } from '@/components/ui/TagInput';
-import { Spinner } from '@/components/ui/Spinner';
-import type { Priority } from '@/lib/types';
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { TagInput } from "@/components/ui/TagInput";
+import { Spinner } from "@/components/ui/Spinner";
+import { apiUrl } from "@/lib/utils";
+import type { Priority } from "@/lib/types";
 
 interface FormData {
   processName: string;
@@ -17,9 +18,9 @@ interface FormData {
 }
 
 const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
 ];
 
 function FieldError({ message }: { message?: string }) {
@@ -33,19 +34,21 @@ export default function NewProcessPage() {
   const auditId = params?.auditId as string;
 
   const [form, setForm] = useState<FormData>({
-    processName: '',
-    department: '',
-    responsible: '',
+    processName: "",
+    department: "",
+    responsible: "",
     applicableNorms: [],
-    priority: 'medium',
+    priority: "medium",
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
+    {},
+  );
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const validate = (): boolean => {
     const errs: Partial<Record<keyof FormData, string>> = {};
-    if (!form.processName.trim()) errs.processName = 'Process name is required';
+    if (!form.processName.trim()) errs.processName = "Process name is required";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -56,9 +59,9 @@ export default function NewProcessPage() {
     setSubmitting(true);
     setServerError(null);
     try {
-      const res = await fetch(`/api/audits/${auditId}/processes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/processes`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.processName,
           department: form.department,
@@ -79,7 +82,7 @@ export default function NewProcessPage() {
         router.push(`/audits/${auditId}`);
       }
     } catch (e: any) {
-      setServerError(e.message ?? 'Failed to create process');
+      setServerError(e.message ?? "Failed to create process");
     } finally {
       setSubmitting(false);
     }
@@ -100,8 +103,12 @@ export default function NewProcessPage() {
 
       {/* Header */}
       <div>
-        <h1 className="font-display text-2xl font-bold text-text">Add Process</h1>
-        <p className="text-sm text-muted mt-0.5">Add a new process to this audit</p>
+        <h1 className="font-display text-2xl font-bold text-text">
+          Add Process
+        </h1>
+        <p className="text-sm text-muted mt-0.5">
+          Add a new process to this audit
+        </p>
       </div>
 
       {/* Server error */}
@@ -112,7 +119,10 @@ export default function NewProcessPage() {
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white border border-border rounded-sm p-6 space-y-5">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-border rounded-sm p-6 space-y-5"
+      >
         {/* Process name */}
         <div>
           <label className="block text-sm font-medium text-text mb-1">
@@ -131,7 +141,9 @@ export default function NewProcessPage() {
         {/* Department + Responsible */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-text mb-1">Department</label>
+            <label className="block text-sm font-medium text-text mb-1">
+              Department
+            </label>
             <input
               type="text"
               value={form.department}
@@ -141,11 +153,15 @@ export default function NewProcessPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text mb-1">Responsible</label>
+            <label className="block text-sm font-medium text-text mb-1">
+              Responsible
+            </label>
             <input
               type="text"
               value={form.responsible}
-              onChange={(e) => setForm({ ...form, responsible: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, responsible: e.target.value })
+              }
               placeholder="e.g. Jean Dupont"
               className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
             />
@@ -154,21 +170,29 @@ export default function NewProcessPage() {
 
         {/* Applicable norms */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Applicable Norms</label>
+          <label className="block text-sm font-medium text-text mb-1">
+            Applicable Norms
+          </label>
           <TagInput
             value={form.applicableNorms}
             onChange={(tags) => setForm({ ...form, applicableNorms: tags })}
             placeholder="Add norm and press Enter…"
           />
-          <p className="text-[11px] text-muted mt-1">Press Enter or comma to add a norm</p>
+          <p className="text-[11px] text-muted mt-1">
+            Press Enter or comma to add a norm
+          </p>
         </div>
 
         {/* Priority */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Priority</label>
+          <label className="block text-sm font-medium text-text mb-1">
+            Priority
+          </label>
           <select
             value={form.priority}
-            onChange={(e) => setForm({ ...form, priority: e.target.value as Priority })}
+            onChange={(e) =>
+              setForm({ ...form, priority: e.target.value as Priority })
+            }
             className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
           >
             {PRIORITIES.map((p) => (
@@ -193,7 +217,7 @@ export default function NewProcessPage() {
             className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Spinner size="sm" />}
-            {submitting ? 'Adding…' : 'Add Process'}
+            {submitting ? "Adding…" : "Add Process"}
           </button>
         </div>
       </form>

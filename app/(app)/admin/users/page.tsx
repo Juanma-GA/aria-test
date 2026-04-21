@@ -108,7 +108,7 @@ export default function UsersPage() {
           userRole: form.userRole,
         };
         if (form.password) body.password = form.password;
-        const res = await fetch(`/api/users/${editing._id}`, {
+        const res = await fetch(apiUrl(`/api/users/${editing._id}`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -143,7 +143,7 @@ export default function UsersPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/users/${deleteTarget._id}`, {
+      const res = await fetch(apiUrl(`/api/users/${deleteTarget._id}`), {
         method: "DELETE",
       });
       const data = await res.json();

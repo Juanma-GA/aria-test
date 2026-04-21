@@ -67,7 +67,7 @@ export function Sidebar() {
       setProcesses([]);
       return;
     }
-    fetch(`/api/audits/${auditId}/processes`)
+    fetch(apiUrl(`/api/audits/${auditId}/processes`))
       .then((r) => (r.ok ? r.json() : []))
       .then((data: any[]) =>
         setProcesses(
@@ -88,7 +88,7 @@ export function Sidebar() {
   // Fetch use cases when a process is expanded (re-fetch on b5 navigation to pick up new UCs)
   useEffect(() => {
     if (!auditId || !expandedProc) return;
-    fetch(`/api/audits/${auditId}/usecases?processId=${expandedProc}`)
+    fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${expandedProc}`))
       .then((r) => (r.ok ? r.json() : []))
       .then((data: any[]) =>
         setUcsByProc((prev) => ({

@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
-import { toast } from 'sonner';
-import { Spinner } from '@/components/ui/Spinner';
-import { Bot, RefreshCw, FileText, AlertTriangle } from 'lucide-react';
+import { useEffect, useState, useMemo } from "react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { Spinner } from "@/components/ui/Spinner";
+import { apiUrl } from "@/lib/utils";
+import { Bot, RefreshCw, FileText, AlertTriangle } from "lucide-react";
 
 interface ReportMeta {
   generatedAt: string;
@@ -16,12 +17,12 @@ interface ReportMeta {
 function mdToHtml(md: string): string {
   const inline = (text: string) =>
     text
-      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code>$1</code>');
+      .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/`(.+?)`/g, "<code>$1</code>");
 
-  const lines = md.split('\n');
+  const lines = md.split("\n");
   const out: string[] = [];
   let inUl = false;
   let inOl = false;
@@ -29,11 +30,21 @@ function mdToHtml(md: string): string {
   let tableHasHead = false;
 
   const closeList = () => {
-    if (inUl) { out.push('</ul>'); inUl = false; }
-    if (inOl) { out.push('</ol>'); inOl = false; }
+    if (inUl) {
+      out.push("</ul>");
+      inUl = false;
+    }
+    if (inOl) {
+      out.push("</ol>");
+      inOl = false;
+    }
   };
   const closeTable = () => {
-    if (inTable) { out.push('</tbody></table>'); inTable = false; tableHasHead = false; }
+    if (inTable) {
+      out.push("</tbody></table>");
+      inTable = false;
+      tableHasHead = false;
+    }
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -41,54 +52,82 @@ function mdToHtml(md: string): string {
     const t = raw.trim();
 
     // Detect table row (lenient: only require starting |)
-    const isTableRow = t.startsWith('|') && t.length > 1;
+    const isTableRow = t.startsWith("|") && t.length > 1;
     const isTableSep = /^\|[\s|:-]+\|?$/.test(t);
 
     // Close open structures when context changes
     if (!isTableRow && !isTableSep) closeTable();
-    if (!t.startsWith('- ') && !t.startsWith('* ')) { if (inUl) { out.push('</ul>'); inUl = false; } }
-    if (!/^\d+\.\s/.test(t)) { if (inOl) { out.push('</ol>'); inOl = false; } }
+    if (!t.startsWith("- ") && !t.startsWith("* ")) {
+      if (inUl) {
+        out.push("</ul>");
+        inUl = false;
+      }
+    }
+    if (!/^\d+\.\s/.test(t)) {
+      if (inOl) {
+        out.push("</ol>");
+        inOl = false;
+      }
+    }
 
-    if (t.startsWith('#### ')) {
+    if (t.startsWith("#### ")) {
       out.push(`<h4>${inline(t.slice(5))}</h4>`);
-    } else if (t.startsWith('### ')) {
+    } else if (t.startsWith("### ")) {
       out.push(`<h3>${inline(t.slice(4))}</h3>`);
-    } else if (t.startsWith('## ')) {
+    } else if (t.startsWith("## ")) {
       out.push(`<h2>${inline(t.slice(3))}</h2>`);
-    } else if (t.startsWith('# ')) {
+    } else if (t.startsWith("# ")) {
       out.push(`<h1>${inline(t.slice(2))}</h1>`);
-    } else if (t === '---' || t === '***' || t === '___') {
-      out.push('<hr>');
-    } else if (t.startsWith('> ')) {
+    } else if (t === "---" || t === "***" || t === "___") {
+      out.push("<hr>");
+    } else if (t.startsWith("> ")) {
       out.push(`<blockquote>${inline(t.slice(2))}</blockquote>`);
-    } else if (t.startsWith('- ') || t.startsWith('* ')) {
-      if (!inUl) { out.push('<ul>'); inUl = true; }
+    } else if (t.startsWith("- ") || t.startsWith("* ")) {
+      if (!inUl) {
+        out.push("<ul>");
+        inUl = true;
+      }
       out.push(`<li>${inline(t.slice(2))}</li>`);
     } else if (/^\d+\.\s/.test(t)) {
-      if (!inOl) { out.push('<ol>'); inOl = true; }
-      out.push(`<li>${inline(t.replace(/^\d+\.\s/, ''))}</li>`);
+      if (!inOl) {
+        out.push("<ol>");
+        inOl = true;
+      }
+      out.push(`<li>${inline(t.replace(/^\d+\.\s/, ""))}</li>`);
     } else if (isTableSep) {
       // skip separator line (already handled header)
     } else if (isTableRow) {
-      const rowContent = t.endsWith('|') ? t.slice(1, -1) : t.slice(1);
-      const cells = rowContent.split('|').map((c) => c.trim()).filter((c, idx, arr) => !(idx === arr.length - 1 && c === ''));
-      const nextLine = lines[i + 1]?.trim() ?? '';
+      const rowContent = t.endsWith("|") ? t.slice(1, -1) : t.slice(1);
+      const cells = rowContent
+        .split("|")
+        .map((c) => c.trim())
+        .filter((c, idx, arr) => !(idx === arr.length - 1 && c === ""));
+      const nextLine = lines[i + 1]?.trim() ?? "";
       const nextIsSep = /^\|[\s|:-]+\|?$/.test(nextLine);
 
       if (nextIsSep && !inTable) {
         // header row
-        out.push('<table>');
-        out.push('<thead><tr>' + cells.map((c) => `<th>${inline(c)}</th>`).join('') + '</tr></thead>');
-        out.push('<tbody>');
+        out.push("<table>");
+        out.push(
+          "<thead><tr>" +
+            cells.map((c) => `<th>${inline(c)}</th>`).join("") +
+            "</tr></thead>",
+        );
+        out.push("<tbody>");
         inTable = true;
         tableHasHead = true;
         i++; // skip sep line
       } else {
-        if (!inTable) { out.push('<table><tbody>'); inTable = true; }
-        out.push('<tr>' + cells.map((c) => `<td>${inline(c)}</td>`).join('') + '</tr>');
+        if (!inTable) {
+          out.push("<table><tbody>");
+          inTable = true;
+        }
+        out.push(
+          "<tr>" + cells.map((c) => `<td>${inline(c)}</td>`).join("") + "</tr>",
+        );
       }
-    } else if (t === '') {
-      out.push('');
+    } else if (t === "") {
+      out.push("");
     } else {
       out.push(`<p>${inline(t)}</p>`);
     }
@@ -97,7 +136,7 @@ function mdToHtml(md: string): string {
   closeList();
   closeTable();
 
-  return out.join('\n');
+  return out.join("\n");
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -106,21 +145,24 @@ export default function AuditReportPage() {
   const params = useParams();
   const auditId = params?.auditId as string;
 
-  const [markdown, setMarkdown] = useState('');
+  const [markdown, setMarkdown] = useState("");
   const [meta, setMeta] = useState<ReportMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const html = useMemo(() => (markdown ? mdToHtml(markdown) : ''), [markdown]);
+  const html = useMemo(() => (markdown ? mdToHtml(markdown) : ""), [markdown]);
 
   useEffect(() => {
-    fetch(`/api/audits/${auditId}/report`, { credentials: 'include' })
+    fetch(apiUrl(`/api/audits/${auditId}/report`), { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (data.exists && data.report?.markdown) {
           setMarkdown(data.report.markdown);
-          setMeta({ generatedAt: data.report.generatedAt, model: data.report.model });
+          setMeta({
+            generatedAt: data.report.generatedAt,
+            model: data.report.model,
+          });
         }
       })
       .catch(() => {})
@@ -128,15 +170,15 @@ export default function AuditReportPage() {
   }, [auditId]);
 
   async function generate() {
-    setError('');
-    setMarkdown('');
+    setError("");
+    setMarkdown("");
     setMeta(null);
     setGenerating(true);
 
     try {
-      const res = await fetch(`/api/audits/${auditId}/report`, {
-        method: 'POST',
-        credentials: 'include',
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/report`), {
+        method: "POST",
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -144,12 +186,15 @@ export default function AuditReportPage() {
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
 
       setMarkdown(data.markdown);
-      setMeta({ generatedAt: new Date().toISOString(), model: data.model || 'mistral-medium-latest' });
-      toast.success('Informe generado correctamente');
+      setMeta({
+        generatedAt: new Date().toISOString(),
+        model: data.model || "mistral-medium-latest",
+      });
+      toast.success("Informe generado correctamente");
     } catch (e: any) {
-      const msg = e.message || 'Error generando el informe';
+      const msg = e.message || "Error generando el informe";
       setError(msg);
-      toast.error('Error al generar el informe', { description: msg });
+      toast.error("Error al generar el informe", { description: msg });
     } finally {
       setGenerating(false);
     }
@@ -164,9 +209,12 @@ export default function AuditReportPage() {
   }
 
   const formattedDate = meta?.generatedAt
-    ? new Date(meta.generatedAt).toLocaleString('es-ES', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+    ? new Date(meta.generatedAt).toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       })
     : null;
 
@@ -201,7 +249,8 @@ export default function AuditReportPage() {
               Informe IA
             </h1>
             <p className="text-sm text-muted mt-0.5">
-              Informe ejecutivo generado automáticamente a partir de los datos de la auditoría
+              Informe ejecutivo generado automáticamente a partir de los datos
+              de la auditoría
             </p>
           </div>
           {markdown && !generating && (
@@ -218,9 +267,13 @@ export default function AuditReportPage() {
         {/* Meta bar */}
         {meta && !generating && (
           <div className="flex items-center gap-3 text-xs text-muted bg-slate-50 border border-border rounded-sm px-4 py-2">
-            <span>Generado el <strong className="text-text">{formattedDate}</strong></span>
+            <span>
+              Generado el <strong className="text-text">{formattedDate}</strong>
+            </span>
             <span className="text-border">·</span>
-            <span>Modelo: <strong className="text-text">{meta.model}</strong></span>
+            <span>
+              Modelo: <strong className="text-text">{meta.model}</strong>
+            </span>
           </div>
         )}
 
@@ -252,14 +305,27 @@ export default function AuditReportPage() {
                 <FileText size={32} className="text-blue-aria" />
               </div>
             </div>
-            <h2 className="font-display text-lg font-semibold text-text mb-2">Sin informe generado</h2>
+            <h2 className="font-display text-lg font-semibold text-text mb-2">
+              Sin informe generado
+            </h2>
             <p className="text-sm text-muted max-w-md mx-auto mb-8">
-              Genera un informe ejecutivo completo analizando todos los procesos, casos de uso,
-              evaluaciones de soberanía y POCs registrados en esta auditoría.
+              Genera un informe ejecutivo completo analizando todos los
+              procesos, casos de uso, evaluaciones de soberanía y POCs
+              registrados en esta auditoría.
             </p>
             <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto mb-8 text-left">
-              {['Resumen ejecutivo','Evaluación de soberanía','Ranking de casos de uso','Análisis de ROI','Riesgos y restricciones','Recomendaciones'].map((s) => (
-                <div key={s} className="flex items-center gap-2 text-xs text-muted">
+              {[
+                "Resumen ejecutivo",
+                "Evaluación de soberanía",
+                "Ranking de casos de uso",
+                "Análisis de ROI",
+                "Riesgos y restricciones",
+                "Recomendaciones",
+              ].map((s) => (
+                <div
+                  key={s}
+                  className="flex items-center gap-2 text-xs text-muted"
+                >
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-aria flex-shrink-0" />
                   {s}
                 </div>

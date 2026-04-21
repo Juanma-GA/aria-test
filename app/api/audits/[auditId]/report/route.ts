@@ -656,11 +656,12 @@ END OF REPORT
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { auditId: string } },
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const audit = (await Audit.findById(params.auditId)
+    const { auditId } = await params;
+    const audit = (await Audit.findById(auditId)
       .select("report")
       .lean()) as any;
     if (!audit)
@@ -680,9 +681,9 @@ export async function GET(
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { auditId: string } },
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
-  const { auditId } = params;
+  const { auditId } = await params;
 
   try {
     await dbConnect();

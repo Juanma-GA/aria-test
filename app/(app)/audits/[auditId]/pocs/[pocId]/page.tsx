@@ -146,7 +146,9 @@ export default function POCDetailPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    fetch(`/api/audits/${auditId}/pocs/${pocId}`, { credentials: "include" })
+    fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), {
+      credentials: "include",
+    })
       .then((r) => r.json())
       .then((data) => {
         setPoc(data);
@@ -159,12 +161,15 @@ export default function POCDetailPage() {
     async (updated: Partial<POC>) => {
       setSaveStatus("saving");
       try {
-        const res = await fetch(`/api/audits/${auditId}/pocs/${pocId}`, {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updated),
-        });
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
+          {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updated),
+          },
+        );
         const data = await res.json();
         setPoc(data);
         setSaveStatus("saved");

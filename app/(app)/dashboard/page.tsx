@@ -522,7 +522,7 @@ export default function DashboardPage() {
 
   const handleRestore = async (id: string) => {
     try {
-      const res = await fetch(`/api/audits/${id}`, {
+      const res = await fetch(apiUrl(`/api/audits/${id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isArchived: false }),

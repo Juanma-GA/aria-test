@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { BlockProgressBar } from "@/components/layout/BlockProgressBar";
+import { apiUrl } from "@/lib/utils";
 import type {
   AuditStatus,
   SectorType,
@@ -173,7 +174,7 @@ export default function AuditPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`/api/audits/${auditId}`);
+        const res = await fetch(apiUrl(`/api/audits/${auditId}`));
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data = await res.json();
         setAudit(data);
@@ -200,7 +201,7 @@ export default function AuditPage() {
     if (!audit || newStatus === audit.status) return;
     setSavingStatus(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -219,7 +220,7 @@ export default function AuditPage() {
     if (!editForm.name.trim() || !editForm.client.trim()) return;
     setSavingEdit(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
@@ -241,16 +242,14 @@ export default function AuditPage() {
       return;
     setArchiving(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isArchived: true }),
       });
       if (!res.ok) throw new Error("Failed");
       toast.success("Audit archived");
-      router.push(
-        `${window.location.pathname.match(/^\/Customizations\/Aria/)?.[0] || ""}/dashboard`,
-      );
+      router.push("/dashboard");
     } catch {
       toast.error("Failed to archive audit");
     } finally {
@@ -263,12 +262,12 @@ export default function AuditPage() {
       return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, { method: "DELETE" });
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("Failed");
       toast.success("Audit deleted");
-      router.push(
-        `${window.location.pathname.match(/^\/Customizations\/Aria/)?.[0] || ""}/dashboard`,
-      );
+      router.push("/dashboard");
     } catch {
       toast.error("Failed to delete audit");
     } finally {

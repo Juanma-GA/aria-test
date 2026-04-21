@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import { Roadmap } from '@/lib/models';
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import { Roadmap } from "@/lib/models";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
 
     const roadmap = await Roadmap.findOne({ auditId }).lean();
 
@@ -28,28 +28,34 @@ export async function GET(
     return NextResponse.json(roadmap);
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const body = await req.json();
 
     const roadmap = await Roadmap.findOneAndUpdate(
       { auditId },
       { auditId, ...body },
-      { new: true, upsert: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true },
     );
 
     return NextResponse.json(roadmap);
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

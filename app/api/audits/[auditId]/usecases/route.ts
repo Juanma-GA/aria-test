@@ -1,15 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import { UseCase, Process } from '@/lib/models';
-import { nextSequence } from '@/lib/models/Counter';
-import { createUseCaseSchema, validationErrorResponse } from '@/lib/validators';
-import { requireRole } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import { UseCase, Process } from "@/lib/models";
+import { nextSequence } from "@/lib/models/Counter";
+import { createUseCaseSchema, validationErrorResponse } from "@/lib/validators";
+import { requireRole } from "@/lib/auth";
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
   const vals = (Object.values(b2.axes) as any[])
     .map((a) =>
-      a.status === 'green' ? 5 : a.status === 'amber' ? 3 : a.status === 'red' ? 1 : null
+      a.status === "green"
+        ? 5
+        : a.status === "amber"
+          ? 3
+          : a.status === "red"
+            ? 1
+            : null,
     )
     .filter((v) => v !== null) as number[];
   if (!vals.length) return null;
@@ -18,7 +24,7 @@ function getSovereigntyIndex(b2: any): number | null {
 
 function hasRedAxis(b2: any): boolean {
   if (!b2?.axes) return false;
-  return (Object.values(b2.axes) as any[]).some((a) => a.status === 'red');
+  return (Object.values(b2.axes) as any[]).some((a) => a.status === "red");
 }
 
 /** Map a 1–5 float sovereignty index to a rounded 1–5 integer score */
@@ -29,62 +35,69 @@ function sovereigntyToD5(index: number | null): number {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const { searchParams } = new URL(req.url);
-    const processId = searchParams.get('processId');
+    const processId = searchParams.get("processId");
 
     const query: Record<string, any> = { auditId };
     if (processId) query.processId = processId;
 
     const useCases = await UseCase.find(query)
-      .populate('processId', 'procId name b1')
+      .populate("processId", "procId name b1")
       .lean();
 
     return NextResponse.json(useCases);
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
-  const forbidden = requireRole(req, ['admin', 'consultant']);
+  const forbidden = requireRole(req, ["admin", "consultant"]);
   if (forbidden) return forbidden;
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const body = await req.json();
     const parsed = createUseCaseSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
     }
 
     // Auto-generate cuId unique per process, compound with procId
     const proc = body.processId
-      ? await Process.findById(body.processId).select('procId').lean() as any
+      ? ((await Process.findById(body.processId)
+          .select("procId")
+          .lean()) as any)
       : null;
-    const procIdStr = proc?.procId ?? 'PROC';
+    const procIdStr = proc?.procId ?? "PROC";
     const seq = await nextSequence(`usecase:${body.processId}`);
-    const cuId = `${procIdStr}-C${String(seq).padStart(2, '0')}`;
+    const cuId = `${procIdStr}-C${String(seq).padStart(2, "0")}`;
 
     // Determine status based on B2 compatibility
-    let status = body.status || 'eligible';
+    let status = body.status || "eligible";
     let blockedReason: string | undefined;
     let blockedAxis: string | undefined;
 
-    if (body.b2Compatible === 'no' && body.processId) {
+    if (body.b2Compatible === "no" && body.processId) {
       const process = await Process.findById(body.processId).lean();
       if (process && hasRedAxis(process.b2)) {
-        status = 'blocked';
-        blockedReason = 'B2 sovereignty axis marked red';
-        blockedAxis = 'b2';
+        status = "blocked";
+        blockedReason = "B2 sovereignty axis marked red";
+        blockedAxis = "b2";
       }
     }
 
@@ -102,15 +115,15 @@ export async function POST(
     const aiTypes = body.aiTypes?.length
       ? body.aiTypes
       : body.aiType
-      ? [body.aiType]
-      : ['generative_llm'];
+        ? [body.aiType]
+        : ["generative_llm"];
 
     // Support both targetActivities (new, array) and targetActivity (legacy, string)
     const targetActivities = body.targetActivities?.length
       ? body.targetActivities
       : body.targetActivity
-      ? [body.targetActivity]
-      : [];
+        ? [body.targetActivity]
+        : [];
 
     const useCaseData: Record<string, any> = {
       auditId,
@@ -119,14 +132,14 @@ export async function POST(
       description: body.description,
       aiTypes,
       targetActivities,
-      b2Compatible: body.b2Compatible || 'yes',
+      b2Compatible: body.b2Compatible || "yes",
       requiresClientIT: body.requiresClientIT ?? false,
       timeSavedPerProfile: body.timeSavedPerProfile || [],
       estimatedDevCostEur: body.estimatedDevCostEur || 0,
-      devCostExplanation: body.devCostExplanation || '',
+      devCostExplanation: body.devCostExplanation || "",
       estimatedImplWeeks: body.estimatedImplWeeks || 0,
       status,
-      notes: body.notes || '',
+      notes: body.notes || "",
     };
 
     if (blockedReason) useCaseData.blockedReason = blockedReason;
@@ -142,8 +155,9 @@ export async function POST(
             value: body.score.dimensions?.d5_sovereigntyIndex?.value ?? d5Value,
             justification:
               body.score.dimensions?.d5_sovereigntyIndex?.justification ??
-              'Auto-filled from B2 sovereignty index',
-            autoFilled: body.score.dimensions?.d5_sovereigntyIndex?.autoFilled ?? true,
+              "Auto-filled from B2 sovereignty index",
+            autoFilled:
+              body.score.dimensions?.d5_sovereigntyIndex?.autoFilled ?? true,
           },
         },
       };
@@ -152,12 +166,12 @@ export async function POST(
         dimensions: {
           d5_sovereigntyIndex: {
             value: d5Value,
-            justification: 'Auto-filled from B2 sovereignty index',
+            justification: "Auto-filled from B2 sovereignty index",
             autoFilled: true,
           },
         },
-        scoringNotes: '',
-        scoredBy: '',
+        scoringNotes: "",
+        scoredBy: "",
       };
     }
 
@@ -165,6 +179,9 @@ export async function POST(
     return NextResponse.json(useCase, { status: 201 });
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
