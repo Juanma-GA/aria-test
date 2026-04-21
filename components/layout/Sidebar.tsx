@@ -151,7 +151,7 @@ export function Sidebar() {
       // ignore errors
     }
     clearAuth();
-    router.push('/auth/login');
+    router.push("/auth/login");
   };
 
   const isActive = (href: string) =>

@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
-    const res = await fetch(apiUrl('/api/auth/login'), {
+    const res = await fetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -29,7 +29,7 @@ export default function LoginPage() {
 
     const data = await res.json();
     setUser(data.user, data.accessToken);
-    router.push('/dashboard');
+    router.push("/dashboard");
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -49,7 +49,7 @@ export default function LoginPage() {
     setError("");
     setIsDemoLoading(true);
     try {
-      const seedRes = await fetch(apiUrl('/api/seed'), { method: "POST" });
+      const seedRes = await fetch(apiUrl("/api/seed"), { method: "POST" });
       if (!seedRes.ok) {
         const data = await seedRes.json().catch(() => ({}));
         throw new Error(data.error || "Seed failed");
