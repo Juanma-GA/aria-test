@@ -1,21 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC } from '@/lib/models';
+import { calculateScore } from '@/lib/calculations';
+import { nextSequence } from '@/lib/models/Counter';
+import { createAuditSchema, validationErrorResponse } from '@/lib/validators';
+import { requireRole } from '@/lib/auth';
 
 export async function GET(_req: NextRequest) {
   try {
     await dbConnect();
 
-    // Batch all collection reads in one round-trip
     const { searchParams } = new URL(_req.url);
     const showArchived = searchParams.get('archived') === 'true';
     const auditFilter = showArchived ? { isArchived: true } : { isArchived: { $ne: true } };
+    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+    const limitRaw = parseInt(searchParams.get('limit') ?? '0', 10);
+    const limit = limitRaw > 0 && limitRaw <= 100 ? limitRaw : 0;
+    const skip = limit > 0 ? (page - 1) * limit : 0;
 
-    const [audits, allPocs, allProcesses, allUseCases] = await Promise.all([
-      Audit.find(auditFilter).sort({ updatedAt: -1 }).populate('leadConsultant', 'name').lean(),
-      POC.find({}).select('auditId phase').lean(),
-      Process.find({}).select('auditId _id b1 b3').lean(),
-      UseCase.find({}).select('auditId processId score status timeSavedPerProfile').lean(),
+    const auditQuery = Audit.find(auditFilter)
+      .sort({ updatedAt: -1 })
+      .populate('leadConsultant', 'name');
+    if (limit > 0) auditQuery.skip(skip).limit(limit);
+    const audits = await auditQuery.lean();
+
+    const auditIds = audits.map((a) => a._id);
+    const [allPocs, allProcesses, allUseCases] = await Promise.all([
+      POC.find({ auditId: { $in: auditIds } }).select('auditId phase').lean(),
+      Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
+      UseCase.find({ auditId: { $in: auditIds } }).select('auditId processId score status timeSavedPerProfile').lean(),
     ]);
 
     // Group POCs by audit → phase counts
@@ -95,10 +108,9 @@ export async function GET(_req: NextRequest) {
           savingsByCategory.strategic += ucSaving;
           continue;
         }
-        const scoreTotal: number = Object.values(dims).reduce((s: number, d: any) => s + (d?.value ?? 0), 0);
-        const d6: number = (dims as any).d6_governanceComplexity?.value ?? 0;
-        if (scoreTotal >= 22 && d6 >= 4) { byCategory.quickWin++; savingsByCategory.quickWin += ucSaving; }
-        else if (scoreTotal >= 14) { byCategory.midTerm++; savingsByCategory.midTerm += ucSaving; }
+        const { category } = calculateScore(dims);
+        if (category === 'quick_win') { byCategory.quickWin++; savingsByCategory.quickWin += ucSaving; }
+        else if (category === 'mid_term') { byCategory.midTerm++; savingsByCategory.midTerm += ucSaving; }
         else { byCategory.strategic++; savingsByCategory.strategic += ucSaving; }
       }
 
@@ -119,19 +131,26 @@ export async function GET(_req: NextRequest) {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const forbidden = requireRole(req, ['admin', 'consultant']);
+  if (forbidden) return forbidden;
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const body = await req.json();
-    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess } = body;
+    const parsed = createAuditSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+    }
+    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess } = parsed.data;
 
-    const auditCount = await Audit.countDocuments({});
-    const auditCode = `AUD-${String(auditCount + 1).padStart(3, '0')}`;
+    const auditSeq = await nextSequence('audit');
+    const auditCode = `AUD-${String(auditSeq).padStart(3, '0')}`;
 
     const audit = await Audit.create({
       name,
@@ -140,26 +159,31 @@ export async function POST(req: NextRequest) {
       sector,
       classification,
       leadConsultant: userId,
-      startDate: new Date(startDate),
-      targetEndDate: new Date(targetEndDate),
+      startDate: startDate ? new Date(startDate) : undefined,
+      targetEndDate: targetEndDate ? new Date(targetEndDate) : undefined,
       status: 'active',
       auditCode,
     });
 
-    const process = await Process.create({
-      auditId: audit._id,
-      procId: `${auditCode}-P01`,
-      name: firstProcess.name,
-      department: firstProcess.department || '',
-      responsible: firstProcess.responsible || '',
-      sector,
-      applicableNorms: firstProcess.applicableNorms || [],
-      priority: firstProcess.priority || 'medium',
-      status: 'pending',
-    });
+    let process = null;
+    if (firstProcess?.name?.trim()) {
+      const procSeq = await nextSequence(`process:${audit._id}`);
+      process = await Process.create({
+        auditId: audit._id,
+        procId: `${auditCode}-P${String(procSeq).padStart(2, '0')}`,
+        name: firstProcess.name,
+        department: firstProcess.department || '',
+        responsible: firstProcess.responsible || '',
+        sector,
+        applicableNorms: firstProcess.applicableNorms || [],
+        priority: firstProcess.priority || 'medium',
+        status: 'pending',
+      });
+    }
 
     return NextResponse.json({ audit, process }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

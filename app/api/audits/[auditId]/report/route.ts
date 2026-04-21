@@ -512,7 +512,8 @@ export async function GET(
     if (!audit.report?.markdown) return NextResponse.json({ exists: false });
     return NextResponse.json({ exists: true, report: audit.report });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -575,6 +576,7 @@ export async function POST(
 
     return NextResponse.json({ markdown, model: 'mistral-medium-latest' });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

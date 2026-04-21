@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
+import { nextSequence } from '@/lib/models/Counter';
+import { createUseCaseSchema, validationErrorResponse } from '@/lib/validators';
+import { requireRole } from '@/lib/auth';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -43,7 +46,8 @@ export async function GET(
 
     return NextResponse.json(useCases);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -51,18 +55,24 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
+  const forbidden = requireRole(req, ['admin', 'consultant']);
+  if (forbidden) return forbidden;
   try {
     await dbConnect();
     const { auditId } = params;
     const body = await req.json();
+    const parsed = createUseCaseSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+    }
 
     // Auto-generate cuId unique per process, compound with procId
     const proc = body.processId
       ? await Process.findById(body.processId).select('procId').lean() as any
       : null;
     const procIdStr = proc?.procId ?? 'PROC';
-    const count = await UseCase.countDocuments({ processId: body.processId });
-    const cuId = `${procIdStr}-C${String(count + 1).padStart(2, '0')}`;
+    const seq = await nextSequence(`usecase:${body.processId}`);
+    const cuId = `${procIdStr}-C${String(seq).padStart(2, '0')}`;
 
     // Determine status based on B2 compatibility
     let status = body.status || 'eligible';
@@ -140,16 +150,11 @@ export async function POST(
     } else {
       useCaseData.score = {
         dimensions: {
-          d1_efficiencyImpact: { value: 3, justification: '' },
-          d2_qualityImpact: { value: 3, justification: '' },
-          d3_techMaturity: { value: 3, justification: '' },
-          d4_dataReadiness: { value: 3, justification: '' },
           d5_sovereigntyIndex: {
             value: d5Value,
             justification: 'Auto-filled from B2 sovereignty index',
             autoFilled: true,
           },
-          d6_governanceComplexity: { value: 3, justification: '' },
         },
         scoringNotes: '',
         scoredBy: '',
@@ -159,6 +164,7 @@ export async function POST(
     const useCase = await UseCase.create(useCaseData);
     return NextResponse.json(useCase, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

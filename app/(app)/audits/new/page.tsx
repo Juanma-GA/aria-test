@@ -80,10 +80,8 @@ export default function NewAuditPage() {
   };
 
   const validateStep2 = (): boolean => {
-    const errors: Partial<Record<keyof Step2Data, string>> = {};
-    if (!step2.processName.trim()) errors.processName = 'Process name is required';
-    setStep2Errors(errors);
-    return Object.keys(errors).length === 0;
+    setStep2Errors({});
+    return true;
   };
 
   const handleStep1Next = () => {
@@ -95,6 +93,7 @@ export default function NewAuditPage() {
     setSubmitting(true);
     setServerError(null);
     try {
+      const hasProcess = !!step2.processName.trim();
       const res = await fetch('/api/audits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,13 +104,13 @@ export default function NewAuditPage() {
           sector: step1.sector,
           startDate: step1.startDate || new Date().toISOString(),
           targetEndDate: step1.targetEndDate || new Date().toISOString(),
-          firstProcess: {
+          firstProcess: hasProcess ? {
             name: step2.processName,
             department: step2.department,
             responsible: step2.responsible,
             applicableNorms: step2.applicableNorms,
             priority: step2.priority,
-          },
+          } : null,
         }),
       });
       if (!res.ok) {
@@ -296,16 +295,16 @@ export default function NewAuditPage() {
       {/* Step 2 */}
       {step === 2 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
-          <h2 className="font-display font-semibold text-lg text-text">First Process</h2>
+          <h2 className="font-display font-semibold text-lg text-text">First Process <span className="text-muted font-normal text-sm">(optional)</span></h2>
           <p className="text-sm text-muted">
-            Define the first process to audit. You can add more processes later.
+            Optionally define the first process now, or skip and add processes later.
           </p>
 
           <div className="grid grid-cols-1 gap-4">
             {/* Process name */}
             <div>
               <label className="block text-sm font-medium text-text mb-1">
-                Process Name <span className="text-red-sov">*</span>
+                Process Name
               </label>
               <input
                 type="text"
@@ -382,7 +381,7 @@ export default function NewAuditPage() {
               className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting && <Spinner size="sm" />}
-              {submitting ? 'Creating…' : 'Create Audit'}
+              {submitting ? 'Creating…' : step2.processName.trim() ? 'Create Audit' : 'Create Audit (no process)'}
             </button>
           </div>
         </div>

@@ -46,7 +46,8 @@ export async function PATCH(
 
     return NextResponse.json(user);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -72,6 +73,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -113,7 +113,8 @@ export async function GET(
       processes: processesWithMetrics,
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -146,7 +147,8 @@ export async function PATCH(
 
     return NextResponse.json(audit);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -178,6 +180,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Audit deleted successfully' });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

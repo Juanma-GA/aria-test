@@ -3,9 +3,23 @@ import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { signAccessToken, signRefreshToken } from '@/lib/auth';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
+
+const LOGIN_LIMIT = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rl = rateLimit(`login:${ip}`, LOGIN_LIMIT, LOGIN_WINDOW_MS);
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Too many login attempts. Try again later.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+      );
+    }
+
     await dbConnect();
     const { email, password } = await req.json();
 

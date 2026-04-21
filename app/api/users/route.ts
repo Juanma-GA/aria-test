@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
     const users = await User.find({}).select('-passwordHash').sort({ createdAt: -1 }).lean();
     return NextResponse.json(users);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
     const { passwordHash: _ph, ...safe } = user.toObject();
     return NextResponse.json(safe, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

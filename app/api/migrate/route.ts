@@ -113,6 +113,7 @@ export async function POST(_req: NextRequest) {
       updated: results,
     });
   } catch (err) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json({ ok: false, error: 'Migration failed' }, { status: 500 });
   }
 }

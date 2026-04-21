@@ -215,6 +215,7 @@ Be specific, technically precise, and grounded in the actual process data provid
     return NextResponse.json({ markdown });
   } catch (err) {
     console.error('Process report error:', err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

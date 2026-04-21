@@ -12,6 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <div className="mobile-unsupported-banner">
+          <strong>ARIA is desktop-only.</strong> For the intended experience, please open on a screen ≥ 1024px.
+        </div>
         <AppProviders>{children}</AppProviders>
         <Toaster />
       </body>

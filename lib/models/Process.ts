@@ -62,17 +62,6 @@ const ActivitySchema = new Schema({
   tasks: { type: [TaskSchema], default: [] },
 }, { _id: false });
 
-const PainPointSchema = new Schema({
-  id: { type: String, required: true },
-  description: { type: String, default: '' },
-  frictionType: { type: String, enum: ['time', 'quality', 'knowledge', 'integration', 'scale'], default: 'time' },
-  processStage: { type: String, default: '' },
-  currentMetric: { type: String, default: '' },
-  estimatedImpact: { type: Number, min: 1, max: 5, default: 3 },
-  rootCause: { type: String, default: '' },
-  notes: { type: String, default: '' },
-}, { _id: false });
-
 export interface IProcess extends Document {
   auditId: mongoose.Types.ObjectId;
   procId: string;
@@ -115,11 +104,6 @@ export interface IProcess extends Document {
     notes: string;
     annualRepetitions: number;
   };
-  // B4 kept for data preservation (no longer shown in UI)
-  b4?: {
-    painPoints: object[];
-    baseMetrics: object;
-  };
   createdAt: Date;
 }
 
@@ -161,18 +145,6 @@ const ProcessSchema = new Schema<IProcess>({
     activities: [ActivitySchema],
     notes: { type: String, default: '' },
     annualRepetitions: { type: Number, default: 1 },
-  },
-  b4: {
-    painPoints: [PainPointSchema],
-    baseMetrics: {
-      avgOutputTimeHours: { type: Number, default: 0 },
-      reworkRatePercent: { type: Number, default: 0 },
-      avgReviewCycles: { type: Number, default: 0 },
-      hourlyRateEur: { type: Number, default: 0 },
-      queueWasteHoursPerWeek: { type: Number, default: 0 },
-      contentReusePercent: { type: Number, default: 0 },
-      metricNotes: { type: String, default: '' },
-    },
   },
 }, { timestamps: true });
 
