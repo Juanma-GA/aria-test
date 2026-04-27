@@ -9,7 +9,9 @@ export async function GET() {
     const roadmaps = await Roadmap.find({}).lean();
 
     const auditIds = roadmaps.map((r) => String(r.auditId));
-    const audits = await Audit.find({ _id: { $in: auditIds } }).select('name client').lean();
+    const audits = await Audit.find({ _id: { $in: auditIds } })
+      .select('name client')
+      .lean();
     const auditMap = Object.fromEntries(audits.map((a) => [String(a._id), a]));
 
     // Collect all useCaseIds across all initiatives
@@ -18,8 +20,14 @@ export async function GET() {
       ...(r.horizons?.h2_midTerm ?? []),
       ...(r.horizons?.h3_strategic ?? []),
     ]);
-    const ucIds = [...new Set(allInitiatives.map((i) => String(i.useCaseId)).filter(Boolean))];
-    const useCases = await UseCase.find({ _id: { $in: ucIds } }).select('cuId').lean();
+    const ucIds = Array.from(
+      new Set(
+        allInitiatives.map((i: any) => String(i.useCaseId)).filter(Boolean),
+      ),
+    );
+    const useCases = await UseCase.find({ _id: { $in: ucIds } })
+      .select('cuId')
+      .lean();
     const ucMap = Object.fromEntries(useCases.map((u) => [String(u._id), u]));
 
     const enriched = roadmaps.map((r) => {
@@ -42,7 +50,10 @@ export async function GET() {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

@@ -4,11 +4,11 @@ import { POC, UseCase } from '@/lib/models';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
 
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
@@ -21,18 +21,21 @@ export async function GET(
       .lean();
     return NextResponse.json(pocs);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const body = await req.json();
 
     const { useCaseId, processId, cuId, ...rest } = body;
@@ -40,7 +43,7 @@ export async function POST(
     if (!useCaseId || !processId || !cuId) {
       return NextResponse.json(
         { error: 'useCaseId, processId, and cuId are required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,7 +62,10 @@ export async function POST(
 
     return NextResponse.json(poc, { status: 201 });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

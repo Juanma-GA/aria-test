@@ -9,7 +9,13 @@ function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
   const vals = (Object.values(b2.axes) as any[])
     .map((a) =>
-      a.status === 'green' ? 5 : a.status === 'amber' ? 3 : a.status === 'red' ? 1 : null
+      a.status === 'green'
+        ? 5
+        : a.status === 'amber'
+          ? 3
+          : a.status === 'red'
+            ? 1
+            : null,
     )
     .filter((v) => v !== null) as number[];
   if (!vals.length) return null;
@@ -29,11 +35,11 @@ function sovereigntyToD5(index: number | null): number {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
 
@@ -46,29 +52,36 @@ export async function GET(
 
     return NextResponse.json(useCases);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   const forbidden = requireRole(req, ['admin', 'consultant']);
   if (forbidden) return forbidden;
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const body = await req.json();
     const parsed = createUseCaseSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
     }
 
     // Auto-generate cuId unique per process, compound with procId
     const proc = body.processId
-      ? await Process.findById(body.processId).select('procId').lean() as any
+      ? ((await Process.findById(body.processId)
+          .select('procId')
+          .lean()) as any)
       : null;
     const procIdStr = proc?.procId ?? 'PROC';
     const seq = await nextSequence(`usecase:${body.processId}`);
@@ -102,15 +115,15 @@ export async function POST(
     const aiTypes = body.aiTypes?.length
       ? body.aiTypes
       : body.aiType
-      ? [body.aiType]
-      : ['generative_llm'];
+        ? [body.aiType]
+        : ['generative_llm'];
 
     // Support both targetActivities (new, array) and targetActivity (legacy, string)
     const targetActivities = body.targetActivities?.length
       ? body.targetActivities
       : body.targetActivity
-      ? [body.targetActivity]
-      : [];
+        ? [body.targetActivity]
+        : [];
 
     const useCaseData: Record<string, any> = {
       auditId,
@@ -143,7 +156,8 @@ export async function POST(
             justification:
               body.score.dimensions?.d5_sovereigntyIndex?.justification ??
               'Auto-filled from B2 sovereignty index',
-            autoFilled: body.score.dimensions?.d5_sovereigntyIndex?.autoFilled ?? true,
+            autoFilled:
+              body.score.dimensions?.d5_sovereigntyIndex?.autoFilled ?? true,
           },
         },
       };
@@ -164,7 +178,10 @@ export async function POST(
     const useCase = await UseCase.create(useCaseData);
     return NextResponse.json(useCase, { status: 201 });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

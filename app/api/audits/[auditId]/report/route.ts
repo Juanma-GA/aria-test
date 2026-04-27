@@ -6,7 +6,10 @@ import { Audit, Process, UseCase, POC } from '@/lib/models';
 
 function scoreTotal(score: any): number {
   if (!score?.dimensions) return 0;
-  return Object.values(score.dimensions).reduce((s: number, d: any) => s + (d?.value ?? 0), 0) as number;
+  return Object.values(score.dimensions).reduce(
+    (s: number, d: any) => s + (d?.value ?? 0),
+    0,
+  ) as number;
 }
 
 function scoreCategory(score: any): string {
@@ -18,27 +21,51 @@ function scoreCategory(score: any): string {
   return 'Strategic';
 }
 
-function sovereigntyLevel(axes: Record<string, any>): { index: number; level: string } {
-  const vals = Object.values(axes).map((a: any) =>
-    a.status === 'green' ? 5 : a.status === 'amber' ? 3 : a.status === 'red' ? 1 : 0
-  ).filter(v => v > 0);
+function sovereigntyLevel(axes: Record<string, any>): {
+  index: number;
+  level: string;
+} {
+  const vals = Object.values(axes)
+    .map((a: any) =>
+      a.status === 'green'
+        ? 5
+        : a.status === 'amber'
+          ? 3
+          : a.status === 'red'
+            ? 1
+            : 0,
+    )
+    .filter((v) => v > 0) as number[];
   if (!vals.length) return { index: 0, level: 'Not assessed' };
-  const index = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const index = vals.reduce<number>((s, v) => s + v, 0) / vals.length;
   const level =
-    index >= 4.5 ? 'Full Autonomy' :
-    index >= 3.5 ? 'Managed' :
-    index >= 2.5 ? 'Conditioned' :
-    index >= 1.5 ? 'Restricted' : 'Critical';
+    index >= 4.5
+      ? 'Full Autonomy'
+      : index >= 3.5
+        ? 'Managed'
+        : index >= 2.5
+          ? 'Conditioned'
+          : index >= 1.5
+            ? 'Restricted'
+            : 'Critical';
   return { index: Math.round(index * 10) / 10, level };
 }
 
 const fmt = (d: Date | string | undefined) =>
-  d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  d
+    ? new Date(d).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : '—';
 
 const fmtEur = (n: number) =>
-  n >= 1_000_000 ? `€${(n / 1_000_000).toFixed(2)}M`
-  : n >= 1_000 ? `€${Math.round(n / 1000)}k`
-  : `€${Math.round(n)}`;
+  n >= 1_000_000
+    ? `€${(n / 1_000_000).toFixed(2)}M`
+    : n >= 1_000
+      ? `€${Math.round(n / 1000)}k`
+      : `€${Math.round(n)}`;
 
 const AXIS_LABELS: Record<string, string> = {
   axis1_InfoClassification: 'Info Classification',
@@ -50,8 +77,12 @@ const AXIS_LABELS: Record<string, string> = {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
-function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[]): string {
-
+function buildPrompt(
+  audit: any,
+  processes: any[],
+  useCases: any[],
+  pocs: any[],
+): string {
   // ── Global metrics ──────────────────────────────────────────────────────────
   let totalPeople = 0;
   let totalAnnualHours = 0;
@@ -59,7 +90,9 @@ function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[])
   let totalAnnualSaving = 0;
   let totalComputeCostEur = 0;
   let totalDevCost = 0;
-  let qwCount = 0, mtCount = 0, stCount = 0;
+  let qwCount = 0,
+    mtCount = 0,
+    stCount = 0;
 
   const ucByProcess: Record<string, any[]> = {};
   const pocByUC: Record<string, any[]> = {};
@@ -75,23 +108,37 @@ function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[])
   }
 
   // Per-process metrics
-  const processMetrics: Record<string, { annualReps: number; profiles: any[]; avgRate: number }> = {};
+  const processMetrics: Record<
+    string,
+    { annualReps: number; profiles: any[]; avgRate: number }
+  > = {};
   for (const p of processes) {
     const profiles: any[] = p.b1?.profiles ?? [];
     const annualReps = p.b3?.annualRepetitions ?? 0;
-    const rates = profiles.map((pr: any) => pr.hourlyRateEur ?? 0).filter(r => r > 0);
-    const avgRate = rates.length ? rates.reduce((s: number, r: number) => s + r, 0) / rates.length : 0;
+    const rates = profiles
+      .map((pr: any) => pr.hourlyRateEur ?? 0)
+      .filter((r) => r > 0);
+    const avgRate = rates.length
+      ? rates.reduce((s: number, r: number) => s + r, 0) / rates.length
+      : 0;
     processMetrics[String(p._id)] = { annualReps, profiles, avgRate };
 
-    totalPeople += profiles.reduce((s: number, pr: any) => s + (pr.count ?? 0), 0);
+    totalPeople += profiles.reduce(
+      (s: number, pr: any) => s + (pr.count ?? 0),
+      0,
+    );
     const activities: any[] = p.b3?.activities ?? [];
     for (const act of activities) {
       const hrs = act.estimatedTimeHours ?? 0;
       const stepReps = act.stepRepetitions ?? 1;
       totalAnnualHours += hrs * stepReps * annualReps;
-      for (const ph of (act.profileHours ?? [])) {
+      for (const ph of act.profileHours ?? []) {
         const profile = profiles.find((pr: any) => pr.id === ph.profileId);
-        totalAnnualCostEur += (ph.hours ?? 0) * stepReps * annualReps * (profile?.hourlyRateEur ?? 0);
+        totalAnnualCostEur +=
+          (ph.hours ?? 0) *
+          stepReps *
+          annualReps *
+          (profile?.hourlyRateEur ?? 0);
       }
     }
   }
@@ -103,17 +150,24 @@ function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[])
     if (reps === 0) return 0;
     const model = cc.deploymentModel ?? 'cloud_api';
     const cloudCost =
-      (cc.inputTokensPerExec ?? 1000) * reps / 1_000_000 * (cc.pricePerMInputTokens ?? 2) +
-      (cc.outputTokensPerExec ?? 500) * reps / 1_000_000 * (cc.pricePerMOutputTokens ?? 6);
-    const subscriptionsCost = ((cc.subscriptions ?? []) as any[])
-      .reduce((s: number, sub: any) => s + (sub.users ?? 0) * (sub.monthlyPerUser ?? 0) * 12, 0);
+      (((cc.inputTokensPerExec ?? 1000) * reps) / 1_000_000) *
+        (cc.pricePerMInputTokens ?? 2) +
+      (((cc.outputTokensPerExec ?? 500) * reps) / 1_000_000) *
+        (cc.pricePerMOutputTokens ?? 6);
+    const subscriptionsCost = ((cc.subscriptions ?? []) as any[]).reduce(
+      (s: number, sub: any) =>
+        s + (sub.users ?? 0) * (sub.monthlyPerUser ?? 0) * 12,
+      0,
+    );
     // For simplicity in report: use cloud cost only (most common case)
-    return (model === 'cloud_api' ? cloudCost : cloudCost * 0.7) + subscriptionsCost;
+    return (
+      (model === 'cloud_api' ? cloudCost : cloudCost * 0.7) + subscriptionsCost
+    );
   }
 
-  const eligibleUCs = useCases.filter(u => u.status === 'eligible');
-  const blockedUCs = useCases.filter(u => u.status === 'blocked');
-  const pendingUCs = useCases.filter(u => u.status === 'pending_review');
+  const eligibleUCs = useCases.filter((u) => u.status === 'eligible');
+  const blockedUCs = useCases.filter((u) => u.status === 'blocked');
+  const pendingUCs = useCases.filter((u) => u.status === 'pending_review');
 
   for (const uc of eligibleUCs) {
     const total = scoreTotal(uc.score);
@@ -126,20 +180,28 @@ function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[])
     const pid = String(uc.processId);
     const m = processMetrics[pid];
     if (m) {
-      const timeSaved = (uc.timeSavedPerProfile ?? []).reduce((s: number, e: any) => s + (e.hoursPerExecution ?? 0), 0);
+      const timeSaved = (uc.timeSavedPerProfile ?? []).reduce(
+        (s: number, e: any) => s + (e.hoursPerExecution ?? 0),
+        0,
+      );
       totalAnnualSaving += timeSaved * m.avgRate * m.annualReps;
     }
     totalComputeCostEur += computeAnnualCostForUC(uc);
   }
 
   const netAnnualSaving = Math.max(totalAnnualSaving - totalComputeCostEur, 0);
-  const paybackMonths = totalDevCost > 0 && netAnnualSaving > 0
-    ? Math.round((totalDevCost / netAnnualSaving) * 12)
-    : null;
+  const paybackMonths =
+    totalDevCost > 0 && netAnnualSaving > 0
+      ? Math.round((totalDevCost / netAnnualSaving) * 12)
+      : null;
 
-  const pocGo = pocs.filter(p => p.decision?.decision === 'go' || p.decision?.decision === 'go_conditional').length;
-  const pocClosed = pocs.filter(p => p.phase === 'closed').length;
-  const pocActive = pocs.filter(p => p.phase !== 'closed').length;
+  const pocGo = pocs.filter(
+    (p) =>
+      p.decision?.decision === 'go' ||
+      p.decision?.decision === 'go_conditional',
+  ).length;
+  const pocClosed = pocs.filter((p) => p.phase === 'closed').length;
+  const pocActive = pocs.filter((p) => p.phase !== 'closed').length;
 
   // ── Global sovereignty ──────────────────────────────────────────────────────
   const axisCountByStatus: Record<string, Record<string, number>> = {};
@@ -151,69 +213,128 @@ function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[])
   for (const p of processes) {
     const axes = p.b2?.axes ?? {};
     const { index } = sovereigntyLevel(axes);
-    if (index > 0) { globalSovIndex += index; globalSovCount++; }
+    if (index > 0) {
+      globalSovIndex += index;
+      globalSovCount++;
+    }
     for (const key of Object.keys(AXIS_LABELS)) {
       const status = axes[key]?.status;
       if (status && axisCountByStatus[key]) axisCountByStatus[key][status]++;
     }
   }
   const avgSovIndex = globalSovCount > 0 ? globalSovIndex / globalSovCount : 0;
-  const globalSovLevel = sovereigntyLevel({ _: { status: avgSovIndex >= 4.5 ? 'green' : avgSovIndex >= 3.5 ? 'green' : avgSovIndex >= 2.5 ? 'amber' : 'red' } });
+  const globalSovLevel = sovereigntyLevel({
+    _: {
+      status:
+        avgSovIndex >= 4.5
+          ? 'green'
+          : avgSovIndex >= 3.5
+            ? 'green'
+            : avgSovIndex >= 2.5
+              ? 'amber'
+              : 'red',
+    },
+  });
   const sovLevelLabel =
-    avgSovIndex >= 4.5 ? 'Full Autonomy' :
-    avgSovIndex >= 3.5 ? 'Managed' :
-    avgSovIndex >= 2.5 ? 'Conditioned' :
-    avgSovIndex >= 1.5 ? 'Restricted' : 'Critical';
+    avgSovIndex >= 4.5
+      ? 'Full Autonomy'
+      : avgSovIndex >= 3.5
+        ? 'Managed'
+        : avgSovIndex >= 2.5
+          ? 'Conditioned'
+          : avgSovIndex >= 1.5
+            ? 'Restricted'
+            : 'Critical';
 
-  const sovereigntyTableRows = Object.entries(AXIS_LABELS).map(([key, label]) => {
-    const c = axisCountByStatus[key] ?? { green: 0, amber: 0, red: 0 };
-    return `| ${label} | ${c.green} ✅ | ${c.amber} 🟡 | ${c.red} 🔴 |`;
-  }).join('\n');
+  const sovereigntyTableRows = Object.entries(AXIS_LABELS)
+    .map(([key, label]) => {
+      const c = axisCountByStatus[key] ?? { green: 0, amber: 0, red: 0 };
+      return `| ${label} | ${c.green} ✅ | ${c.amber} 🟡 | ${c.red} 🔴 |`;
+    })
+    .join('\n');
 
-  const ucRequiresClientIT = useCases.filter(u => u.requiresClientIT).length;
+  const ucRequiresClientIT = useCases.filter((u) => u.requiresClientIT).length;
 
   // ── Process sections ────────────────────────────────────────────────────────
-  const processSections = processes.map(p => {
-    const profiles: any[] = p.b1?.profiles ?? [];
-    const peopleCount = profiles.reduce((s: number, pr: any) => s + (pr.count ?? 0), 0);
-    const profilesStr = profiles.map((pr: any) => `${pr.role} (×${pr.count}, €${pr.hourlyRateEur}/h)`).join(', ') || '—';
-    const activities: any[] = p.b3?.activities ?? [];
-    const annualReps = p.b3?.annualRepetitions ?? 0;
-    const totalHrsRun = activities.reduce((s: number, a: any) => s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1), 0);
-    const decisionPoints = activities.filter(a => a.isDecisionPoint).length;
+  const processSections = processes
+    .map((p) => {
+      const profiles: any[] = p.b1?.profiles ?? [];
+      const peopleCount = profiles.reduce(
+        (s: number, pr: any) => s + (pr.count ?? 0),
+        0,
+      );
+      const profilesStr =
+        profiles
+          .map((pr: any) => `${pr.role} (×${pr.count}, €${pr.hourlyRateEur}/h)`)
+          .join(', ') || '—';
+      const activities: any[] = p.b3?.activities ?? [];
+      const annualReps = p.b3?.annualRepetitions ?? 0;
+      const totalHrsRun = activities.reduce(
+        (s: number, a: any) =>
+          s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1),
+        0,
+      );
+      const decisionPoints = activities.filter((a) => a.isDecisionPoint).length;
 
-    const axes = p.b2?.axes ?? {};
-    const { index: sovIdx, level: sovLevel } = sovereigntyLevel(axes);
-    const axisLines = Object.entries(AXIS_LABELS).map(([key, label]) => {
-      const ax = axes[key];
-      const status = ax?.status ?? 'not assessed';
-      const icon = status === 'green' ? '✅' : status === 'amber' ? '🟡' : status === 'red' ? '🔴' : '⬜';
-      const fw = (ax?.normativeFrameworks ?? (ax?.normativeFramework ? [ax.normativeFramework] : [])).join(', ') || '—';
-      return `  ${icon} ${label}: ${status.toUpperCase()} | Frameworks: ${fw}${ax?.findings ? ` | "${ax.findings.slice(0, 120)}"` : ''}`;
-    }).join('\n');
+      const axes = p.b2?.axes ?? {};
+      const { index: sovIdx, level: sovLevel } = sovereigntyLevel(axes);
+      const axisLines = Object.entries(AXIS_LABELS)
+        .map(([key, label]) => {
+          const ax = axes[key];
+          const status = ax?.status ?? 'not assessed';
+          const icon =
+            status === 'green'
+              ? '✅'
+              : status === 'amber'
+                ? '🟡'
+                : status === 'red'
+                  ? '🔴'
+                  : '⬜';
+          const fw =
+            (
+              ax?.normativeFrameworks ??
+              (ax?.normativeFramework ? [ax.normativeFramework] : [])
+            ).join(', ') || '—';
+          return `  ${icon} ${label}: ${status.toUpperCase()} | Frameworks: ${fw}${ax?.findings ? ` | "${ax.findings.slice(0, 120)}"` : ''}`;
+        })
+        .join('\n');
 
-    const procUCs = ucByProcess[String(p._id)] ?? [];
-    const m = processMetrics[String(p._id)];
+      const procUCs = ucByProcess[String(p._id)] ?? [];
+      const m = processMetrics[String(p._id)];
 
-    const ucLines = procUCs.map((uc: any) => {
-      const total = scoreTotal(uc.score);
-      const cat = scoreCategory(uc.score);
-      const timeSaved = (uc.timeSavedPerProfile ?? []).reduce((s: number, e: any) => s + (e.hoursPerExecution ?? 0), 0);
-      const annualSaving = timeSaved * (m?.avgRate ?? 0) * (m?.annualReps ?? 0);
-      const computeCost = computeAnnualCostForUC(uc);
-      const payback = (uc.estimatedDevCostEur ?? 0) > 0 && annualSaving > 0
-        ? Math.round((uc.estimatedDevCostEur / annualSaving) * 12) : null;
-      const dims = uc.score?.dimensions ?? {};
-      const dimStr = ['d1_efficiencyImpact','d2_qualityImpact','d3_techMaturity','d4_dataReadiness','d5_sovereigntyIndex']
-        .map((k, i) => `D${i+1}=${dims[k]?.value ?? '?'}`)
-        .join(' ');
-      return `  • ${uc.cuId} [${(uc.aiTypes ?? []).join('/')}] | Score: ${total}/30 (${cat}) | ${uc.status.toUpperCase()}
+      const ucLines = procUCs
+        .map((uc: any) => {
+          const total = scoreTotal(uc.score);
+          const cat = scoreCategory(uc.score);
+          const timeSaved = (uc.timeSavedPerProfile ?? []).reduce(
+            (s: number, e: any) => s + (e.hoursPerExecution ?? 0),
+            0,
+          );
+          const annualSaving =
+            timeSaved * (m?.avgRate ?? 0) * (m?.annualReps ?? 0);
+          const computeCost = computeAnnualCostForUC(uc);
+          const payback =
+            (uc.estimatedDevCostEur ?? 0) > 0 && annualSaving > 0
+              ? Math.round((uc.estimatedDevCostEur / annualSaving) * 12)
+              : null;
+          const dims = uc.score?.dimensions ?? {};
+          const dimStr = [
+            'd1_efficiencyImpact',
+            'd2_qualityImpact',
+            'd3_techMaturity',
+            'd4_dataReadiness',
+            'd5_sovereigntyIndex',
+          ]
+            .map((k, i) => `D${i + 1}=${dims[k]?.value ?? '?'}`)
+            .join(' ');
+          return `  • ${uc.cuId} [${(uc.aiTypes ?? []).join('/')}] | Score: ${total}/30 (${cat}) | ${uc.status.toUpperCase()}
     Time saved: ${timeSaved}h/run → ${fmtEur(annualSaving)}/yr gross | Compute: ${fmtEur(computeCost)}/yr | Dev: ${fmtEur(uc.estimatedDevCostEur ?? 0)}${payback !== null ? ` | Payback: ${payback}m` : ''}
     ${dimStr} | Client IT: ${uc.requiresClientIT ? 'Yes' : 'No'}
     ${uc.sovereigntyAnalysis ? `Sovereignty note: "${uc.sovereigntyAnalysis.slice(0, 200)}"` : ''}`;
-    }).join('\n');
+        })
+        .join('\n');
 
-    return `### ${p.procId} — ${p.name}
+      return `### ${p.procId} — ${p.name}
 Department: ${p.b1?.clientDepartment ?? p.department ?? '—'} | Client contact: ${p.b1?.clientResponsible ?? p.responsible ?? '—'} | Tech Director: ${p.b1?.technicalDirectorResponsible ?? '—'}
 People impacted: ${peopleCount} | Annual repetitions: ${annualReps}
 Profiles: ${profilesStr}
@@ -223,51 +344,79 @@ Sovereignty [${sovIdx}/5 — ${sovLevel}]:
 ${axisLines}
 Use cases (${procUCs.length}):
 ${ucLines || '  (none identified)'}`;
-  }).join('\n\n');
+    })
+    .join('\n\n');
 
   // ── UC ranking table ────────────────────────────────────────────────────────
-  const allUCsRanked = [...useCases].sort((a, b) => scoreTotal(b.score) - scoreTotal(a.score));
-  const ucTableRows = allUCsRanked.map(uc => {
-    const total = scoreTotal(uc.score);
-    const cat = scoreCategory(uc.score);
-    const pid = String(uc.processId);
-    const m = processMetrics[pid];
-    const timeSaved = (uc.timeSavedPerProfile ?? []).reduce((s: number, e: any) => s + (e.hoursPerExecution ?? 0), 0);
-    const annualSaving = timeSaved * (m?.avgRate ?? 0) * (m?.annualReps ?? 0);
-    const payback = (uc.estimatedDevCostEur ?? 0) > 0 && annualSaving > 0
-      ? `${Math.round((uc.estimatedDevCostEur / annualSaving) * 12)}m` : '—';
-    const proc = processes.find(p => String(p._id) === pid);
-    return `| ${uc.cuId} | ${uc.description.slice(0, 50)}… | ${(uc.aiTypes ?? []).join('/')} | ${total}/30 | ${cat} | ${fmtEur(annualSaving)}/yr | ${fmtEur(uc.estimatedDevCostEur ?? 0)} | ${payback} | ${uc.status} |`;
-  }).join('\n');
+  const allUCsRanked = [...useCases].sort(
+    (a, b) => scoreTotal(b.score) - scoreTotal(a.score),
+  );
+  const ucTableRows = allUCsRanked
+    .map((uc) => {
+      const total = scoreTotal(uc.score);
+      const cat = scoreCategory(uc.score);
+      const pid = String(uc.processId);
+      const m = processMetrics[pid];
+      const timeSaved = (uc.timeSavedPerProfile ?? []).reduce(
+        (s: number, e: any) => s + (e.hoursPerExecution ?? 0),
+        0,
+      );
+      const annualSaving = timeSaved * (m?.avgRate ?? 0) * (m?.annualReps ?? 0);
+      const payback =
+        (uc.estimatedDevCostEur ?? 0) > 0 && annualSaving > 0
+          ? `${Math.round((uc.estimatedDevCostEur / annualSaving) * 12)}m`
+          : '—';
+      const proc = processes.find((p) => String(p._id) === pid);
+      return `| ${uc.cuId} | ${uc.description.slice(0, 50)}… | ${(uc.aiTypes ?? []).join('/')} | ${total}/30 | ${cat} | ${fmtEur(annualSaving)}/yr | ${fmtEur(uc.estimatedDevCostEur ?? 0)} | ${payback} | ${uc.status} |`;
+    })
+    .join('\n');
 
   // ── Compute cost table ──────────────────────────────────────────────────────
-  const computeTableRows = eligibleUCs.map(uc => {
-    const cc = (uc as any).computeCost ?? {};
-    const cost = computeAnnualCostForUC(uc);
-    return `| ${uc.cuId} | ${cc.deploymentModel ?? 'cloud_api'} | ${(cc.annualReps ?? 0).toLocaleString()} | ${fmtEur(cost)}/yr |`;
-  }).join('\n');
+  const computeTableRows = eligibleUCs
+    .map((uc) => {
+      const cc = (uc as any).computeCost ?? {};
+      const cost = computeAnnualCostForUC(uc);
+      return `| ${uc.cuId} | ${cc.deploymentModel ?? 'cloud_api'} | ${(cc.annualReps ?? 0).toLocaleString()} | ${fmtEur(cost)}/yr |`;
+    })
+    .join('\n');
 
   // ── POC section ─────────────────────────────────────────────────────────────
-  const pocLines = pocs.map((poc: any) => {
-    const ucRef = poc.useCaseId?.cuId ?? String(poc.useCaseId);
-    const procRef = poc.processId?.procId ?? String(poc.processId);
-    const milestones: any[] = poc.execution?.milestones ?? [];
-    const doneMilestones = milestones.filter(m => m.status === 'done').length;
-    const progressStr = milestones.length > 0 ? `${doneMilestones}/${milestones.length} milestones` : 'no milestones';
-    const lines = [
-      `### ${poc.pocId} → UC: ${ucRef} | Process: ${procRef}`,
-      `Phase: ${poc.phase} | Decision: ${poc.decision?.decision ?? 'pending'} | Progress: ${progressStr}`,
-      `Objective: ${poc.design?.measurableObjective ?? '—'}`,
-      poc.design?.activeB2Restrictions ? `B2 restrictions: ${poc.design.activeB2Restrictions}` : '',
-    ];
-    if (poc.phase === 'closed' || poc.evaluation?.resultsVsCriteria) {
-      lines.push(`Results vs criteria: ${poc.evaluation?.resultsVsCriteria ?? '—'}`);
-      lines.push(`Technical lessons: ${poc.evaluation?.technicalLessons ?? '—'}`);
-      lines.push(`Actual cost: ${fmtEur(poc.evaluation?.actualCostEur ?? 0)}`);
-      if (poc.decision?.justification) lines.push(`Decision rationale: ${poc.decision.justification}`);
-    }
-    return lines.filter(Boolean).join('\n');
-  }).join('\n\n');
+  const pocLines = pocs
+    .map((poc: any) => {
+      const ucRef = poc.useCaseId?.cuId ?? String(poc.useCaseId);
+      const procRef = poc.processId?.procId ?? String(poc.processId);
+      const milestones: any[] = poc.execution?.milestones ?? [];
+      const doneMilestones = milestones.filter(
+        (m) => m.status === 'done',
+      ).length;
+      const progressStr =
+        milestones.length > 0
+          ? `${doneMilestones}/${milestones.length} milestones`
+          : 'no milestones';
+      const lines = [
+        `### ${poc.pocId} → UC: ${ucRef} | Process: ${procRef}`,
+        `Phase: ${poc.phase} | Decision: ${poc.decision?.decision ?? 'pending'} | Progress: ${progressStr}`,
+        `Objective: ${poc.design?.measurableObjective ?? '—'}`,
+        poc.design?.activeB2Restrictions
+          ? `B2 restrictions: ${poc.design.activeB2Restrictions}`
+          : '',
+      ];
+      if (poc.phase === 'closed' || poc.evaluation?.resultsVsCriteria) {
+        lines.push(
+          `Results vs criteria: ${poc.evaluation?.resultsVsCriteria ?? '—'}`,
+        );
+        lines.push(
+          `Technical lessons: ${poc.evaluation?.technicalLessons ?? '—'}`,
+        );
+        lines.push(
+          `Actual cost: ${fmtEur(poc.evaluation?.actualCostEur ?? 0)}`,
+        );
+        if (poc.decision?.justification)
+          lines.push(`Decision rationale: ${poc.decision.justification}`);
+      }
+      return lines.filter(Boolean).join('\n');
+    })
+    .join('\n\n');
 
   // ── Prompt ──────────────────────────────────────────────────────────────────
   return `You are a senior digital transformation consultant specialised in industrial AI for the defence, aerospace, naval, and railway sectors.
@@ -433,9 +582,13 @@ For each blocked UC: reason for blockage and specific condition required to unbl
 
 ## 6. POC Status
 
-${pocs.length > 0 ? `6a. Reproduce a summary table: | POC ID | UC | Phase | Decision | Milestones |
+${
+  pocs.length > 0
+    ? `6a. Reproduce a summary table: | POC ID | UC | Phase | Decision | Milestones |
 For each closed POC: summarise results vs criteria, key lessons learned, and whether the decision was GO/No-Go.
-For each active POC: state current phase, next milestone, and any blockers.` : `No POCs have been recorded for this audit. Recommend the top 2-3 eligible use cases that should be launched as POCs immediately, with justification based on score, saving potential, and technical maturity (D3/D4 dimensions).`}
+For each active POC: state current phase, next milestone, and any blockers.`
+    : `No POCs have been recorded for this audit. Recommend the top 2-3 eligible use cases that should be launched as POCs immediately, with justification based on score, saving potential, and technical maturity (D3/D4 dimensions).`
+}
 
 ---
 
@@ -503,17 +656,24 @@ END OF REPORT
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const audit = await Audit.findById(params.auditId).select('report').lean() as any;
-    if (!audit) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const { auditId } = await params;
+    const audit = (await Audit.findById(auditId)
+      .select('report')
+      .lean()) as any;
+    if (!audit)
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!audit.report?.markdown) return NextResponse.json({ exists: false });
     return NextResponse.json({ exists: true, report: audit.report });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
@@ -521,9 +681,9 @@ export async function GET(
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
-  const { auditId } = params;
+  const { auditId } = await params;
 
   try {
     await dbConnect();
@@ -538,35 +698,51 @@ export async function POST(
         .lean(),
     ]);
 
-    if (!audit) return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
+    if (!audit)
+      return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
 
-    const prompt = buildPrompt(audit, processes as any[], useCases as any[], pocs as any[]);
+    const prompt = buildPrompt(
+      audit,
+      processes as any[],
+      useCases as any[],
+      pocs as any[],
+    );
 
     if (!process.env.MISTRAL_API_KEY) {
-      return NextResponse.json({ error: 'MISTRAL_API_KEY no configurada en .env.local' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'MISTRAL_API_KEY no configurada en .env.local' },
+        { status: 500 },
+      );
     }
 
-    const mistralRes = await fetch('https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+    const mistralRes = await fetch(
+      'https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'mistral-medium-latest',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 6000,
+          temperature: 0.2,
+        }),
       },
-      body: JSON.stringify({
-        model: 'mistral-medium-latest',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 6000,
-        temperature: 0.2,
-      }),
-    });
+    );
 
     if (!mistralRes.ok) {
       const errText = await mistralRes.text();
-      return NextResponse.json({ error: `Mistral API error: ${errText}` }, { status: 500 });
+      return NextResponse.json(
+        { error: `Mistral API error: ${errText}` },
+        { status: 500 },
+      );
     }
 
     const mistralData = await mistralRes.json();
-    const markdown = (mistralData.choices?.[0]?.message?.content ?? '') as string;
+    const markdown = (mistralData.choices?.[0]?.message?.content ??
+      '') as string;
 
     await Audit.findByIdAndUpdate(auditId, {
       'report.generatedAt': new Date(),
@@ -576,7 +752,10 @@ export async function POST(
 
     return NextResponse.json({ markdown, model: 'mistral-medium-latest' });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

@@ -4,11 +4,11 @@ import { POC, UseCase } from '@/lib/models';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
 
     const poc = await POC.findOne({ auditId, _id: pocId }).lean();
     if (!poc) {
@@ -17,18 +17,21 @@ export async function GET(
 
     return NextResponse.json(poc);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
     const body = await req.json();
 
     const poc = await POC.findOne({ auditId, _id: pocId });
@@ -37,7 +40,12 @@ export async function PATCH(
     }
 
     // Deep merge nested objects (design, execution, evaluation, decision)
-    const nestedFields = ['design', 'execution', 'evaluation', 'decision'] as const;
+    const nestedFields = [
+      'design',
+      'execution',
+      'evaluation',
+      'decision',
+    ] as const;
     for (const field of nestedFields) {
       if (body[field] !== undefined) {
         const existing = (poc[field] as any)?.toObject?.() ?? poc[field] ?? {};
@@ -62,18 +70,21 @@ export async function PATCH(
 
     return NextResponse.json(poc.toObject());
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
 
     const poc = await POC.findOne({ auditId, _id: pocId });
     if (!poc) {
@@ -83,7 +94,10 @@ export async function DELETE(
     await poc.deleteOne();
     return NextResponse.json({ message: 'POC deleted successfully' });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

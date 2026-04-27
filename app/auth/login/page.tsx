@@ -3,6 +3,7 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
+import { apiUrl } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -48,7 +49,7 @@ export default function LoginPage() {
     setError('');
     setIsDemoLoading(true);
     try {
-      const seedRes = await fetch('/api/seed', { method: 'POST' });
+      const seedRes = await fetch(apiUrl('/api/seed'), { method: 'POST' });
       if (!seedRes.ok) {
         const data = await seedRes.json().catch(() => ({}));
         throw new Error(data.error || 'Seed failed');
@@ -77,7 +78,9 @@ export default function LoginPage() {
           <span className="font-display text-4xl font-bold text-blue-light tracking-tight">
             ARIA
           </span>
-          <span className="block text-sm text-slate-400 mt-1 font-sans">by Atexis</span>
+          <span className="block text-sm text-slate-400 mt-1 font-sans">
+            by Atexis
+          </span>
         </div>
 
         {/* Description */}
@@ -86,8 +89,9 @@ export default function LoginPage() {
             AI Readiness &amp; Impact Audit
           </h1>
           <p className="text-slate-300 text-sm leading-relaxed">
-            A structured framework to identify, assess, and prioritise AI use cases across your
-            organisation — from process discovery to POC governance.
+            A structured framework to identify, assess, and prioritise AI use
+            cases across your organisation — from process discovery to POC
+            governance.
           </p>
           <ul className="space-y-3 text-sm text-slate-400">
             {[
@@ -114,13 +118,17 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden text-center">
-            <span className="font-display text-3xl font-bold text-navy tracking-tight">ARIA</span>
+            <span className="font-display text-3xl font-bold text-navy tracking-tight">
+              ARIA
+            </span>
             <span className="block text-xs text-muted mt-0.5">by Atexis</span>
           </div>
 
           <div className="card p-8">
             <div className="mb-6">
-              <h2 className="font-display text-xl font-bold text-text">Welcome back</h2>
+              <h2 className="font-display text-xl font-bold text-text">
+                Welcome back
+              </h2>
               <p className="text-sm text-muted mt-1">Sign in to your account</p>
             </div>
 
@@ -183,8 +191,12 @@ export default function LoginPage() {
                 disabled={isLoading || isDemoLoading}
                 className="btn-secondary w-full flex items-center justify-center gap-2 text-xs"
               >
-                {isDemoLoading && <Loader2 size={13} className="animate-spin" />}
-                {isDemoLoading ? 'Setting up demo…' : 'First time? Run demo setup'}
+                {isDemoLoading && (
+                  <Loader2 size={13} className="animate-spin" />
+                )}
+                {isDemoLoading
+                  ? 'Setting up demo…'
+                  : 'First time? Run demo setup'}
               </button>
             </div>
           </div>

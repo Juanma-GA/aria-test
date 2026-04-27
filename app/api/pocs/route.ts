@@ -11,12 +11,16 @@ export async function GET() {
       .lean();
 
     // Enrich with audit name and use case description
-    const auditIds = [...new Set(pocs.map((p) => String(p.auditId)))];
-    const ucIds = [...new Set(pocs.map((p) => String(p.useCaseId)))];
+    const auditIds = Array.from(new Set(pocs.map((p) => String(p.auditId))));
+    const ucIds = Array.from(new Set(pocs.map((p) => String(p.useCaseId))));
 
     const [audits, useCases] = await Promise.all([
-      Audit.find({ _id: { $in: auditIds } }).select('name client').lean(),
-      UseCase.find({ _id: { $in: ucIds } }).select('cuId description').lean(),
+      Audit.find({ _id: { $in: auditIds } })
+        .select('name client')
+        .lean(),
+      UseCase.find({ _id: { $in: ucIds } })
+        .select('cuId description')
+        .lean(),
     ]);
 
     const auditMap = Object.fromEntries(audits.map((a) => [String(a._id), a]));
@@ -30,7 +34,10 @@ export async function GET() {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

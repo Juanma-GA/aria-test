@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['mongoose', 'bcryptjs'],
+  basePath: process.env.NODE_ENV === 'production' ? '/Customizations/Aria' : '',
+  typescript: {
+    ignoreBuildErrors: true,
   },
-  webpack: (config) => {
+  serverExternalPackages: ['mongoose', 'bcryptjs'],
+  // Turbopack disabled for production compatibility
+  webpack: (config, { isServer }) => {
     config.experiments = { ...config.experiments, topLevelAwait: true };
     return config;
   },

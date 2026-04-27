@@ -1,15 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import { Process, Audit } from '@/lib/models';
-import { nextSequence } from '@/lib/models/Counter';
-import { createProcessSchema, validationErrorResponse } from '@/lib/validators';
-import { requireRole } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import { Process, Audit } from "@/lib/models";
+import { nextSequence } from "@/lib/models/Counter";
+import { createProcessSchema, validationErrorResponse } from "@/lib/validators";
+import { requireRole } from "@/lib/auth";
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
   const vals = (Object.values(b2.axes) as any[])
     .map((a) =>
-      a.status === 'green' ? 5 : a.status === 'amber' ? 3 : a.status === 'red' ? 1 : null
+      a.status === "green"
+        ? 5
+        : a.status === "amber"
+          ? 3
+          : a.status === "red"
+            ? 1
+            : null,
     )
     .filter((v) => v !== null) as number[];
   if (!vals.length) return null;
@@ -18,13 +24,15 @@ function getSovereigntyIndex(b2: any): number | null {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
 
-    const processes = await Process.find({ auditId }).sort({ procId: 1 }).lean();
+    const processes = await Process.find({ auditId })
+      .sort({ procId: 1 })
+      .lean();
 
     const enriched = processes.map((p) => ({
       ...p,
@@ -34,29 +42,36 @@ export async function GET(
     return NextResponse.json(enriched);
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> },
 ) {
-  const forbidden = requireRole(req, ['admin', 'consultant']);
+  const forbidden = requireRole(req, ["admin", "consultant"]);
   if (forbidden) return forbidden;
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const body = await req.json();
     const parsed = createProcessSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
     }
 
-    const audit = await Audit.findById(auditId).select('auditCode').lean() as any;
-    const prefix = audit?.auditCode ?? 'AUD';
+    const audit = (await Audit.findById(auditId)
+      .select("auditCode")
+      .lean()) as any;
+    const prefix = audit?.auditCode ?? "AUD";
     const seq = await nextSequence(`process:${auditId}`);
-    const procId = `${prefix}-P${String(seq).padStart(2, '0')}`;
+    const procId = `${prefix}-P${String(seq).padStart(2, "0")}`;
 
     const input = parsed.data;
     const process = await Process.create({
@@ -75,6 +90,9 @@ export async function POST(
     return NextResponse.json(process, { status: 201 });
   } catch (err) {
     console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
