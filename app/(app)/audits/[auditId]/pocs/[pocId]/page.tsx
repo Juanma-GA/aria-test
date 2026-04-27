@@ -492,7 +492,9 @@ export default function POCDetailPage() {
                       setRefreshingFill(true);
                       try {
                         const res = await fetch(
-                          `/api/audits/${auditId}/pocs/${pocId}/ai/fill-design`,
+                          apiUrl(
+                            `/api/audits/${auditId}/pocs/${pocId}/ai/fill-design`,
+                          ),
                           {
                             method: 'POST',
                             credentials: 'include',

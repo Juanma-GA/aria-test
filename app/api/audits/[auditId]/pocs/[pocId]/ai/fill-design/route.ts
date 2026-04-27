@@ -68,13 +68,20 @@ Return ONLY valid JSON.`;
       activeB2Restrictions: string;
     }>(text);
 
-    // Patch the POC with the AI-generated fields
-    (poc as any).measurableObjective = fields.measurableObjective;
-    (poc as any).activeB2Restrictions = fields.activeB2Restrictions;
+    // Patch the POC with the AI-generated fields in the design object
+    if (!poc.design) {
+      (poc as any).design = {};
+    }
+    (poc as any).design.measurableObjective = fields.measurableObjective;
+    (poc as any).design.activeB2Restrictions = fields.activeB2Restrictions;
     (poc as any).aiGeneratedFields = [
       'measurableObjective',
       'activeB2Restrictions',
     ];
+
+    // Mark nested object as modified for Mongoose
+    poc.markModified('design');
+    poc.markModified('aiGeneratedFields');
     await poc.save();
 
     return NextResponse.json({ poc: poc.toObject(), fields });
