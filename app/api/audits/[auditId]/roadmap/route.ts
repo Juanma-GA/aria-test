@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Roadmap } from "@/lib/models";
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { Roadmap } from '@/lib/models';
 
 export async function GET(
   req: NextRequest,
@@ -27,9 +27,9 @@ export async function GET(
 
     return NextResponse.json(roadmap);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -52,9 +52,9 @@ export async function PUT(
 
     return NextResponse.json(roadmap);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

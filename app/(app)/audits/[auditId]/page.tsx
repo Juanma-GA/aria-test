@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Plus,
   Pencil,
@@ -11,19 +11,19 @@ import {
   TrendingUp,
   Archive,
   Trash2,
-} from "lucide-react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { BlockProgressBar } from "@/components/layout/BlockProgressBar";
-import { apiUrl } from "@/lib/utils";
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { BlockProgressBar } from '@/components/layout/BlockProgressBar';
+import { apiUrl } from '@/lib/utils';
 import type {
   AuditStatus,
   SectorType,
   Priority,
   ProcessStatus,
   BlockCompletion,
-} from "@/lib/types";
+} from '@/lib/types';
 
 interface AuditData {
   _id: string;
@@ -69,66 +69,66 @@ interface ProcessSummary {
 
 const SECTOR_VARIANTS: Record<
   SectorType,
-  "red" | "blue" | "teal" | "amber" | "slate"
+  'red' | 'blue' | 'teal' | 'amber' | 'slate'
 > = {
-  defence: "red",
-  aerospace: "blue",
-  naval: "teal",
-  railway: "amber",
-  internal: "slate",
-  other: "slate",
+  defence: 'red',
+  aerospace: 'blue',
+  naval: 'teal',
+  railway: 'amber',
+  internal: 'slate',
+  other: 'slate',
 };
 
 const SECTORS: { value: SectorType; label: string }[] = [
-  { value: "defence", label: "Defence" },
-  { value: "aerospace", label: "Aerospace" },
-  { value: "naval", label: "Naval" },
-  { value: "railway", label: "Railway" },
-  { value: "internal", label: "Internal" },
-  { value: "other", label: "Other" },
+  { value: 'defence', label: 'Defence' },
+  { value: 'aerospace', label: 'Aerospace' },
+  { value: 'naval', label: 'Naval' },
+  { value: 'railway', label: 'Railway' },
+  { value: 'internal', label: 'Internal' },
+  { value: 'other', label: 'Other' },
 ];
 
 const STATUS_VARIANTS: Record<
   AuditStatus,
-  "slate" | "green" | "amber" | "blue"
+  'slate' | 'green' | 'amber' | 'blue'
 > = {
-  draft: "slate",
-  active: "green",
-  review: "amber",
-  completed: "blue",
+  draft: 'slate',
+  active: 'green',
+  review: 'amber',
+  completed: 'blue',
 };
 
 const PROCESS_STATUS_VARIANTS: Record<
   ProcessStatus,
-  "slate" | "blue" | "green" | "amber"
+  'slate' | 'blue' | 'green' | 'amber'
 > = {
-  pending: "slate",
-  in_audit: "blue",
-  completed: "green",
-  paused: "amber",
+  pending: 'slate',
+  in_audit: 'blue',
+  completed: 'green',
+  paused: 'amber',
 };
 
-const PRIORITY_VARIANTS: Record<Priority, "red" | "amber" | "slate"> = {
-  high: "red",
-  medium: "amber",
-  low: "slate",
+const PRIORITY_VARIANTS: Record<Priority, 'red' | 'amber' | 'slate'> = {
+  high: 'red',
+  medium: 'amber',
+  low: 'slate',
 };
 
 function getLeadName(
   lead: { _id: string; name: string } | string | undefined,
 ): string {
-  if (!lead) return "—";
-  if (typeof lead === "string") return lead;
-  return lead.name ?? "—";
+  if (!lead) return '—';
+  if (typeof lead === 'string') return lead;
+  return lead.name ?? '—';
 }
 
 function getSovereigntyVariant(
   idx: number | null,
-): "green" | "amber" | "red" | "slate" {
-  if (idx === null) return "slate";
-  if (idx >= 4.0) return "green";
-  if (idx >= 2.0) return "amber";
-  return "red";
+): 'green' | 'amber' | 'red' | 'slate' {
+  if (idx === null) return 'slate';
+  if (idx >= 4.0) return 'green';
+  if (idx >= 2.0) return 'amber';
+  return 'red';
 }
 
 const EMPTY_COMPLETION: BlockCompletion = {
@@ -141,10 +141,10 @@ const EMPTY_COMPLETION: BlockCompletion = {
 };
 
 const AUDIT_STATUSES: AuditStatus[] = [
-  "draft",
-  "active",
-  "review",
-  "completed",
+  'draft',
+  'active',
+  'review',
+  'completed',
 ];
 
 export default function AuditPage() {
@@ -162,12 +162,12 @@ export default function AuditPage() {
   // Edit modal
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: "",
-    client: "",
-    project: "",
-    sector: "aerospace" as SectorType,
-    startDate: "",
-    targetEndDate: "",
+    name: '',
+    client: '',
+    project: '',
+    sector: 'aerospace' as SectorType,
+    startDate: '',
+    targetEndDate: '',
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -179,17 +179,17 @@ export default function AuditPage() {
         const data = await res.json();
         setAudit(data);
         setEditForm({
-          name: data.name || "",
-          client: data.client || "",
-          project: data.project || "",
-          sector: data.sector || "aerospace",
-          startDate: data.startDate ? data.startDate.slice(0, 10) : "",
+          name: data.name || '',
+          client: data.client || '',
+          project: data.project || '',
+          sector: data.sector || 'aerospace',
+          startDate: data.startDate ? data.startDate.slice(0, 10) : '',
           targetEndDate: data.targetEndDate
             ? data.targetEndDate.slice(0, 10)
-            : "",
+            : '',
         });
       } catch (e: any) {
-        setError(e.message ?? "Failed to load audit");
+        setError(e.message ?? 'Failed to load audit');
       } finally {
         setLoading(false);
       }
@@ -202,11 +202,11 @@ export default function AuditPage() {
     setSavingStatus(true);
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error('Failed');
       const updated = await res.json();
       setAudit((prev) => (prev ? { ...prev, status: updated.status } : prev));
     } catch {
@@ -221,8 +221,8 @@ export default function AuditPage() {
     setSavingEdit(true);
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
       });
       if (res.ok) {
@@ -237,21 +237,21 @@ export default function AuditPage() {
 
   const handleArchive = async () => {
     if (
-      !confirm("Archive this audit? It will be hidden from the main dashboard.")
+      !confirm('Archive this audit? It will be hidden from the main dashboard.')
     )
       return;
     setArchiving(true);
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isArchived: true }),
       });
-      if (!res.ok) throw new Error("Failed");
-      toast.success("Audit archived");
-      router.push("/dashboard");
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Audit archived');
+      router.push('/dashboard');
     } catch {
-      toast.error("Failed to archive audit");
+      toast.error('Failed to archive audit');
     } finally {
       setArchiving(false);
     }
@@ -263,13 +263,13 @@ export default function AuditPage() {
     setDeleting(true);
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
-        method: "DELETE",
+        method: 'DELETE',
       });
-      if (!res.ok) throw new Error("Failed");
-      toast.success("Audit deleted");
-      router.push("/dashboard");
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Audit deleted');
+      router.push('/dashboard');
     } catch {
-      toast.error("Failed to delete audit");
+      toast.error('Failed to delete audit');
     } finally {
       setDeleting(false);
     }
@@ -286,7 +286,7 @@ export default function AuditPage() {
   if (error || !audit) {
     return (
       <div className="p-4 rounded-sm bg-red-sov-light border border-red-sov/20 text-red-sov text-sm">
-        {error ?? "Audit not found"}
+        {error ?? 'Audit not found'}
       </div>
     );
   }
@@ -302,7 +302,7 @@ export default function AuditPage() {
             </h1>
             <p className="text-sm text-muted">
               {audit.client}
-              {audit.project ? ` · ${audit.project}` : ""}
+              {audit.project ? ` · ${audit.project}` : ''}
             </p>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -337,14 +337,14 @@ export default function AuditPage() {
 
             <div className="flex flex-wrap gap-4 text-xs text-muted">
               <span>
-                Lead:{" "}
+                Lead:{' '}
                 <span className="text-text font-medium">
                   {getLeadName(audit.leadConsultant)}
                 </span>
               </span>
               {audit.startDate && (
                 <span>
-                  Start:{" "}
+                  Start:{' '}
                   <span className="text-text font-medium">
                     {new Date(audit.startDate).toLocaleDateString()}
                   </span>
@@ -352,7 +352,7 @@ export default function AuditPage() {
               )}
               {audit.targetEndDate && (
                 <span>
-                  Target:{" "}
+                  Target:{' '}
                   <span className="text-text font-medium">
                     {new Date(audit.targetEndDate).toLocaleDateString()}
                   </span>
@@ -375,7 +375,7 @@ export default function AuditPage() {
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-amber-500 hover:text-amber-600 transition-colors disabled:opacity-50"
             >
               <Archive size={13} />
-              {archiving ? "…" : "Archive"}
+              {archiving ? '…' : 'Archive'}
             </button>
             <button
               onClick={handleDelete}
@@ -383,7 +383,7 @@ export default function AuditPage() {
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-sm hover:border-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
             >
               <Trash2 size={13} />
-              {deleting ? "…" : "Delete"}
+              {deleting ? '…' : 'Delete'}
             </button>
           </div>
         </div>
@@ -393,13 +393,13 @@ export default function AuditPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           {
-            label: "Processes",
+            label: 'Processes',
             value: audit.processCount ?? audit.processes?.length ?? 0,
           },
-          { label: "Use Cases", value: audit.useCaseCount ?? 0 },
-          { label: "POCs", value: audit.pocCount ?? 0 },
+          { label: 'Use Cases', value: audit.useCaseCount ?? 0 },
+          { label: 'POCs', value: audit.pocCount ?? 0 },
           {
-            label: "People Impacted",
+            label: 'People Impacted',
             value:
               audit.processes?.reduce((s, p) => s + (p.peopleCount ?? 0), 0) ??
               0,
@@ -477,7 +477,7 @@ export default function AuditPage() {
                   )}
                   {proc.responsible && (
                     <p className="text-xs text-muted">
-                      Resp:{" "}
+                      Resp:{' '}
                       <span className="text-text">{proc.responsible}</span>
                     </p>
                   )}
@@ -491,7 +491,7 @@ export default function AuditPage() {
                 {/* Status */}
                 <Badge variant={PROCESS_STATUS_VARIANTS[proc.status]}>
                   {proc.status
-                    .replace("_", " ")
+                    .replace('_', ' ')
                     .replace(/\b\w/g, (c) => c.toUpperCase())}
                 </Badge>
 
@@ -571,9 +571,9 @@ export default function AuditPage() {
                       <>
                         <span className="text-muted">ROI:</span>
                         <span
-                          className={`font-bold ${proc.metrics.roiPercent >= 0 ? "text-green-600" : "text-red-600"}`}
+                          className={`font-bold ${proc.metrics.roiPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}
                         >
-                          {proc.metrics.roiPercent > 0 ? "+" : ""}
+                          {proc.metrics.roiPercent > 0 ? '+' : ''}
                           {proc.metrics.roiPercent}%
                         </span>
                       </>
@@ -712,7 +712,7 @@ export default function AuditPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 disabled:opacity-50 transition-colors"
               >
                 {savingEdit && <Spinner size="sm" />}
-                {savingEdit ? "Saving…" : "Save"}
+                {savingEdit ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>

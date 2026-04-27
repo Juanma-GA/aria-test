@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import dbConnect from "@/lib/mongodb";
-import User from "@/lib/models/User";
+import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import dbConnect from '@/lib/mongodb';
+import User from '@/lib/models/User';
 
 // PATCH /api/users/[userId] — update user (admin only)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
 ) {
-  const role = req.headers.get("x-user-role");
-  if (role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = req.headers.get('x-user-role');
+  if (role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {
@@ -25,7 +25,7 @@ export async function PATCH(
     if (password) {
       if (password.length < 6) {
         return NextResponse.json(
-          { error: "Password must be at least 6 characters" },
+          { error: 'Password must be at least 6 characters' },
           { status: 400 },
         );
       }
@@ -34,7 +34,7 @@ export async function PATCH(
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json(
-        { error: "No fields to update" },
+        { error: 'No fields to update' },
         { status: 400 },
       );
     }
@@ -48,7 +48,7 @@ export async function PATCH(
       });
       if (existing) {
         return NextResponse.json(
-          { error: "Email already in use" },
+          { error: 'Email already in use' },
           { status: 409 },
         );
       }
@@ -56,16 +56,16 @@ export async function PATCH(
 
     const { userId } = await params;
     const user = await User.findByIdAndUpdate(userId, update, { new: true })
-      .select("-passwordHash")
+      .select('-passwordHash')
       .lean();
     if (!user)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     return NextResponse.json(user);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -76,16 +76,16 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
 ) {
-  const role = req.headers.get("x-user-role");
-  if (role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = req.headers.get('x-user-role');
+  if (role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const requestingUserId = req.headers.get("x-user-id");
+  const requestingUserId = req.headers.get('x-user-id');
   const { userId } = await params;
   if (requestingUserId === userId) {
     return NextResponse.json(
-      { error: "You cannot delete your own account" },
+      { error: 'You cannot delete your own account' },
       { status: 400 },
     );
   }
@@ -94,13 +94,13 @@ export async function DELETE(
     await dbConnect();
     const user = await User.findByIdAndDelete(userId);
     if (!user)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

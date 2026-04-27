@@ -1,7 +1,7 @@
-"use client";
-import Link from "next/link";
-import { usePathname, useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+'use client';
+import Link from 'next/link';
+import { usePathname, useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   GitBranch,
@@ -15,10 +15,10 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
-} from "lucide-react";
-import { clsx } from "clsx";
-import { useAuthStore } from "@/lib/store/authStore";
-import { apiUrl } from "@/lib/utils";
+} from 'lucide-react';
+import { clsx } from 'clsx';
+import { useAuthStore } from '@/lib/store/authStore';
+import { apiUrl } from '@/lib/utils';
 
 interface NavItem {
   href: string;
@@ -39,10 +39,10 @@ interface UCStub {
 }
 
 const BLOCKS = [
-  { key: "b1", label: "B1 Context" },
-  { key: "b2", label: "B2 Sovereignty" },
-  { key: "b3", label: "B3 Process Map" },
-  { key: "b5", label: "B4 Use Cases" },
+  { key: 'b1', label: 'B1 Context' },
+  { key: 'b2', label: 'B2 Sovereignty' },
+  { key: 'b3', label: 'B3 Process Map' },
+  { key: 'b5', label: 'B4 Use Cases' },
 ];
 
 export function Sidebar() {
@@ -81,7 +81,7 @@ export function Sidebar() {
   useEffect(() => {
     if (procId) {
       setExpandedProc(procId);
-      if (pathname?.includes("/b5")) setExpandedUCs(procId);
+      if (pathname?.includes('/b5')) setExpandedUCs(procId);
     }
   }, [procId, pathname]);
 
@@ -105,40 +105,40 @@ export function Sidebar() {
 
   const mainNav: NavItem[] = [
     {
-      href: "/dashboard",
-      label: "Audits",
+      href: '/dashboard',
+      label: 'Audits',
       icon: <LayoutDashboard size={16} />,
     },
-    { href: "/usecases", label: "Use Cases", icon: <Lightbulb size={16} /> },
-    { href: "/pocs", label: "POCs", icon: <FlaskConical size={16} /> },
-    { href: "/roadmap", label: "Roadmap", icon: <Map size={16} /> },
+    { href: '/usecases', label: 'Use Cases', icon: <Lightbulb size={16} /> },
+    { href: '/pocs', label: 'POCs', icon: <FlaskConical size={16} /> },
+    { href: '/roadmap', label: 'Roadmap', icon: <Map size={16} /> },
   ];
 
   const auditNav: NavItem[] = auditId
     ? [
         {
           href: `/audits/${auditId}/usecases`,
-          label: "Use Cases",
+          label: 'Use Cases',
           icon: <Lightbulb size={16} />,
         },
         {
           href: `/audits/${auditId}/pocs`,
-          label: "POCs",
+          label: 'POCs',
           icon: <FlaskConical size={16} />,
         },
         {
           href: `/audits/${auditId}/roadmap`,
-          label: "Roadmap",
+          label: 'Roadmap',
           icon: <Map size={16} />,
         },
         {
           href: `/audits/${auditId}/report`,
-          label: "AI Report",
+          label: 'AI Report',
           icon: <FileText size={16} />,
         },
         {
           href: `/audits/${auditId}/export`,
-          label: "Export",
+          label: 'Export',
           icon: <Download size={16} />,
         },
       ]
@@ -146,23 +146,23 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await fetch(apiUrl("/api/auth/logout"), { method: "POST" });
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST' });
     } catch {
       // ignore errors
     }
     clearAuth();
-    router.push("/auth/login");
+    router.push('/auth/login');
   };
 
   const isActive = (href: string) =>
-    pathname === href || pathname?.startsWith(href + "/");
+    pathname === href || pathname?.startsWith(href + '/');
 
   const NavLink = ({ item }: { item: NavItem }) => (
     <Link
       href={item.href}
       className={clsx(
-        "sidebar-item",
-        isActive(item.href) ? "sidebar-item-active" : "sidebar-item-inactive",
+        'sidebar-item',
+        isActive(item.href) ? 'sidebar-item-active' : 'sidebar-item-inactive',
       )}
     >
       {item.icon}
@@ -173,7 +173,7 @@ export function Sidebar() {
   return (
     <aside
       className="flex flex-col shrink-0 h-screen overflow-y-auto"
-      style={{ width: 240, backgroundColor: "#0B1929" }}
+      style={{ width: 240, backgroundColor: '#0B1929' }}
     >
       {/* Logo */}
       <div className="px-5 pt-6 pb-5 border-b border-white/10">
@@ -207,10 +207,10 @@ export function Sidebar() {
             <Link
               href={`/audits/${auditId}`}
               className={clsx(
-                "sidebar-item",
+                'sidebar-item',
                 pathname === `/audits/${auditId}`
-                  ? "sidebar-item-active"
-                  : "sidebar-item-inactive",
+                  ? 'sidebar-item-active'
+                  : 'sidebar-item-inactive',
               )}
             >
               <LayoutDashboard size={16} />
@@ -232,10 +232,10 @@ export function Sidebar() {
                 <div key={proc._id}>
                   <div
                     className={clsx(
-                      "flex items-center rounded-sm transition-colors",
+                      'flex items-center rounded-sm transition-colors',
                       isThisProc
-                        ? "text-blue-light bg-white/10"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
+                        ? 'text-blue-light bg-white/10'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
                     )}
                   >
                     <Link
@@ -249,7 +249,7 @@ export function Sidebar() {
                         setExpandedProc(isExpanded ? null : proc._id)
                       }
                       className="px-2 py-1.5 shrink-0"
-                      aria-label={isExpanded ? "Collapse" : "Expand"}
+                      aria-label={isExpanded ? 'Collapse' : 'Expand'}
                     >
                       {isExpanded ? (
                         <ChevronDown size={11} />
@@ -266,17 +266,17 @@ export function Sidebar() {
                         const active =
                           pathname === href || pathname?.startsWith(href);
 
-                        if (block.key === "b5") {
+                        if (block.key === 'b5') {
                           const ucs = ucsByProc[proc._id] ?? [];
                           const ucExpanded = expandedUCs === proc._id;
                           return (
                             <div key="b5">
                               <div
                                 className={clsx(
-                                  "flex items-center rounded-sm transition-colors",
+                                  'flex items-center rounded-sm transition-colors',
                                   active
-                                    ? "text-blue-light bg-white/10"
-                                    : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
+                                    ? 'text-blue-light bg-white/10'
+                                    : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
                                 )}
                               >
                                 <Link
@@ -295,8 +295,8 @@ export function Sidebar() {
                                     className="px-1.5 py-1 shrink-0"
                                     aria-label={
                                       ucExpanded
-                                        ? "Collapse use cases"
-                                        : "Expand use cases"
+                                        ? 'Collapse use cases'
+                                        : 'Expand use cases'
                                     }
                                   >
                                     {ucExpanded ? (
@@ -312,17 +312,17 @@ export function Sidebar() {
                                   {ucs.map((uc) => {
                                     const ucHref = `${procBase}/b5?edit=${uc._id}`;
                                     const ucActive =
-                                      pathname?.includes("/b5") &&
+                                      pathname?.includes('/b5') &&
                                       pathname?.includes(uc._id);
                                     return (
                                       <Link
                                         key={uc._id}
                                         href={ucHref}
                                         className={clsx(
-                                          "flex items-center gap-1.5 px-2 py-1 rounded-sm transition-colors text-[11px]",
+                                          'flex items-center gap-1.5 px-2 py-1 rounded-sm transition-colors text-[11px]',
                                           ucActive
-                                            ? "text-blue-light bg-white/10 font-medium"
-                                            : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
+                                            ? 'text-blue-light bg-white/10 font-medium'
+                                            : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
                                         )}
                                         title={uc.description}
                                       >
@@ -346,10 +346,10 @@ export function Sidebar() {
                             key={block.key}
                             href={href}
                             className={clsx(
-                              "block px-2 py-1 text-xs rounded-sm transition-colors",
+                              'block px-2 py-1 text-xs rounded-sm transition-colors',
                               active
-                                ? "text-blue-light bg-white/10 font-medium"
-                                : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
+                                ? 'text-blue-light bg-white/10 font-medium'
+                                : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
                             )}
                           >
                             {block.label}
@@ -371,14 +371,14 @@ export function Sidebar() {
 
       {/* Bottom actions */}
       <div className="px-3 pb-5 border-t border-white/10 pt-3 space-y-0.5">
-        {currentUser?.role === "admin" && (
+        {currentUser?.role === 'admin' && (
           <Link
             href="/admin/users"
             className={clsx(
-              "sidebar-item",
-              isActive("/admin/users")
-                ? "sidebar-item-active"
-                : "sidebar-item-inactive",
+              'sidebar-item',
+              isActive('/admin/users')
+                ? 'sidebar-item-active'
+                : 'sidebar-item-inactive',
             )}
           >
             <Users size={16} />
@@ -388,10 +388,10 @@ export function Sidebar() {
         <Link
           href="/settings"
           className={clsx(
-            "sidebar-item",
-            isActive("/settings")
-              ? "sidebar-item-active"
-              : "sidebar-item-inactive",
+            'sidebar-item',
+            isActive('/settings')
+              ? 'sidebar-item-active'
+              : 'sidebar-item-inactive',
           )}
         >
           <Settings size={16} />

@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { UseCase, Audit, Process } from "@/lib/models";
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { UseCase, Audit, Process } from '@/lib/models';
 
 export async function GET() {
   try {
@@ -16,10 +16,10 @@ export async function GET() {
 
     const [audits, processes] = await Promise.all([
       Audit.find({ _id: { $in: auditIds } })
-        .select("name client")
+        .select('name client')
         .lean(),
       Process.find({ _id: { $in: processIds } })
-        .select("procId name b1 b3")
+        .select('procId name b1 b3')
         .lean(),
     ]);
 
@@ -63,9 +63,9 @@ export async function GET() {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

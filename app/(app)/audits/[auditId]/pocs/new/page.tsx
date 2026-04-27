@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
-import type { UseCase } from "@/lib/types";
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
+import type { UseCase } from '@/lib/types';
 
 export default function NewPOCPage() {
   const { auditId } = useParams<{ auditId: string }>();
@@ -13,16 +13,16 @@ export default function NewPOCPage() {
   const [useCases, setUseCases] = useState<UseCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [selectedUC, setSelectedUC] = useState("");
+  const [error, setError] = useState('');
+  const [selectedUC, setSelectedUC] = useState('');
 
   useEffect(() => {
-    fetch(apiUrl(`/api/audits/${auditId}/usecases`), { credentials: "include" })
+    fetch(apiUrl(`/api/audits/${auditId}/usecases`), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         setUseCases(
           Array.isArray(data)
-            ? data.filter((u: UseCase) => u.status === "eligible")
+            ? data.filter((u: UseCase) => u.status === 'eligible')
             : [],
         );
         setLoading(false);
@@ -32,7 +32,7 @@ export default function NewPOCPage() {
 
   const handleCreate = async () => {
     if (!selectedUC) {
-      setError("Select a use case.");
+      setError('Select a use case.');
       return;
     }
     const uc = useCases.find((u) => u._id === selectedUC);
@@ -40,9 +40,9 @@ export default function NewPOCPage() {
     setSaving(true);
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs`), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           useCaseId: uc._id,
           processId: uc.processId,
@@ -53,13 +53,13 @@ export default function NewPOCPage() {
       if (!res.ok) throw new Error(data.error);
       // Trigger AI fill-design after creation (non-blocking)
       fetch(apiUrl(`/api/audits/${auditId}/pocs/${data._id}/ai/fill-design`), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       }).catch(() => {});
       router.push(`/audits/${auditId}/pocs/${data._id}`);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(e instanceof Error ? e.message : 'Failed');
       setSaving(false);
     }
   };
@@ -115,7 +115,7 @@ export default function NewPOCPage() {
             disabled={saving || !selectedUC}
             className="btn-primary flex-1"
           >
-            {saving ? "Creating…" : "Create POC"}
+            {saving ? 'Creating…' : 'Create POC'}
           </button>
           <button onClick={() => router.back()} className="btn-secondary">
             Cancel

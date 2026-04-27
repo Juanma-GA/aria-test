@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Check,
   Minus,
@@ -11,19 +11,19 @@ import {
   X,
   FlaskConical,
   Lightbulb,
-} from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { TagInput } from "@/components/ui/TagInput";
-import { apiUrl } from "@/lib/utils";
+} from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { TagInput } from '@/components/ui/TagInput';
+import { apiUrl } from '@/lib/utils';
 import type {
   Priority,
   ProcessStatus,
   SectorType,
   BlockCompletion,
-} from "@/lib/types";
-import { AI_TYPE_LABELS } from "@/lib/types";
-import { calculateScore } from "@/lib/calculations";
+} from '@/lib/types';
+import { AI_TYPE_LABELS } from '@/lib/types';
+import { calculateScore } from '@/lib/calculations';
 
 interface ProcessDetail {
   _id: string;
@@ -64,29 +64,29 @@ interface POCRow {
   useCaseId?: { cuId?: string };
 }
 
-const PRIORITY_VARIANTS: Record<Priority, "red" | "amber" | "slate"> = {
-  high: "red",
-  medium: "amber",
-  low: "slate",
+const PRIORITY_VARIANTS: Record<Priority, 'red' | 'amber' | 'slate'> = {
+  high: 'red',
+  medium: 'amber',
+  low: 'slate',
 };
 
 const PROCESS_STATUS_VARIANTS: Record<
   ProcessStatus,
-  "slate" | "blue" | "green" | "amber"
+  'slate' | 'blue' | 'green' | 'amber'
 > = {
-  pending: "slate",
-  in_audit: "blue",
-  completed: "green",
-  paused: "amber",
+  pending: 'slate',
+  in_audit: 'blue',
+  completed: 'green',
+  paused: 'amber',
 };
 
 function getSovVariant(
   idx: number | null | undefined,
-): "green" | "amber" | "red" | "slate" {
-  if (idx == null) return "slate";
-  if (idx >= 4.0) return "green";
-  if (idx >= 2.0) return "amber";
-  return "red";
+): 'green' | 'amber' | 'red' | 'slate' {
+  if (idx == null) return 'slate';
+  if (idx >= 4.0) return 'green';
+  if (idx >= 2.0) return 'amber';
+  return 'red';
 }
 
 const EMPTY_COMPLETION: BlockCompletion = {
@@ -98,26 +98,26 @@ const EMPTY_COMPLETION: BlockCompletion = {
   b7: false,
 };
 
-const PRIORITIES: Priority[] = ["high", "medium", "low"];
+const PRIORITIES: Priority[] = ['high', 'medium', 'low'];
 const PROCESS_STATUSES: ProcessStatus[] = [
-  "pending",
-  "in_audit",
-  "completed",
-  "paused",
+  'pending',
+  'in_audit',
+  'completed',
+  'paused',
 ];
 
-const UC_STATUS_VARIANTS: Record<string, "green" | "red" | "amber" | "slate"> =
+const UC_STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> =
   {
-    eligible: "green",
-    blocked: "red",
-    pending_review: "amber",
+    eligible: 'green',
+    blocked: 'red',
+    pending_review: 'amber',
   };
 
-const PHASE_VARIANTS: Record<string, "slate" | "blue" | "amber" | "green"> = {
-  design: "slate",
-  execution: "blue",
-  evaluation: "amber",
-  closed: "green",
+const PHASE_VARIANTS: Record<string, 'slate' | 'blue' | 'amber' | 'green'> = {
+  design: 'slate',
+  execution: 'blue',
+  evaluation: 'amber',
+  closed: 'green',
 };
 
 export default function ProcessPage() {
@@ -135,10 +135,10 @@ export default function ProcessPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: "",
-    department: "",
-    responsible: "",
-    priority: "medium" as Priority,
+    name: '',
+    department: '',
+    responsible: '',
+    priority: 'medium' as Priority,
     applicableNorms: [] as string[],
   });
   const [saving, setSaving] = useState(false);
@@ -149,26 +149,26 @@ export default function ProcessPage() {
         const [procRes, ucRes, pocRes] = await Promise.all([
           fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`)),
           fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}`), {
-            credentials: "include",
+            credentials: 'include',
           }),
           fetch(apiUrl(`/api/audits/${auditId}/pocs?processId=${procId}`), {
-            credentials: "include",
+            credentials: 'include',
           }),
         ]);
         if (!procRes.ok) throw new Error(`Error ${procRes.status}`);
         const data = await procRes.json();
         setProcess(data);
         setEditForm({
-          name: data.name || "",
-          department: data.department || "",
-          responsible: data.responsible || "",
-          priority: data.priority || "medium",
+          name: data.name || '',
+          department: data.department || '',
+          responsible: data.responsible || '',
+          priority: data.priority || 'medium',
           applicableNorms: data.applicableNorms || [],
         });
         if (ucRes.ok) setUseCases(await ucRes.json());
         if (pocRes.ok) setPocs(await pocRes.json());
       } catch (e: any) {
-        setError(e.message ?? "Failed to load process");
+        setError(e.message ?? 'Failed to load process');
       } finally {
         setLoading(false);
       }
@@ -183,12 +183,12 @@ export default function ProcessPage() {
       const res = await fetch(
         apiUrl(`/api/audits/${auditId}/processes/${procId}`),
         {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus }),
         },
       );
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error('Failed');
       const updated = await res.json();
       setProcess((prev) => (prev ? { ...prev, status: updated.status } : prev));
     } catch {
@@ -205,9 +205,9 @@ export default function ProcessPage() {
       const res = await fetch(
         apiUrl(`/api/audits/${auditId}/processes/${procId}`),
         {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: editForm.name,
             department: editForm.department,
@@ -238,7 +238,7 @@ export default function ProcessPage() {
   if (error || !process) {
     return (
       <div className="p-4 rounded-sm bg-red-sov-light border border-red-sov/20 text-red-sov text-sm">
-        {error ?? "Process not found"}
+        {error ?? 'Process not found'}
       </div>
     );
   }
@@ -264,11 +264,11 @@ export default function ProcessPage() {
 
   const blocks = [
     {
-      key: "b1" as keyof BlockCompletion,
-      label: "B1",
-      name: "Context",
+      key: 'b1' as keyof BlockCompletion,
+      label: 'B1',
+      name: 'Context',
       href: `/audits/${auditId}/processes/${procId}/b1`,
-      color: "slate" as const,
+      color: 'slate' as const,
       preview:
         totalPeople > 0 ? (
           <div className="space-y-1">
@@ -291,11 +291,11 @@ export default function ProcessPage() {
         ),
     },
     {
-      key: "b2" as keyof BlockCompletion,
-      label: "B2",
-      name: "Sovereignty",
+      key: 'b2' as keyof BlockCompletion,
+      label: 'B2',
+      name: 'Sovereignty',
       href: `/audits/${auditId}/processes/${procId}/b2`,
-      color: "red" as const,
+      color: 'red' as const,
       preview:
         sovIdx != null ? (
           <div className="flex items-center gap-2">
@@ -304,10 +304,10 @@ export default function ProcessPage() {
             </span>
             <Badge variant={getSovVariant(sovIdx)}>
               {sovIdx >= 4
-                ? "Favourable"
+                ? 'Favourable'
                 : sovIdx >= 2
-                  ? "Moderate"
-                  : "High risk"}
+                  ? 'Moderate'
+                  : 'High risk'}
             </Badge>
           </div>
         ) : (
@@ -315,22 +315,22 @@ export default function ProcessPage() {
         ),
     },
     {
-      key: "b3" as keyof BlockCompletion,
-      label: "B3",
-      name: "Process Map",
+      key: 'b3' as keyof BlockCompletion,
+      label: 'B3',
+      name: 'Process Map',
       href: `/audits/${auditId}/processes/${procId}/b3`,
-      color: "teal" as const,
+      color: 'teal' as const,
       preview:
         activities.length > 0 ? (
           <div className="space-y-0.5 text-xs">
             <p className="text-muted">
-              {activities.length} activities ·{" "}
+              {activities.length} activities ·{' '}
               <span className="text-text font-medium">
                 {totalHrsRun.toFixed(1)}h/run
               </span>
             </p>
             <p className="text-muted">
-              {annualReps} reps/yr ·{" "}
+              {annualReps} reps/yr ·{' '}
               <span className="text-text font-medium">
                 {totalHrsYear.toFixed(0)}h/yr
               </span>
@@ -341,11 +341,11 @@ export default function ProcessPage() {
         ),
     },
     {
-      key: "b5" as keyof BlockCompletion,
-      label: "B4",
-      name: "Use Cases",
+      key: 'b5' as keyof BlockCompletion,
+      label: 'B4',
+      name: 'Use Cases',
       href: `/audits/${auditId}/processes/${procId}/b5`,
-      color: "blue" as const,
+      color: 'blue' as const,
       preview: (
         <p className="text-xs text-muted">
           {useCases.length} use cases identified
@@ -380,7 +380,7 @@ export default function ProcessPage() {
                   {PROCESS_STATUSES.map((s) => (
                     <option key={s} value={s}>
                       {s
-                        .replace("_", " ")
+                        .replace('_', ' ')
                         .replace(/\b\w/g, (c) => c.toUpperCase())}
                     </option>
                   ))}
@@ -401,7 +401,7 @@ export default function ProcessPage() {
             <div className="flex flex-wrap gap-4 text-xs text-muted">
               {process.department && (
                 <span>
-                  Dept:{" "}
+                  Dept:{' '}
                   <span className="text-text font-medium">
                     {process.department}
                   </span>
@@ -409,7 +409,7 @@ export default function ProcessPage() {
               )}
               {process.responsible && (
                 <span>
-                  Resp:{" "}
+                  Resp:{' '}
                   <span className="text-text font-medium">
                     {process.responsible}
                   </span>
@@ -445,7 +445,7 @@ export default function ProcessPage() {
                   {block.label} · {block.name}
                 </Badge>
                 <span
-                  className={`flex items-center justify-center w-5 h-5 rounded-full ${isDone ? "bg-green-sov text-white" : "bg-slate-100 text-muted"}`}
+                  className={`flex items-center justify-center w-5 h-5 rounded-full ${isDone ? 'bg-green-sov text-white' : 'bg-slate-100 text-muted'}`}
                 >
                   {isDone ? <Check size={11} /> : <Minus size={11} />}
                 </span>
@@ -496,13 +496,13 @@ export default function ProcessPage() {
               <thead>
                 <tr className="border-b border-border bg-slate-50">
                   {[
-                    "UC ID",
-                    "Description",
-                    "AI Type(s)",
-                    "Score",
-                    "Category",
-                    "ROI",
-                    "Status",
+                    'UC ID',
+                    'Description',
+                    'AI Type(s)',
+                    'Score',
+                    'Category',
+                    'ROI',
+                    'Status',
                   ].map((h) => (
                     <th
                       key={h}
@@ -580,18 +580,18 @@ export default function ProcessPage() {
                       <td className="py-2.5 px-4">
                         <Badge
                           variant={
-                            cat === "quick_win"
-                              ? "green"
-                              : cat === "mid_term"
-                                ? "amber"
-                                : "blue"
+                            cat === 'quick_win'
+                              ? 'green'
+                              : cat === 'mid_term'
+                                ? 'amber'
+                                : 'blue'
                           }
                         >
-                          {cat === "quick_win"
-                            ? "Quick Win"
-                            : cat === "mid_term"
-                              ? "Mid-term"
-                              : "Strategic"}
+                          {cat === 'quick_win'
+                            ? 'Quick Win'
+                            : cat === 'mid_term'
+                              ? 'Mid-term'
+                              : 'Strategic'}
                         </Badge>
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap">
@@ -623,9 +623,9 @@ export default function ProcessPage() {
                       </td>
                       <td className="py-2.5 px-4">
                         <Badge
-                          variant={UC_STATUS_VARIANTS[uc.status] ?? "slate"}
+                          variant={UC_STATUS_VARIANTS[uc.status] ?? 'slate'}
                         >
-                          {uc.status.replace("_", " ")}
+                          {uc.status.replace('_', ' ')}
                         </Badge>
                       </td>
                     </tr>
@@ -666,12 +666,12 @@ export default function ProcessPage() {
               <thead>
                 <tr className="border-b border-border bg-slate-50">
                   {[
-                    "POC ID",
-                    "Use Case",
-                    "Phase",
-                    "Decision",
-                    "Objective",
-                    "Deadline",
+                    'POC ID',
+                    'Use Case',
+                    'Phase',
+                    'Decision',
+                    'Objective',
+                    'Deadline',
                   ].map((h) => (
                     <th
                       key={h}
@@ -697,27 +697,27 @@ export default function ProcessPage() {
                       </span>
                     </td>
                     <td className="py-2.5 px-4 text-xs text-muted">
-                      {(poc as any).useCaseId?.cuId ?? "—"}
+                      {(poc as any).useCaseId?.cuId ?? '—'}
                     </td>
                     <td className="py-2.5 px-4">
-                      <Badge variant={PHASE_VARIANTS[poc.phase] ?? "slate"}>
+                      <Badge variant={PHASE_VARIANTS[poc.phase] ?? 'slate'}>
                         {poc.phase}
                       </Badge>
                     </td>
                     <td className="py-2.5 px-4 text-xs text-muted capitalize">
-                      {poc.decision?.decision?.replace(/_/g, " ") ?? "pending"}
+                      {poc.decision?.decision?.replace(/_/g, ' ') ?? 'pending'}
                     </td>
                     <td className="py-2.5 px-4 max-w-[200px]">
                       <p className="text-xs text-text truncate">
-                        {poc.design?.measurableObjective ?? "—"}
+                        {poc.design?.measurableObjective ?? '—'}
                       </p>
                     </td>
                     <td className="py-2.5 px-4 text-xs text-muted">
                       {poc.design?.deadlineDate
                         ? new Date(poc.design.deadlineDate).toLocaleDateString(
-                            "en-GB",
+                            'en-GB',
                           )
-                        : "—"}
+                        : '—'}
                     </td>
                   </tr>
                 ))}
@@ -825,7 +825,7 @@ export default function ProcessPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 disabled:opacity-50 transition-colors"
               >
                 {saving && <Spinner size="sm" />}
-                {saving ? "Saving…" : "Save"}
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>

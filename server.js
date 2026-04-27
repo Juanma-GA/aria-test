@@ -1,9 +1,9 @@
 ﻿// server.js - Next.js standalone server for IIS/iisnode
-const { createServer } = require("http");
-const { parse } = require("url");
-const next = require("next");
+const { createServer } = require('http');
+const { parse } = require('url');
+const next = require('next');
 
-const dev = process.env.NODE_ENV !== "production";
+const dev = process.env.NODE_ENV !== 'production';
 const port = process.env.PORT || 3000;
 
 // iisnode provides port as named pipe, don't specify hostname in that case
@@ -18,9 +18,9 @@ app
         const parsedUrl = parse(req.url, true);
         await handle(req, res, parsedUrl);
       } catch (err) {
-        console.error("Error handling request:", err);
+        console.error('Error handling request:', err);
         res.statusCode = 500;
-        res.end("Internal Server Error");
+        res.end('Internal Server Error');
       }
     }).listen(port, (err) => {
       if (err) throw err;
@@ -28,6 +28,6 @@ app
     });
   })
   .catch((ex) => {
-    console.error("Error starting Next.js:", ex.stack);
+    console.error('Error starting Next.js:', ex.stack);
     process.exit(1);
   });

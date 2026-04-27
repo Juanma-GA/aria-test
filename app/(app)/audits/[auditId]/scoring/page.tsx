@@ -1,45 +1,45 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Info, CheckCircle2, AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { SaveIndicator } from "@/components/ui/SaveIndicator";
-import { useBeforeUnload } from "@/hooks/useBeforeUnload";
-import { calculateScore } from "@/lib/calculations";
-import { apiUrl } from "@/lib/utils";
-import { SCORING_RUBRIC } from "@/lib/types";
-import type { UseCase, ScoreValue } from "@/lib/types";
+} from '@/components/ui/tooltip';
+import { SaveIndicator } from '@/components/ui/SaveIndicator';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
+import { calculateScore } from '@/lib/calculations';
+import { apiUrl } from '@/lib/utils';
+import { SCORING_RUBRIC } from '@/lib/types';
+import type { UseCase, ScoreValue } from '@/lib/types';
 
 const CATEGORY_LABELS = {
-  quick_win: "Quick Win",
-  mid_term: "Mid-term",
-  strategic: "Strategic",
+  quick_win: 'Quick Win',
+  mid_term: 'Mid-term',
+  strategic: 'Strategic',
 };
 const CATEGORY_COLORS = {
-  quick_win: "green",
-  mid_term: "blue",
-  strategic: "purple",
+  quick_win: 'green',
+  mid_term: 'blue',
+  strategic: 'purple',
 } as const;
 
 const DIM_KEYS = [
-  "d1_efficiencyImpact",
-  "d2_qualityImpact",
-  "d3_techMaturity",
-  "d4_dataReadiness",
-  "d5_sovereigntyIndex",
-  "d6_governanceComplexity",
+  'd1_efficiencyImpact',
+  'd2_qualityImpact',
+  'd3_techMaturity',
+  'd4_dataReadiness',
+  'd5_sovereigntyIndex',
+  'd6_governanceComplexity',
 ] as const;
-const DIM_SHORT = ["D1", "D2", "D3", "D4", "D5", "D6"];
-const RUBRIC_KEYS = ["d1", "d2", "d3", "d4", "d5", "d6"] as const;
+const DIM_SHORT = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
+const RUBRIC_KEYS = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const;
 
 function ScoreCell({
   value,
@@ -56,10 +56,10 @@ function ScoreCell({
         role="radiogroup"
         className={`inline-flex overflow-hidden rounded border ${
           autoFilled
-            ? "border-amber-sov"
+            ? 'border-amber-sov'
             : value === undefined
-              ? "border-dashed border-border"
-              : "border-border"
+              ? 'border-dashed border-border'
+              : 'border-border'
         }`}
       >
         {[1, 2, 3, 4, 5].map((n) => {
@@ -75,11 +75,11 @@ function ScoreCell({
                 ${
                   active
                     ? autoFilled
-                      ? "bg-amber-sov text-white"
-                      : "bg-blue-aria text-white"
-                    : "bg-white text-muted hover:bg-blue-pale hover:text-blue-aria"
+                      ? 'bg-amber-sov text-white'
+                      : 'bg-blue-aria text-white'
+                    : 'bg-white text-muted hover:bg-blue-pale hover:text-blue-aria'
                 }
-                ${n < 5 ? "border-r border-border" : ""}`}
+                ${n < 5 ? 'border-r border-border' : ''}`}
             >
               {n}
             </button>
@@ -101,10 +101,10 @@ function ScoreCell({
 function TotalBadge({ total }: { total: number }) {
   const color =
     total >= 22
-      ? "bg-green-sov text-white"
+      ? 'bg-green-sov text-white'
       : total >= 14
-        ? "bg-blue-pale text-blue-aria"
-        : "bg-purple-aria-light text-purple-aria";
+        ? 'bg-blue-pale text-blue-aria'
+        : 'bg-purple-aria-light text-purple-aria';
   return (
     <span
       className={`inline-flex items-center justify-center w-10 h-7 rounded font-bold text-sm ${color}`}
@@ -153,7 +153,7 @@ export default function ScoringPage() {
   const [loading, setLoading] = useState(true);
   const [useCases, setUseCases] = useState<UseCase[]>([]);
   const [blockedCount, setBlockedCount] = useState(0);
-  const [filterProcess, setFilterProcess] = useState("all");
+  const [filterProcess, setFilterProcess] = useState('all');
   const [processes, setProcesses] = useState<
     { _id: string; procId: string; name: string }[]
   >([]);
@@ -162,27 +162,27 @@ export default function ScoringPage() {
     {},
   );
   const [saveStatus, setSaveStatus] = useState<
-    Record<string, "saved" | "saving" | "unsaved">
+    Record<string, 'saved' | 'saving' | 'unsaved'>
   >({});
 
   const hasUnsaved = Object.values(saveStatus).some(
-    (s) => s === "saving" || s === "unsaved",
+    (s) => s === 'saving' || s === 'unsaved',
   );
   useBeforeUnload(hasUnsaved);
 
   useEffect(() => {
     Promise.all([
       fetch(apiUrl(`/api/audits/${auditId}/usecases`), {
-        credentials: "include",
+        credentials: 'include',
       }).then((r) => r.json()),
       fetch(apiUrl(`/api/audits/${auditId}/processes`), {
-        credentials: "include",
+        credentials: 'include',
       }).then((r) => r.json()),
     ])
       .then(([ucs, procs]) => {
         const all = Array.isArray(ucs) ? (ucs as UseCase[]) : [];
-        setBlockedCount(all.filter((u) => u.status === "blocked").length);
-        setUseCases(all.filter((u) => u.status !== "blocked"));
+        setBlockedCount(all.filter((u) => u.status === 'blocked').length);
+        setUseCases(all.filter((u) => u.status !== 'blocked'));
         setProcesses(Array.isArray(procs) ? procs : []);
         setLoading(false);
       })
@@ -197,17 +197,17 @@ export default function ScoringPage() {
   }, []);
 
   const saveScore = useCallback(
-    async (ucId: string, dimensions: UseCase["score"]) => {
+    async (ucId: string, dimensions: UseCase['score']) => {
       if (savingRef.current[ucId]) return;
       savingRef.current[ucId] = true;
-      setSaveStatus((s) => ({ ...s, [ucId]: "saving" }));
+      setSaveStatus((s) => ({ ...s, [ucId]: 'saving' }));
       try {
         const res = await fetch(
           apiUrl(`/api/audits/${auditId}/usecases/${ucId}`),
           {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ score: dimensions }),
           },
         );
@@ -215,9 +215,9 @@ export default function ScoringPage() {
         setUseCases((prev) =>
           prev.map((u) => (u._id === ucId ? { ...u, ...updated } : u)),
         );
-        setSaveStatus((s) => ({ ...s, [ucId]: "saved" }));
+        setSaveStatus((s) => ({ ...s, [ucId]: 'saved' }));
       } catch {
-        setSaveStatus((s) => ({ ...s, [ucId]: "saved" }));
+        setSaveStatus((s) => ({ ...s, [ucId]: 'saved' }));
       } finally {
         savingRef.current[ucId] = false;
       }
@@ -226,7 +226,7 @@ export default function ScoringPage() {
   );
 
   const updateDimension = (ucId: string, dimKey: string, value: ScoreValue) => {
-    let pendingScore: UseCase["score"] | undefined;
+    let pendingScore: UseCase['score'] | undefined;
     setUseCases((prev) =>
       prev.map((u) => {
         if (u._id !== ucId) return u;
@@ -241,13 +241,13 @@ export default function ScoringPage() {
         };
         const updated = {
           ...u,
-          score: { ...u.score, dimensions: newDims } as UseCase["score"],
+          score: { ...u.score, dimensions: newDims } as UseCase['score'],
         };
         pendingScore = updated.score;
         return updated;
       }),
     );
-    setSaveStatus((s) => ({ ...s, [ucId]: "unsaved" }));
+    setSaveStatus((s) => ({ ...s, [ucId]: 'unsaved' }));
     if (debounceTimers.current[ucId])
       clearTimeout(debounceTimers.current[ucId]);
     debounceTimers.current[ucId] = setTimeout(() => {
@@ -257,7 +257,7 @@ export default function ScoringPage() {
   };
 
   const filtered =
-    filterProcess === "all"
+    filterProcess === 'all'
       ? useCases
       : useCases.filter((u) => u.processId === filterProcess);
 
@@ -302,11 +302,11 @@ export default function ScoringPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-xs">
-              <span className="w-3 h-3 rounded bg-green-sov" /> Quick Win:{" "}
+              <span className="w-3 h-3 rounded bg-green-sov" /> Quick Win:{' '}
               {cats.quick_win}
-              <span className="w-3 h-3 rounded bg-blue-aria ml-2" /> Mid-term:{" "}
+              <span className="w-3 h-3 rounded bg-blue-aria ml-2" /> Mid-term:{' '}
               {cats.mid_term}
-              <span className="w-3 h-3 rounded bg-purple-aria ml-2" />{" "}
+              <span className="w-3 h-3 rounded bg-purple-aria ml-2" />{' '}
               Strategic: {cats.strategic}
             </span>
           </div>
@@ -316,8 +316,8 @@ export default function ScoringPage() {
           <div className="mb-4 flex items-center justify-between gap-3 rounded border border-amber-sov/40 bg-amber-sov-light px-4 py-3 text-sm">
             <span className="flex items-center gap-2 text-amber-sov">
               <AlertTriangle size={16} />
-              <strong>{blockedCount}</strong> use{" "}
-              {blockedCount === 1 ? "case is" : "cases are"} blocked (B2
+              <strong>{blockedCount}</strong> use{' '}
+              {blockedCount === 1 ? 'case is' : 'cases are'} blocked (B2
               sovereignty) and excluded from scoring.
             </span>
             <Link
@@ -402,7 +402,7 @@ export default function ScoringPage() {
                         </span>
                       </td>
                       <td className="py-3 px-3">
-                        <Badge variant="amber">{uc.procId || "—"}</Badge>
+                        <Badge variant="amber">{uc.procId || '—'}</Badge>
                       </td>
                       <td className="py-3 px-3 max-w-xs">
                         <p
@@ -414,7 +414,7 @@ export default function ScoringPage() {
                       </td>
                       {DIM_KEYS.map((dimKey) => {
                         const dim = dims?.[dimKey];
-                        const isD5 = dimKey === "d5_sovereigntyIndex";
+                        const isD5 = dimKey === 'd5_sovereigntyIndex';
                         return (
                           <td key={dimKey} className="py-3 px-2 text-center">
                             <ScoreCell
@@ -472,9 +472,9 @@ export default function ScoringPage() {
 
         {/* Legend */}
         <div className="mt-4 card p-4 text-xs text-muted">
-          <strong className="text-text">Score thresholds:</strong>{" "}
-          <span className="text-green-sov">Quick Win: total ≥22 AND D6 ≥4</span>{" "}
-          · <span className="text-blue-aria">Mid-term: total ≥14</span> ·{" "}
+          <strong className="text-text">Score thresholds:</strong>{' '}
+          <span className="text-green-sov">Quick Win: total ≥22 AND D6 ≥4</span>{' '}
+          · <span className="text-blue-aria">Mid-term: total ≥14</span> ·{' '}
           <span className="text-purple-aria">Strategic: total &lt;14</span> · D5
           (amber border) = auto-filled from B2 Sovereignty Index
         </div>

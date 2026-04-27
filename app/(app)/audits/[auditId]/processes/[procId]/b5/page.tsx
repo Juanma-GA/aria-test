@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus,
   X,
@@ -15,10 +15,10 @@ import {
   Bot,
   RefreshCw,
   Sparkles,
-} from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { ConfirmModal } from "@/components/ui/ConfirmModal";
+} from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import type {
   UseCase,
   AIType,
@@ -26,40 +26,40 @@ import type {
   TimeSavedEntry,
   ScoreValue,
   ProfileEntry,
-} from "@/lib/types";
-import { AI_TYPE_LABELS } from "@/lib/types";
-import { apiUrl } from "@/lib/utils";
-import { calculateSovereigntyIndex, calculateScore } from "@/lib/calculations";
+} from '@/lib/types';
+import { AI_TYPE_LABELS } from '@/lib/types';
+import { apiUrl } from '@/lib/utils';
+import { calculateSovereigntyIndex, calculateScore } from '@/lib/calculations';
 
 const AI_TYPE_COLORS: Record<
   AIType,
-  "purple" | "blue" | "teal" | "amber" | "green" | "slate"
+  'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'
 > = {
-  generative_llm: "purple",
-  extraction_nlp: "blue",
-  classification_ml: "teal",
-  rag: "blue",
-  validation: "amber",
-  prediction: "green",
-  intelligent_automation: "teal",
-  agentic_ai: "purple",
-  other: "slate",
+  generative_llm: 'purple',
+  extraction_nlp: 'blue',
+  classification_ml: 'teal',
+  rag: 'blue',
+  validation: 'amber',
+  prediction: 'green',
+  intelligent_automation: 'teal',
+  agentic_ai: 'purple',
+  other: 'slate',
 };
 
-const STATUS_VARIANTS: Record<string, "green" | "red" | "amber" | "slate"> = {
-  eligible: "green",
-  blocked: "red",
-  pending_review: "amber",
+const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
+  eligible: 'green',
+  blocked: 'red',
+  pending_review: 'amber',
 };
 
 const GPU_PRESETS: Record<
   string,
   { name: string; tdpW: number; priceEur: number; vramGb: number }
 > = {
-  rtx_4090: { name: "RTX 4090", tdpW: 450, priceEur: 2000, vramGb: 24 },
-  a100_40gb: { name: "A100 40GB", tdpW: 300, priceEur: 10000, vramGb: 40 },
-  a100_80gb: { name: "A100 80GB", tdpW: 400, priceEur: 15000, vramGb: 80 },
-  h100: { name: "H100 80GB", tdpW: 700, priceEur: 30000, vramGb: 80 },
+  rtx_4090: { name: 'RTX 4090', tdpW: 450, priceEur: 2000, vramGb: 24 },
+  a100_40gb: { name: 'A100 40GB', tdpW: 300, priceEur: 10000, vramGb: 40 },
+  a100_80gb: { name: 'A100 80GB', tdpW: 400, priceEur: 15000, vramGb: 80 },
+  h100: { name: 'H100 80GB', tdpW: 700, priceEur: 30000, vramGb: 80 },
 };
 
 // Executions distributed over 215 working days × 8h = 1,720 working hours/year
@@ -79,12 +79,12 @@ function autoRecommendGpu(
   // GPU class selected by throughput tier only (concurrency handled via batch capacity below)
   const gpuModel =
     annualReps < 10_000
-      ? "rtx_4090"
+      ? 'rtx_4090'
       : annualReps < 100_000
-        ? "a100_40gb"
+        ? 'a100_40gb'
         : annualReps < 500_000
-          ? "a100_80gb"
-          : "h100";
+          ? 'a100_80gb'
+          : 'h100';
   // Realistic continuous-batching capacity per GPU (vLLM/TGI, medium-size model ~7–13B)
   // Larger VRAM → bigger KV-cache → more sequences in flight simultaneously
   const concPerGpu: Record<string, number> = {
@@ -104,7 +104,7 @@ function autoRecommendGpu(
   const batchCap = concPerGpu[gpuModel];
   const rationale =
     `${annualReps.toLocaleString()} exec/yr ÷ ${WORKING_HOURS_PER_YEAR}h = ${avgRps.toFixed(4)} req/s avg · ` +
-    `${cu} concurrent users (${batchCap} batch cap/GPU → ${gpusForConcurrency} GPU${gpusForConcurrency !== 1 ? "s" : ""}) · ` +
+    `${cu} concurrent users (${batchCap} batch cap/GPU → ${gpusForConcurrency} GPU${gpusForConcurrency !== 1 ? 's' : ''}) · ` +
     `GPU load ${(utilizationPct * 100).toFixed(1)}% · ${nGpus}× ${GPU_PRESETS[gpuModel].name}`;
   return { gpuModel, nGpus, utilizationPct, rationale };
 }
@@ -116,42 +116,42 @@ const DIMENSIONS: {
   scale: string;
 }[] = [
   {
-    key: "d1_efficiencyImpact",
-    label: "D1 Efficiency",
-    hint: "How much does AI improve speed or reduce manual effort?",
-    scale: "1 = <10% saving · 3 = 20–35% · 5 = >50%",
+    key: 'd1_efficiencyImpact',
+    label: 'D1 Efficiency',
+    hint: 'How much does AI improve speed or reduce manual effort?',
+    scale: '1 = <10% saving · 3 = 20–35% · 5 = >50%',
   },
   {
-    key: "d2_qualityImpact",
-    label: "D2 Quality",
-    hint: "Does AI reduce errors or improve output quality?",
+    key: 'd2_qualityImpact',
+    label: 'D2 Quality',
+    hint: 'Does AI reduce errors or improve output quality?',
     scale:
-      "1 = Marginal · 3 = Reduces rework significantly · 5 = Full consistency guaranteed",
+      '1 = Marginal · 3 = Reduces rework significantly · 5 = Full consistency guaranteed',
   },
   {
-    key: "d3_techMaturity",
-    label: "D3 Tech Maturity",
-    hint: "How mature is the AI technology for this use case?",
-    scale: "1 = Experimental · 3 = Pilot · 5 = Market standard",
+    key: 'd3_techMaturity',
+    label: 'D3 Tech Maturity',
+    hint: 'How mature is the AI technology for this use case?',
+    scale: '1 = Experimental · 3 = Pilot · 5 = Market standard',
   },
   {
-    key: "d4_dataReadiness",
-    label: "D4 Data Readiness",
-    hint: "Is the data available, clean, and accessible?",
+    key: 'd4_dataReadiness',
+    label: 'D4 Data Readiness',
+    hint: 'Is the data available, clean, and accessible?',
     scale:
       "1 = Doesn't exist · 3 = Available with effort · 5 = Structured & clean",
   },
   {
-    key: "d5_sovereigntyIndex",
-    label: "D5 Sovereignty",
-    hint: "Compliance with sovereignty constraints (auto-filled from B2)",
+    key: 'd5_sovereigntyIndex',
+    label: 'D5 Sovereignty',
+    hint: 'Compliance with sovereignty constraints (auto-filled from B2)',
     scale:
-      "1 = Critical · 2 = Restricted · 3 = Conditioned · 4 = Managed · 5 = Full Autonomy",
+      '1 = Critical · 2 = Restricted · 3 = Conditioned · 4 = Managed · 5 = Full Autonomy',
   },
 ];
 
 function emptyScore() {
-  const dim = { value: 3 as ScoreValue, justification: "" };
+  const dim = { value: 3 as ScoreValue, justification: '' };
   return {
     d1_efficiencyImpact: { ...dim },
     d2_qualityImpact: { ...dim },
@@ -174,14 +174,14 @@ function sovereigntyLevelToD5(level: string): ScoreValue {
 
 function scoreTotal(dims: ReturnType<typeof emptyScore>): number {
   return Object.entries(dims)
-    .filter(([k]) => k !== "d6_governanceComplexity")
+    .filter(([k]) => k !== 'd6_governanceComplexity')
     .reduce((s, [, d]) => s + d.value, 0);
 }
 
 function scoreCategory(total: number): string {
-  if (total >= 18) return "Quick Win";
-  if (total >= 11) return "Mid-term";
-  return "Strategic";
+  if (total >= 18) return 'Quick Win';
+  if (total >= 11) return 'Mid-term';
+  return 'Strategic';
 }
 
 function d1FromPct(pct: number): ScoreValue {
@@ -198,17 +198,17 @@ function emptyForm(processId: string): Partial<UseCase> & {
   targetActivities: string[];
 } {
   return {
-    description: "",
-    aiTypes: ["generative_llm"],
+    description: '',
+    aiTypes: ['generative_llm'],
     targetActivities: [],
     requiresClientIT: false,
     timeSavedPerProfile: [],
     estimatedDevCostEur: 0,
-    devCostExplanation: "",
+    devCostExplanation: '',
     estimatedImplWeeks: 0,
-    notes: "",
+    notes: '',
     computeCost: {
-      deploymentModel: "cloud_api",
+      deploymentModel: 'cloud_api',
       annualReps: 0,
       concurrentUsers: 1,
       avgResponseTimeSec: 2,
@@ -216,7 +216,7 @@ function emptyForm(processId: string): Partial<UseCase> & {
       outputTokensPerExec: 500,
       pricePerMInputTokens: 2,
       pricePerMOutputTokens: 6,
-      gpuModel: "a100_40gb",
+      gpuModel: 'a100_40gb',
       nGpus: 1,
       amortizationYears: 4,
       electricityRateEur: 0.15,
@@ -232,7 +232,7 @@ function computeAnnualCost(cc: Record<string, any>): number {
   if (reps === 0) return 0;
   const cu = cc.concurrentUsers ?? 1;
   const avgSec = cc.avgResponseTimeSec ?? 2;
-  const model = cc.deploymentModel ?? "cloud_api";
+  const model = cc.deploymentModel ?? 'cloud_api';
   const cloudCost =
     (((cc.inputTokensPerExec ?? 1000) * reps) / 1_000_000) *
       (cc.pricePerMInputTokens ?? 2) +
@@ -259,9 +259,9 @@ function computeAnnualCost(cc: Record<string, any>): number {
   );
   const pct = (cc.onPremPct ?? 70) / 100;
   const infraCost =
-    model === "on_premise"
+    model === 'on_premise'
       ? onPremCost
-      : model === "hybrid"
+      : model === 'hybrid'
         ? onPremCost * pct + cloudCost * (1 - pct)
         : cloudCost;
   return infraCost + subscriptionsCost;
@@ -341,32 +341,32 @@ function SlideOver({
   const [form, setForm] = useState<FormType>(emptyForm(processId));
   const [dims, setDims] = useState(emptyScore());
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [analyzingSOV, setAnalyzingSOV] = useState(false);
   const [refreshingCompute, setRefreshingCompute] = useState(false);
-  const [computeRationale, setComputeRationale] = useState("");
+  const [computeRationale, setComputeRationale] = useState('');
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
   useEffect(() => {
     // Compute D5 autofill from B2 axes
     let d5AutoValue: ScoreValue = 3;
-    let d5AutoJustification = "";
+    let d5AutoJustification = '';
     let requiresClientITAuto = false;
     if (b2Axes && Object.keys(b2Axes).length > 0) {
       try {
         const sovResult = calculateSovereigntyIndex(b2Axes as any);
         d5AutoValue = sovereigntyLevelToD5(sovResult.level);
         const LEVEL_LABELS: Record<string, string> = {
-          full_autonomy: "Full Autonomy",
-          managed: "Managed",
-          conditioned: "Conditioned",
-          restricted: "Restricted",
-          critical: "Critical",
+          full_autonomy: 'Full Autonomy',
+          managed: 'Managed',
+          conditioned: 'Conditioned',
+          restricted: 'Restricted',
+          critical: 'Critical',
         };
         d5AutoJustification = `Auto from B2: ${LEVEL_LABELS[sovResult.level] ?? sovResult.level} (index ${sovResult.index.toFixed(2)}/5)`;
         requiresClientITAuto =
-          sovResult.level === "restricted" || sovResult.level === "critical";
+          sovResult.level === 'restricted' || sovResult.level === 'critical';
       } catch {}
     }
 
@@ -379,7 +379,7 @@ function SlideOver({
         ...editUC,
         aiTypes: editUC.aiTypes?.length
           ? editUC.aiTypes
-          : [(editUC as any).aiType ?? "generative_llm"],
+          : [(editUC as any).aiType ?? 'generative_llm'],
         timeSavedPerProfile: editUC.timeSavedPerProfile ?? [],
         targetActivities: editUC.targetActivities?.length
           ? editUC.targetActivities
@@ -388,7 +388,7 @@ function SlideOver({
             : [],
         computeCost: { ...defaultCC, ...((editUC as any).computeCost ?? {}) },
         requiresClientIT: requiresClientITAuto,
-        sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? "",
+        sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       });
       if (editUC.score?.dimensions) {
         const existingDims = editUC.score.dimensions as any;
@@ -418,7 +418,7 @@ function SlideOver({
       const base = emptyForm(processId);
       if (initialDesc) base.description = initialDesc;
       (base as any).requiresClientIT = requiresClientITAuto;
-      (base as any).sovereigntyAnalysis = "";
+      (base as any).sovereigntyAnalysis = '';
       setForm(base as any);
       setDims({
         ...emptyScore(),
@@ -430,8 +430,8 @@ function SlideOver({
     }
     d1ManualRef.current = false;
     d5ManualRef.current = false;
-    setError("");
-    setComputeRationale("");
+    setError('');
+    setComputeRationale('');
   }, [editUC, processId, open, initialDesc, b2Axes]);
 
   const set = (field: string, value: unknown) =>
@@ -442,7 +442,7 @@ function SlideOver({
     const next = current.includes(t)
       ? current.filter((x) => x !== t)
       : [...current, t];
-    if (next.length > 0) set("aiTypes", next);
+    if (next.length > 0) set('aiTypes', next);
   };
 
   const toggleActivity = (id: string) => {
@@ -450,16 +450,16 @@ function SlideOver({
     const next = current.includes(id)
       ? current.filter((x) => x !== id)
       : [...current, id];
-    set("targetActivities", next);
+    set('targetActivities', next);
   };
 
   const addTimeSaved = () => {
     const firstProfile = b1Profiles[0];
-    set("timeSavedPerProfile", [
+    set('timeSavedPerProfile', [
       ...(form.timeSavedPerProfile ?? []),
       {
         profileId: firstProfile?.id ?? crypto.randomUUID(),
-        role: firstProfile?.role ?? "",
+        role: firstProfile?.role ?? '',
         hoursPerExecution: 0,
       },
     ]);
@@ -472,29 +472,29 @@ function SlideOver({
   ) => {
     const next = (form.timeSavedPerProfile ?? []).map((e, idx) => {
       if (idx !== i) return e;
-      if (field === "profileId") {
+      if (field === 'profileId') {
         const prof = b1Profiles.find((p) => p.id === value);
         return { ...e, profileId: value as string, role: prof?.role ?? e.role };
       }
       return { ...e, [field]: value };
     });
-    set("timeSavedPerProfile", next);
+    set('timeSavedPerProfile', next);
   };
 
   const removeTimeSaved = (i: number) =>
     set(
-      "timeSavedPerProfile",
+      'timeSavedPerProfile',
       (form.timeSavedPerProfile ?? []).filter((_, idx) => idx !== i),
     );
 
   const updateDim = (
     key: string,
-    field: "value" | "justification",
+    field: 'value' | 'justification',
     value: string | number,
   ) => {
-    if (key === "d1_efficiencyImpact" && field === "value")
+    if (key === 'd1_efficiencyImpact' && field === 'value')
       d1ManualRef.current = true;
-    if (key === "d5_sovereigntyIndex" && field === "value")
+    if (key === 'd5_sovereigntyIndex' && field === 'value')
       d5ManualRef.current = true;
     setDims((d) => ({
       ...d,
@@ -536,11 +536,11 @@ function SlideOver({
 
   const handleSave = async () => {
     if (!form.description?.trim()) {
-      setError("Description is required.");
+      setError('Description is required.');
       return;
     }
     if (!form.aiTypes?.length) {
-      setError("Select at least one AI type.");
+      setError('Select at least one AI type.');
       return;
     }
     setSaving(true);
@@ -548,30 +548,30 @@ function SlideOver({
       const url = editUC
         ? `/api/audits/${auditId}/usecases/${editUC._id}`
         : `/api/audits/${auditId}/usecases`;
-      const method = editUC ? "PATCH" : "POST";
+      const method = editUC ? 'PATCH' : 'POST';
       const res = await fetch(url, {
         method,
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
           processId,
           targetActivities: form.targetActivities ?? [],
           score: {
             dimensions: dims,
-            scoringNotes: "",
-            scoredBy: "consultant",
+            scoringNotes: '',
+            scoredBy: 'consultant',
             scoredAt: new Date().toISOString(),
           },
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-      if (!data || !data._id) throw new Error("Invalid response from server");
-      onSaved(data, data.status === "blocked" && !editUC);
+      if (!data || !data._id) throw new Error('Invalid response from server');
+      onSaved(data, data.status === 'blocked' && !editUC);
       onClose();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      setError(e instanceof Error ? e.message : 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -585,7 +585,7 @@ function SlideOver({
       <div className="relative w-full max-w-3xl bg-white shadow-xl flex flex-col max-h-[90vh] rounded-sm">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="font-semibold text-base">
-            {editUC ? "Edit Use Case" : "Add Use Case"}
+            {editUC ? 'Edit Use Case' : 'Add Use Case'}
           </h2>
           <button onClick={onClose} className="text-muted hover:text-text">
             <X size={18} />
@@ -608,8 +608,8 @@ function SlideOver({
               rows={3}
               className="form-textarea"
               placeholder="Describe the AI opportunity…"
-              value={form.description || ""}
-              onChange={(e) => set("description", e.target.value)}
+              value={form.description || ''}
+              onChange={(e) => set('description', e.target.value)}
             />
           </div>
 
@@ -628,8 +628,8 @@ function SlideOver({
                     title={AI_TYPE_LABELS[t].description}
                     className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
                       active
-                        ? "bg-blue-aria text-white border-blue-aria"
-                        : "border-border text-muted hover:border-blue-aria"
+                        ? 'bg-blue-aria text-white border-blue-aria'
+                        : 'border-border text-muted hover:border-blue-aria'
                     }`}
                   >
                     {AI_TYPE_LABELS[t].label}
@@ -687,9 +687,9 @@ function SlideOver({
               </p>
             </div>
             <div
-              className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${form.requiresClientIT ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}
+              className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${form.requiresClientIT ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}
             >
-              {form.requiresClientIT ? "⚠ Yes" : "✓ No"}
+              {form.requiresClientIT ? '⚠ Yes' : '✓ No'}
             </div>
           </div>
 
@@ -717,7 +717,7 @@ function SlideOver({
                     className="form-input text-xs flex-1"
                     value={e.profileId}
                     onChange={(ev) =>
-                      updateTimeSaved(i, "profileId", ev.target.value)
+                      updateTimeSaved(i, 'profileId', ev.target.value)
                     }
                   >
                     {b1Profiles.map((p) => (
@@ -732,7 +732,7 @@ function SlideOver({
                     placeholder="Role / profile…"
                     value={e.role}
                     onChange={(ev) =>
-                      updateTimeSaved(i, "role", ev.target.value)
+                      updateTimeSaved(i, 'role', ev.target.value)
                     }
                   />
                 )}
@@ -746,7 +746,7 @@ function SlideOver({
                   onChange={(ev) =>
                     updateTimeSaved(
                       i,
-                      "hoursPerExecution",
+                      'hoursPerExecution',
                       parseFloat(ev.target.value) || 0,
                     )
                   }
@@ -772,7 +772,7 @@ function SlideOver({
                 className="form-input"
                 value={form.estimatedDevCostEur ?? 0}
                 onChange={(e) =>
-                  set("estimatedDevCostEur", parseFloat(e.target.value) || 0)
+                  set('estimatedDevCostEur', parseFloat(e.target.value) || 0)
                 }
               />
             </div>
@@ -784,7 +784,7 @@ function SlideOver({
                 className="form-input"
                 value={form.estimatedImplWeeks ?? 0}
                 onChange={(e) =>
-                  set("estimatedImplWeeks", parseInt(e.target.value) || 0)
+                  set('estimatedImplWeeks', parseInt(e.target.value) || 0)
                 }
               />
             </div>
@@ -795,8 +795,8 @@ function SlideOver({
               rows={2}
               className="form-textarea"
               placeholder="Briefly explain the cost estimate…"
-              value={form.devCostExplanation || ""}
-              onChange={(e) => set("devCostExplanation", e.target.value)}
+              value={form.devCostExplanation || ''}
+              onChange={(e) => set('devCostExplanation', e.target.value)}
             />
           </div>
 
@@ -811,7 +811,7 @@ function SlideOver({
                   [field]: value,
                 },
               }));
-            const model = cc.deploymentModel ?? "cloud_api";
+            const model = cc.deploymentModel ?? 'cloud_api';
             const reps = cc.annualReps ?? 0;
             const cu = cc.concurrentUsers ?? 1;
             const avgSec = cc.avgResponseTimeSec ?? 2;
@@ -852,9 +852,9 @@ function SlideOver({
               (s, sub) => s + (sub.users ?? 0) * (sub.monthlyPerUser ?? 0) * 12,
               0,
             );
-            const setSubs = (next: typeof subs) => setCC("subscriptions", next);
+            const setSubs = (next: typeof subs) => setCC('subscriptions', next);
             const addSub = () =>
-              setSubs([...subs, { tool: "", users: 1, monthlyPerUser: 0 }]);
+              setSubs([...subs, { tool: '', users: 1, monthlyPerUser: 0 }]);
             const removeSub = (i: number) =>
               setSubs(subs.filter((_, idx) => idx !== i));
             const updateSub = (
@@ -869,15 +869,15 @@ function SlideOver({
               );
 
             const infraCost =
-              model === "on_premise"
+              model === 'on_premise'
                 ? onPremCost
-                : model === "hybrid"
+                : model === 'hybrid'
                   ? hybridCost
                   : cloudCost;
             const activeCost = infraCost + subscriptionsCost;
             const costPerExec = reps > 0 ? activeCost / reps : 0;
             const savingOverCloud =
-              model === "on_premise" && cloudCost > 0
+              model === 'on_premise' && cloudCost > 0
                 ? cloudCost - onPremCost
                 : null;
             const breakevenMonths =
@@ -897,11 +897,11 @@ function SlideOver({
               setRefreshingCompute(true);
               try {
                 const res = await fetch(
-                  apiUrl("/api/ai/refresh-compute-estimates"),
+                  apiUrl('/api/ai/refresh-compute-estimates'),
                   {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       computeCost: cc,
                       useCaseDescription: form.description,
@@ -913,15 +913,15 @@ function SlideOver({
                 if (data.estimates) {
                   const e = data.estimates;
                   if (e.pricePerMInputTokens != null)
-                    setCC("pricePerMInputTokens", e.pricePerMInputTokens);
+                    setCC('pricePerMInputTokens', e.pricePerMInputTokens);
                   if (e.pricePerMOutputTokens != null)
-                    setCC("pricePerMOutputTokens", e.pricePerMOutputTokens);
+                    setCC('pricePerMOutputTokens', e.pricePerMOutputTokens);
                   if (e.inputTokensPerExec != null)
-                    setCC("inputTokensPerExec", e.inputTokensPerExec);
+                    setCC('inputTokensPerExec', e.inputTokensPerExec);
                   if (e.outputTokensPerExec != null)
-                    setCC("outputTokensPerExec", e.outputTokensPerExec);
+                    setCC('outputTokensPerExec', e.outputTokensPerExec);
                   if (e.avgResponseTimeSec != null)
-                    setCC("avgResponseTimeSec", e.avgResponseTimeSec);
+                    setCC('avgResponseTimeSec', e.avgResponseTimeSec);
                   if (e.rationale) setComputeRationale(e.rationale);
                 }
               } catch {}
@@ -944,7 +944,7 @@ function SlideOver({
                     ) : (
                       <RefreshCw size={11} />
                     )}
-                    {refreshingCompute ? "Updating…" : "Update with AI"}
+                    {refreshingCompute ? 'Updating…' : 'Update with AI'}
                   </button>
                 </div>
                 {computeRationale && (
@@ -956,19 +956,19 @@ function SlideOver({
 
                 {/* Deployment tabs */}
                 <div className="flex gap-1 bg-slate-100 rounded p-1">
-                  {(["cloud_api", "on_premise", "hybrid"] as const).map(
+                  {(['cloud_api', 'on_premise', 'hybrid'] as const).map(
                     (key) => {
                       const label =
-                        key === "cloud_api"
-                          ? "☁️ Cloud API"
-                          : key === "on_premise"
-                            ? "🖥️ On-Premise"
-                            : "⚡ Hybrid";
+                        key === 'cloud_api'
+                          ? '☁️ Cloud API'
+                          : key === 'on_premise'
+                            ? '🖥️ On-Premise'
+                            : '⚡ Hybrid';
                       return (
                         <button
                           key={key}
-                          onClick={() => setCC("deploymentModel", key)}
-                          className={`flex-1 py-1 rounded text-xs font-medium transition-colors ${model === key ? "bg-white shadow text-text" : "text-muted hover:text-text"}`}
+                          onClick={() => setCC('deploymentModel', key)}
+                          className={`flex-1 py-1 rounded text-xs font-medium transition-colors ${model === key ? 'bg-white shadow text-text' : 'text-muted hover:text-text'}`}
                         >
                           {label}
                         </button>
@@ -987,7 +987,7 @@ function SlideOver({
                       className="form-input text-xs"
                       value={cc.annualReps ?? 0}
                       onChange={(e) =>
-                        setCC("annualReps", parseInt(e.target.value) || 0)
+                        setCC('annualReps', parseInt(e.target.value) || 0)
                       }
                     />
                   </div>
@@ -1001,7 +1001,7 @@ function SlideOver({
                       value={cc.avgResponseTimeSec ?? 2}
                       onChange={(e) =>
                         setCC(
-                          "avgResponseTimeSec",
+                          'avgResponseTimeSec',
                           parseFloat(e.target.value) || 0,
                         )
                       }
@@ -1015,14 +1015,14 @@ function SlideOver({
                       className="form-input text-xs"
                       value={cc.concurrentUsers ?? 1}
                       onChange={(e) =>
-                        setCC("concurrentUsers", parseInt(e.target.value) || 1)
+                        setCC('concurrentUsers', parseInt(e.target.value) || 1)
                       }
                     />
                   </div>
                 </div>
 
                 {/* Cloud inputs */}
-                {model === "cloud_api" && (
+                {model === 'cloud_api' && (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -1034,7 +1034,7 @@ function SlideOver({
                           value={cc.inputTokensPerExec ?? 1000}
                           onChange={(e) =>
                             setCC(
-                              "inputTokensPerExec",
+                              'inputTokensPerExec',
                               parseInt(e.target.value) || 0,
                             )
                           }
@@ -1049,7 +1049,7 @@ function SlideOver({
                           value={cc.outputTokensPerExec ?? 500}
                           onChange={(e) =>
                             setCC(
-                              "outputTokensPerExec",
+                              'outputTokensPerExec',
                               parseInt(e.target.value) || 0,
                             )
                           }
@@ -1065,7 +1065,7 @@ function SlideOver({
                           value={cc.pricePerMInputTokens ?? 2}
                           onChange={(e) =>
                             setCC(
-                              "pricePerMInputTokens",
+                              'pricePerMInputTokens',
                               parseFloat(e.target.value) || 0,
                             )
                           }
@@ -1081,7 +1081,7 @@ function SlideOver({
                           value={cc.pricePerMOutputTokens ?? 6}
                           onChange={(e) =>
                             setCC(
-                              "pricePerMOutputTokens",
+                              'pricePerMOutputTokens',
                               parseFloat(e.target.value) || 0,
                             )
                           }
@@ -1092,16 +1092,16 @@ function SlideOver({
                       <span className="text-[10px] text-muted">Presets:</span>
                       {(
                         [
-                          ["Mistral Med.", 2, 6],
-                          ["GPT-4o", 5, 15],
-                          ["Claude S.", 3, 15],
+                          ['Mistral Med.', 2, 6],
+                          ['GPT-4o', 5, 15],
+                          ['Claude S.', 3, 15],
                         ] as [string, number, number][]
                       ).map(([name, inp, out]) => (
                         <button
                           key={name}
                           onClick={() => {
-                            setCC("pricePerMInputTokens", inp);
-                            setCC("pricePerMOutputTokens", out);
+                            setCC('pricePerMInputTokens', inp);
+                            setCC('pricePerMOutputTokens', out);
                           }}
                           className="text-[10px] px-2 py-0.5 border border-border rounded hover:border-blue-aria hover:text-blue-aria transition-colors"
                         >
@@ -1113,7 +1113,7 @@ function SlideOver({
                 )}
 
                 {/* On-premise inputs */}
-                {model === "on_premise" && (
+                {model === 'on_premise' && (
                   <div className="space-y-2">
                     {/* Auto GPU recommendation */}
                     <div className="bg-blue-50 border border-blue-200 rounded p-2.5 space-y-1">
@@ -1144,7 +1144,7 @@ function SlideOver({
                           value={cc.amortizationYears ?? 4}
                           onChange={(e) =>
                             setCC(
-                              "amortizationYears",
+                              'amortizationYears',
                               parseInt(e.target.value) || 4,
                             )
                           }
@@ -1160,7 +1160,7 @@ function SlideOver({
                           value={cc.electricityRateEur ?? 0.15}
                           onChange={(e) =>
                             setCC(
-                              "electricityRateEur",
+                              'electricityRateEur',
                               parseFloat(e.target.value) || 0,
                             )
                           }
@@ -1195,7 +1195,7 @@ function SlideOver({
                 )}
 
                 {/* Hybrid inputs */}
-                {model === "hybrid" && (
+                {model === 'hybrid' && (
                   <div className="space-y-2">
                     <label className="form-label">
                       On-premise base load: {cc.onPremPct ?? 70}%
@@ -1208,7 +1208,7 @@ function SlideOver({
                       className="w-full accent-blue-aria"
                       value={cc.onPremPct ?? 70}
                       onChange={(e) =>
-                        setCC("onPremPct", parseInt(e.target.value))
+                        setCC('onPremPct', parseInt(e.target.value))
                       }
                     />
                     <div className="flex justify-between text-[10px] text-muted">
@@ -1250,7 +1250,7 @@ function SlideOver({
                             placeholder="e.g. Microsoft Copilot"
                             value={sub.tool}
                             onChange={(e) =>
-                              updateSub(i, "tool", e.target.value)
+                              updateSub(i, 'tool', e.target.value)
                             }
                           />
                           <input
@@ -1261,7 +1261,7 @@ function SlideOver({
                             onChange={(e) =>
                               updateSub(
                                 i,
-                                "users",
+                                'users',
                                 parseInt(e.target.value) || 1,
                               )
                             }
@@ -1275,7 +1275,7 @@ function SlideOver({
                             onChange={(e) =>
                               updateSub(
                                 i,
-                                "monthlyPerUser",
+                                'monthlyPerUser',
                                 parseFloat(e.target.value) || 0,
                               )
                             }
@@ -1306,7 +1306,7 @@ function SlideOver({
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div
-                        className={`rounded p-2 ${model === "cloud_api" ? "bg-blue-aria text-white" : "bg-white border border-border"}`}
+                        className={`rounded p-2 ${model === 'cloud_api' ? 'bg-blue-aria text-white' : 'bg-white border border-border'}`}
                       >
                         <div className="text-[10px] opacity-70 uppercase">
                           Cloud API/yr
@@ -1314,7 +1314,7 @@ function SlideOver({
                         <div className="font-bold">{fmt(cloudCost)}</div>
                       </div>
                       <div
-                        className={`rounded p-2 ${model === "on_premise" ? "bg-blue-aria text-white" : "bg-white border border-border"}`}
+                        className={`rounded p-2 ${model === 'on_premise' ? 'bg-blue-aria text-white' : 'bg-white border border-border'}`}
                       >
                         <div className="text-[10px] opacity-70 uppercase">
                           On-Premise/yr
@@ -1337,7 +1337,7 @@ function SlideOver({
                     <div className="text-xs text-blue-aria font-medium">
                       {fmt(costPerExec)} / execution
                       {breakevenMonths &&
-                        model !== "cloud_api" &&
+                        model !== 'cloud_api' &&
                         breakevenMonths > 0 && (
                           <span className="ml-2 text-muted font-normal">
                             · On-prem break-even: {breakevenMonths} months
@@ -1386,17 +1386,17 @@ function SlideOver({
                   )}
                 </div>
                 <div
-                  className={`rounded p-2 ${roi.computeCostPerYear > 0 ? "bg-amber-50 border border-amber-200" : "bg-slate-100 border border-border"}`}
+                  className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}
                 >
                   <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
                     Compute Cost/yr
                   </div>
                   <div
-                    className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? "text-amber-700" : "text-muted"}`}
+                    className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}
                   >
                     {roi.computeCostPerYear > 0
                       ? `€${Math.round(roi.computeCostPerYear).toLocaleString()}`
-                      : "—"}
+                      : '—'}
                   </div>
                   {roi.computeCostPerYear > 0 && (
                     <div className="text-amber-600">
@@ -1409,13 +1409,13 @@ function SlideOver({
                   )}
                 </div>
                 <div
-                  className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? "bg-teal-50 border border-teal-200" : "bg-red-50 border border-red-200"}`}
+                  className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}
                 >
                   <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
                     Net Annual Saving
                   </div>
                   <div
-                    className={`font-bold text-base ${roi.netAnnualSaving > 0 ? "text-teal-700" : "text-red-600"}`}
+                    className={`font-bold text-base ${roi.netAnnualSaving > 0 ? 'text-teal-700' : 'text-red-600'}`}
                   >
                     €{Math.round(roi.netAnnualSaving).toLocaleString()}
                   </div>
@@ -1467,11 +1467,11 @@ function SlideOver({
                 </span>
                 <Badge
                   variant={
-                    cat === "Quick Win"
-                      ? "green"
-                      : cat === "Mid-term"
-                        ? "amber"
-                        : "blue"
+                    cat === 'Quick Win'
+                      ? 'green'
+                      : cat === 'Mid-term'
+                        ? 'amber'
+                        : 'blue'
                   }
                 >
                   {cat}
@@ -1481,15 +1481,15 @@ function SlideOver({
             {DIMENSIONS.map(({ key, label, hint, scale }) => {
               const dim = dims[key as keyof typeof dims];
               const isAutoFilled =
-                key === "d1_efficiencyImpact" &&
+                key === 'd1_efficiencyImpact' &&
                 (dim as any).autoFilled === true;
               return (
                 <div
                   key={key}
                   className={
                     isAutoFilled
-                      ? "bg-green-50 border border-green-200 rounded p-2 -mx-2"
-                      : ""
+                      ? 'bg-green-50 border border-green-200 rounded p-2 -mx-2'
+                      : ''
                   }
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -1511,15 +1511,15 @@ function SlideOver({
                         <button
                           key={v}
                           onClick={() =>
-                            updateDim(key, "value", v as ScoreValue)
+                            updateDim(key, 'value', v as ScoreValue)
                           }
-                          title={`${v} — ${scale.split(" · ")[v === 1 ? 0 : v === 3 ? 1 : v === 5 ? 2 : -1] ?? ""}`}
+                          title={`${v} — ${scale.split(' · ')[v === 1 ? 0 : v === 3 ? 1 : v === 5 ? 2 : -1] ?? ''}`}
                           className={`w-6 h-6 rounded text-xs font-bold border transition-colors ${
                             dim.value === v
                               ? isAutoFilled
-                                ? "bg-green-600 text-white border-green-600"
-                                : "bg-blue-aria text-white border-blue-aria"
-                              : "border-border text-muted hover:border-blue-aria"
+                                ? 'bg-green-600 text-white border-green-600'
+                                : 'bg-blue-aria text-white border-blue-aria'
+                              : 'border-border text-muted hover:border-blue-aria'
                           }`}
                         >
                           {v}
@@ -1532,7 +1532,7 @@ function SlideOver({
                     placeholder="Justification…"
                     value={dim.justification}
                     onChange={(e) =>
-                      updateDim(key, "justification", e.target.value)
+                      updateDim(key, 'justification', e.target.value)
                     }
                   />
                 </div>
@@ -1545,8 +1545,8 @@ function SlideOver({
             <textarea
               rows={6}
               className="form-textarea"
-              value={form.notes || ""}
-              onChange={(e) => set("notes", e.target.value)}
+              value={form.notes || ''}
+              onChange={(e) => set('notes', e.target.value)}
             />
           </div>
 
@@ -1561,9 +1561,9 @@ function SlideOver({
                     const res = await fetch(
                       `/api/audits/${auditId}/processes/${processId}/ai/sovereignty-analysis`,
                       {
-                        method: "POST",
-                        credentials: "include",
-                        headers: { "Content-Type": "application/json" },
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           useCaseDescription: form.description,
                           aiTypes: form.aiTypes,
@@ -1572,7 +1572,7 @@ function SlideOver({
                     );
                     const data = await res.json();
                     if (data.analysis)
-                      set("sovereigntyAnalysis", data.analysis);
+                      set('sovereigntyAnalysis', data.analysis);
                   } catch {}
                   setAnalyzingSOV(false);
                 }}
@@ -1580,7 +1580,7 @@ function SlideOver({
                 className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
               >
                 {analyzingSOV ? <Spinner size="sm" /> : <Sparkles size={11} />}
-                {analyzingSOV ? "Analyzing…" : "Analyze with AI"}
+                {analyzingSOV ? 'Analyzing…' : 'Analyze with AI'}
               </button>
             </div>
             <div className="space-y-1">
@@ -1588,8 +1588,8 @@ function SlideOver({
                 rows={9}
                 className="form-textarea"
                 placeholder="Describe sovereignty conditions, constraints, and compliance requirements for this use case…"
-                value={(form as any).sovereigntyAnalysis || ""}
-                onChange={(e) => set("sovereigntyAnalysis", e.target.value)}
+                value={(form as any).sovereigntyAnalysis || ''}
+                onChange={(e) => set('sovereigntyAnalysis', e.target.value)}
               />
               {(form as any).sovereigntyAnalysis && (
                 <div className="flex items-center gap-1 text-[10px] text-blue-600">
@@ -1607,7 +1607,7 @@ function SlideOver({
             disabled={saving}
             className="btn-primary flex-1"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? 'Saving…' : 'Save'}
           </button>
           <button onClick={onClose} className="btn-secondary">
             Cancel
@@ -1629,19 +1629,19 @@ function UCScore({ uc }: { uc: UseCase }) {
       <span className="font-mono font-bold text-text">{total}/30</span>
       <Badge
         variant={
-          category === "quick_win"
-            ? "green"
-            : category === "mid_term"
-              ? "amber"
-              : "blue"
+          category === 'quick_win'
+            ? 'green'
+            : category === 'mid_term'
+              ? 'amber'
+              : 'blue'
         }
         className="text-[10px]"
       >
-        {category === "quick_win"
-          ? "Quick Win"
-          : category === "mid_term"
-            ? "Mid-term"
-            : "Strategic"}
+        {category === 'quick_win'
+          ? 'Quick Win'
+          : category === 'mid_term'
+            ? 'Mid-term'
+            : 'Strategic'}
       </Badge>
     </div>
   );
@@ -1708,14 +1708,14 @@ export default function B5Page() {
   const [activities, setActivities] = useState<ProcessActivity[]>([]);
   const [b1Profiles, setB1Profiles] = useState<ProfileEntry[]>([]);
   const [annualReps, setAnnualReps] = useState(0);
-  const [processName, setProcessName] = useState("");
+  const [processName, setProcessName] = useState('');
   const [b2Axes, setB2Axes] = useState<Record<string, any>>({});
   const [filter, setFilter] = useState<
-    "all" | "eligible" | "blocked" | "pending_review"
-  >("all");
+    'all' | 'eligible' | 'blocked' | 'pending_review'
+  >('all');
   const [slideOver, setSlideOver] = useState(false);
   const [editUC, setEditUC] = useState<UseCase | null>(null);
-  const [initialDesc, setInitialDesc] = useState("");
+  const [initialDesc, setInitialDesc] = useState('');
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     uc: UseCase | null;
@@ -1732,15 +1732,15 @@ export default function B5Page() {
   const load = useCallback(async () => {
     const [procRes, ucRes] = await Promise.all([
       fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-        credentials: "include",
+        credentials: 'include',
       }),
       fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}`), {
-        credentials: "include",
+        credentials: 'include',
       }),
     ]);
     const proc = await procRes.json();
     const ucs = await ucRes.json();
-    setProcessName(proc.name || "");
+    setProcessName(proc.name || '');
     const acts: ProcessActivity[] = proc.b3?.activities || [];
     setActivities(acts);
     setB1Profiles(proc.b1?.profiles || []);
@@ -1756,10 +1756,10 @@ export default function B5Page() {
 
   // Handle ?newUC=1&desc=... from B3 "Create UC" button
   useEffect(() => {
-    if (searchParams?.get("newUC") === "1") {
-      const desc = searchParams.get("desc")
-        ? decodeURIComponent(searchParams.get("desc")!)
-        : "";
+    if (searchParams?.get('newUC') === '1') {
+      const desc = searchParams.get('desc')
+        ? decodeURIComponent(searchParams.get('desc')!)
+        : '';
       setInitialDesc(desc);
       setEditUC(null);
       setSlideOver(true);
@@ -1769,13 +1769,13 @@ export default function B5Page() {
   // Handle ?edit={ucId} — only open once per editId to avoid reopening after useCases state update
   const openedEditIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const editId = searchParams?.get("edit");
+    const editId = searchParams?.get('edit');
     if (editId && editId !== openedEditIdRef.current && useCases.length > 0) {
       const uc = useCases.find((u) => u._id === editId);
       if (uc) {
         openedEditIdRef.current = editId;
         setEditUC(uc);
-        setInitialDesc("");
+        setInitialDesc('');
         setSlideOver(true);
       }
     }
@@ -1791,7 +1791,7 @@ export default function B5Page() {
     });
     if (blocked) {
       setBlockedNotice(
-        "This use case has been automatically moved to Blocked due to B2 restrictions.",
+        'This use case has been automatically moved to Blocked due to B2 restrictions.',
       );
       setTimeout(() => setBlockedNotice(null), 5000);
     }
@@ -1802,8 +1802,8 @@ export default function B5Page() {
     await fetch(
       apiUrl(`/api/audits/${auditId}/usecases/${deleteModal.uc._id}`),
       {
-        method: "DELETE",
-        credentials: "include",
+        method: 'DELETE',
+        credentials: 'include',
       },
     );
     setUseCases((prev) => prev.filter((u) => u._id !== deleteModal.uc!._id));
@@ -1817,12 +1817,12 @@ export default function B5Page() {
   };
 
   const filtered =
-    filter === "all" ? useCases : useCases.filter((u) => u.status === filter);
+    filter === 'all' ? useCases : useCases.filter((u) => u.status === filter);
   const counts = {
     all: useCases.length,
-    eligible: useCases.filter((u) => u.status === "eligible").length,
-    blocked: useCases.filter((u) => u.status === "blocked").length,
-    pending_review: useCases.filter((u) => u.status === "pending_review")
+    eligible: useCases.filter((u) => u.status === 'eligible').length,
+    blocked: useCases.filter((u) => u.status === 'blocked').length,
+    pending_review: useCases.filter((u) => u.status === 'pending_review')
       .length,
   };
 
@@ -1869,7 +1869,7 @@ export default function B5Page() {
           <button
             onClick={() => {
               setEditUC(null);
-              setInitialDesc("");
+              setInitialDesc('');
               setSlideOver(true);
             }}
             className="btn-primary flex items-center gap-1"
@@ -1888,14 +1888,14 @@ export default function B5Page() {
 
       {/* Filter tabs */}
       <div className="flex gap-1 mb-4 bg-white rounded-md border border-border p-1 w-fit">
-        {(["all", "eligible", "blocked", "pending_review"] as const).map(
+        {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
           (f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? "bg-blue-aria text-white" : "text-muted hover:text-text"}`}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
             >
-              {f === "pending_review" ? "Pending" : f} ({counts[f]})
+              {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
             </button>
           ),
         )}
@@ -1904,7 +1904,7 @@ export default function B5Page() {
       {/* Use case table */}
       {filtered.length === 0 ? (
         <div className="card p-12 text-center text-muted text-sm">
-          {filter === "all"
+          {filter === 'all'
             ? 'No use cases yet. Click "Add Use Case" to identify AI opportunities.'
             : `No ${filter} use cases.`}
         </div>
@@ -1935,13 +1935,13 @@ export default function B5Page() {
                 return (
                   <tr
                     key={uc._id}
-                    className={`hover:bg-slate-50 transition-colors ${uc.status === "blocked" ? "opacity-70" : ""}`}
+                    className={`hover:bg-slate-50 transition-colors ${uc.status === 'blocked' ? 'opacity-70' : ''}`}
                   >
                     <td className="px-3 py-3">
                       <button
                         onClick={() => {
                           setEditUC(uc);
-                          setInitialDesc("");
+                          setInitialDesc('');
                           setSlideOver(true);
                         }}
                         className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
@@ -1953,7 +1953,7 @@ export default function B5Page() {
                       <p className="text-sm text-text line-clamp-2">
                         {uc.description}
                       </p>
-                      {uc.status === "blocked" && uc.blockedReason && (
+                      {uc.status === 'blocked' && uc.blockedReason && (
                         <div className="mt-1 flex items-start gap-1 text-xs text-red-sov">
                           <AlertTriangle
                             size={10}
@@ -1973,7 +1973,7 @@ export default function B5Page() {
                         {aiTypes.map((t) => (
                           <Badge
                             key={t}
-                            variant={AI_TYPE_COLORS[t] ?? "slate"}
+                            variant={AI_TYPE_COLORS[t] ?? 'slate'}
                             className="text-[10px]"
                           >
                             {AI_TYPE_LABELS[t]?.label ?? t}
@@ -2014,12 +2014,12 @@ export default function B5Page() {
                     </td>
                     <td className="px-3 py-3">
                       <Badge variant={STATUS_VARIANTS[uc.status]}>
-                        {uc.status.replace("_", " ")}
+                        {uc.status.replace('_', ' ')}
                       </Badge>
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {uc.status === "eligible" && (
+                        {uc.status === 'eligible' && (
                           <button
                             onClick={() => createPOC(uc)}
                             title="Create POC"
@@ -2031,7 +2031,7 @@ export default function B5Page() {
                         <button
                           onClick={() => {
                             setEditUC(uc);
-                            setInitialDesc("");
+                            setInitialDesc('');
                             setSlideOver(true);
                           }}
                           className="text-muted hover:text-blue-aria p-1"
@@ -2059,10 +2059,10 @@ export default function B5Page() {
         onClose={() => {
           setSlideOver(false);
           setEditUC(null);
-          setInitialDesc("");
+          setInitialDesc('');
           openedEditIdRef.current = null;
           const hasParam =
-            searchParams?.get("edit") || searchParams?.get("newUC");
+            searchParams?.get('edit') || searchParams?.get('newUC');
           if (hasParam)
             router.replace(`/audits/${auditId}/processes/${procId}/b5`);
         }}
@@ -2113,9 +2113,9 @@ export default function B5Page() {
                     const res = await fetch(
                       `/api/audits/${auditId}/ai/suggest-usecases`,
                       {
-                        method: "POST",
-                        credentials: "include",
-                        headers: { "Content-Type": "application/json" },
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ processId: procId }),
                       },
                     );
@@ -2128,7 +2128,7 @@ export default function B5Page() {
                 className="btn-primary flex items-center gap-2"
               >
                 {generating ? <Spinner size="sm" /> : <Bot size={14} />}
-                {generating ? "Analyzing process…" : "Analyze & Suggest"}
+                {generating ? 'Analyzing process…' : 'Analyze & Suggest'}
               </button>
 
               {suggestions.length > 0 && (
@@ -2148,15 +2148,15 @@ export default function B5Page() {
                       className="text-xs text-blue-aria hover:underline"
                     >
                       {selectedSuggestions.size === suggestions.length
-                        ? "Deselect all"
-                        : "Select all"}
+                        ? 'Deselect all'
+                        : 'Select all'}
                     </button>
                   </div>
                   {suggestions.map((s, i) => {
                     const selected = selectedSuggestions.has(i);
                     const total = s.score
                       ? Object.entries(s.score)
-                          .filter(([k]) => k !== "d6_governanceComplexity")
+                          .filter(([k]) => k !== 'd6_governanceComplexity')
                           .reduce((sum: number, [, d]: any) => sum + d.value, 0)
                       : null;
                     return (
@@ -2168,7 +2168,7 @@ export default function B5Page() {
                           else next.add(i);
                           setSelectedSuggestions(next);
                         }}
-                        className={`border rounded p-3 cursor-pointer transition-colors ${selected ? "border-blue-aria bg-blue-50" : "border-border hover:border-blue-aria/50"}`}
+                        className={`border rounded p-3 cursor-pointer transition-colors ${selected ? 'border-blue-aria bg-blue-50' : 'border-border hover:border-blue-aria/50'}`}
                       >
                         <div className="flex items-start gap-2">
                           <input
@@ -2184,7 +2184,7 @@ export default function B5Page() {
                                 <Badge
                                   key={t}
                                   variant={
-                                    (AI_TYPE_COLORS as any)[t] ?? "slate"
+                                    (AI_TYPE_COLORS as any)[t] ?? 'slate'
                                   }
                                   className="text-[10px]"
                                 >
@@ -2227,15 +2227,15 @@ export default function B5Page() {
                         const score = s.score
                           ? {
                               dimensions: s.score,
-                              scoringNotes: "",
-                              scoredBy: "ai",
+                              scoringNotes: '',
+                              scoredBy: 'ai',
                               scoredAt: new Date().toISOString(),
                             }
                           : undefined;
                         await fetch(apiUrl(`/api/audits/${auditId}/usecases`), {
-                          method: "POST",
-                          credentials: "include",
-                          headers: { "Content-Type": "application/json" },
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
                             description: s.description,
                             aiTypes: s.aiTypes ?? [],
@@ -2243,7 +2243,7 @@ export default function B5Page() {
                             timeSavedPerProfile: s.timeSavedPerProfile ?? [],
                             estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
                             estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
-                            notes: s.notes ?? "",
+                            notes: s.notes ?? '',
                             processId: procId,
                             score,
                           }),
@@ -2259,7 +2259,7 @@ export default function B5Page() {
                 >
                   {importing ? <Spinner size="sm" /> : <Plus size={14} />}
                   {importing
-                    ? "Importing…"
+                    ? 'Importing…'
                     : `Import ${selectedSuggestions.size} selected`}
                 </button>
               </div>

@@ -1,29 +1,29 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 
 const PHASE_COLORS: Record<string, string> = {
-  design: "#94a3b8",
-  execution: "#1B6CA8",
-  evaluation: "#f59e0b",
-  closed: "#22c55e",
+  design: '#94a3b8',
+  execution: '#1B6CA8',
+  evaluation: '#f59e0b',
+  closed: '#22c55e',
 };
 
-const PHASE_VARIANTS: Record<string, "slate" | "blue" | "amber" | "green"> = {
-  design: "slate",
-  execution: "blue",
-  evaluation: "amber",
-  closed: "green",
+const PHASE_VARIANTS: Record<string, 'slate' | 'blue' | 'amber' | 'green'> = {
+  design: 'slate',
+  execution: 'blue',
+  evaluation: 'amber',
+  closed: 'green',
 };
 
 const MILESTONE_COLORS: Record<string, string> = {
-  done: "#22c55e",
-  missed: "#ef4444",
-  pending: "#94a3b8",
+  done: '#22c55e',
+  missed: '#ef4444',
+  pending: '#94a3b8',
 };
 
 const LABEL_W = 280;
@@ -45,7 +45,7 @@ function monthsBetween(a: Date, b: Date): number {
 }
 
 function formatMonth(date: Date): string {
-  return date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+  return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 }
 
 function dateToPct(date: Date, ganttStart: Date, totalMonths: number): number {
@@ -61,7 +61,7 @@ interface Milestone {
   id: string;
   name: string;
   dueDate: string;
-  status: "pending" | "done" | "missed";
+  status: 'pending' | 'done' | 'missed';
 }
 
 interface EnrichedPOC {
@@ -69,7 +69,7 @@ interface EnrichedPOC {
   pocId: string;
   name?: string;
   auditId: string;
-  phase: "design" | "execution" | "evaluation" | "closed";
+  phase: 'design' | 'execution' | 'evaluation' | 'closed';
   design?: {
     startDate?: string;
     deadlineDate?: string;
@@ -86,14 +86,14 @@ export default function GlobalRoadmapPage() {
   const [pocs, setPocs] = useState<EnrichedPOC[]>([]);
   const [loading, setLoading] = useState(true);
   const [phaseFilter, setPhaseFilter] = useState<
-    "all" | "design" | "execution" | "evaluation" | "closed"
-  >("all");
+    'all' | 'design' | 'execution' | 'evaluation' | 'closed'
+  >('all');
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(900);
   const router = useRouter();
 
   useEffect(() => {
-    fetch(apiUrl("/api/pocs"), { credentials: "include" })
+    fetch(apiUrl('/api/pocs'), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         setPocs(Array.isArray(data) ? data : []);
@@ -123,7 +123,7 @@ export default function GlobalRoadmapPage() {
     (p) => p.design?.startDate && p.design?.deadlineDate,
   );
   const phaseFiltered =
-    phaseFilter === "all"
+    phaseFilter === 'all'
       ? datedPocs
       : datedPocs.filter((p) => p.phase === phaseFilter);
 
@@ -167,10 +167,10 @@ export default function GlobalRoadmapPage() {
     { name: string; client?: string; pocs: EnrichedPOC[] }
   >();
   for (const poc of phaseFiltered) {
-    const aid = poc.audit?._id ?? poc.auditId ?? "unknown";
+    const aid = poc.audit?._id ?? poc.auditId ?? 'unknown';
     if (!auditGroups.has(aid)) {
       auditGroups.set(aid, {
-        name: poc.audit?.name ?? "Unknown Audit",
+        name: poc.audit?.name ?? 'Unknown Audit',
         client: poc.audit?.client,
         pocs: [],
       });
@@ -180,10 +180,10 @@ export default function GlobalRoadmapPage() {
 
   const phaseCounts = {
     all: datedPocs.length,
-    design: datedPocs.filter((p) => p.phase === "design").length,
-    execution: datedPocs.filter((p) => p.phase === "execution").length,
-    evaluation: datedPocs.filter((p) => p.phase === "evaluation").length,
-    closed: datedPocs.filter((p) => p.phase === "closed").length,
+    design: datedPocs.filter((p) => p.phase === 'design').length,
+    execution: datedPocs.filter((p) => p.phase === 'execution').length,
+    evaluation: datedPocs.filter((p) => p.phase === 'evaluation').length,
+    closed: datedPocs.filter((p) => p.phase === 'closed').length,
   };
 
   return (
@@ -201,12 +201,12 @@ export default function GlobalRoadmapPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
           {(
-            ["all", "design", "execution", "evaluation", "closed"] as const
+            ['all', 'design', 'execution', 'evaluation', 'closed'] as const
           ).map((f) => (
             <button
               key={f}
               onClick={() => setPhaseFilter(f)}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${phaseFilter === f ? "bg-blue-aria text-white" : "text-muted hover:text-text"}`}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${phaseFilter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
             >
               {f} ({phaseCounts[f]})
             </button>
@@ -237,9 +237,9 @@ export default function GlobalRoadmapPage() {
             ))}
             <span className="ml-4 font-medium text-text">Milestones:</span>
             {[
-              ["done", "#22c55e", "✓ Done"],
-              ["pending", "#94a3b8", "◆ Pending"],
-              ["missed", "#ef4444", "◆ Missed"],
+              ['done', '#22c55e', '✓ Done'],
+              ['pending', '#94a3b8', '◆ Pending'],
+              ['missed', '#ef4444', '◆ Missed'],
             ].map(([k, c, l]) => (
               <div key={k} className="flex items-center gap-1.5">
                 <span
@@ -315,9 +315,9 @@ export default function GlobalRoadmapPage() {
                   );
                   const pd = poc.processId;
                   const procLabel = pd?.procId
-                    ? `${pd.procId}${pd.name ? " · " + pd.name : ""}`
-                    : "";
-                  const objective = poc.design?.measurableObjective ?? "";
+                    ? `${pd.procId}${pd.name ? ' · ' + pd.name : ''}`
+                    : '';
+                  const objective = poc.design?.measurableObjective ?? '';
 
                   return (
                     <div
@@ -337,7 +337,7 @@ export default function GlobalRoadmapPage() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span
                             className="font-mono text-xs font-bold"
-                            style={{ color: "#0d7a6c" }}
+                            style={{ color: '#0d7a6c' }}
                           >
                             {poc.pocId}
                           </span>
@@ -393,7 +393,7 @@ export default function GlobalRoadmapPage() {
                             style={{
                               left: `${todayPct}%`,
                               width: 1,
-                              backgroundColor: "#ef4444",
+                              backgroundColor: '#ef4444',
                               opacity: 0.5,
                             }}
                           />
@@ -409,11 +409,11 @@ export default function GlobalRoadmapPage() {
                             height: 20,
                             top:
                               milestones.length > 0
-                                ? "calc(50% - 22px)"
-                                : "calc(50% - 10px)",
+                                ? 'calc(50% - 22px)'
+                                : 'calc(50% - 10px)',
                             backgroundColor: PHASE_COLORS[poc.phase],
                           }}
-                          title={`${poc.pocId} · ${start.toLocaleDateString("en-GB")} → ${end.toLocaleDateString("en-GB")}`}
+                          title={`${poc.pocId} · ${start.toLocaleDateString('en-GB')} → ${end.toLocaleDateString('en-GB')}`}
                         >
                           <span className="text-white text-[10px] font-medium truncate">
                             {poc.pocId}
@@ -432,14 +432,14 @@ export default function GlobalRoadmapPage() {
                             MILESTONE_COLORS.pending;
                           const msDate = new Date(
                             ms.dueDate,
-                          ).toLocaleDateString("en-GB");
+                          ).toLocaleDateString('en-GB');
                           return (
                             <div
                               key={ms.id}
                               className="absolute flex flex-col items-center"
                               style={{
                                 left: `calc(${msPct}% - 5px)`,
-                                top: "calc(50%)",
+                                top: 'calc(50%)',
                               }}
                               title={`${ms.name}\n${msDate} · ${ms.status}`}
                             >
@@ -452,14 +452,14 @@ export default function GlobalRoadmapPage() {
                                 style={{
                                   color,
                                   maxWidth: 60,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  display: "block",
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  display: 'block',
                                 }}
                                 title={ms.name}
                               >
                                 {ms.name.length > 10
-                                  ? ms.name.slice(0, 9) + "…"
+                                  ? ms.name.slice(0, 9) + '…'
                                   : ms.name}
                               </span>
                             </div>
@@ -492,7 +492,7 @@ export default function GlobalRoadmapPage() {
                   pocs.filter(
                     (p) => !p.design?.startDate || !p.design?.deadlineDate,
                   ).length
-                }{" "}
+                }{' '}
                 POC(s) not shown — no start/deadline dates set.
               </div>
             )}

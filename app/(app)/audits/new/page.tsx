@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ChevronRight, Check } from "lucide-react";
-import { TagInput } from "@/components/ui/TagInput";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
-import type { SectorType, Priority } from "@/lib/types";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ChevronRight, Check } from 'lucide-react';
+import { TagInput } from '@/components/ui/TagInput';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
+import type { SectorType, Priority } from '@/lib/types';
 
 interface Step1Data {
   name: string;
@@ -26,18 +26,18 @@ interface Step2Data {
 }
 
 const SECTORS: { value: SectorType; label: string }[] = [
-  { value: "defence", label: "Defence" },
-  { value: "aerospace", label: "Aerospace" },
-  { value: "naval", label: "Naval" },
-  { value: "railway", label: "Railway" },
-  { value: "internal", label: "Internal" },
-  { value: "other", label: "Other" },
+  { value: 'defence', label: 'Defence' },
+  { value: 'aerospace', label: 'Aerospace' },
+  { value: 'naval', label: 'Naval' },
+  { value: 'railway', label: 'Railway' },
+  { value: 'internal', label: 'Internal' },
+  { value: 'other', label: 'Other' },
 ];
 
 const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
 ];
 
 function FieldError({ message }: { message?: string }) {
@@ -52,20 +52,20 @@ export default function NewAuditPage() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const [step1, setStep1] = useState<Step1Data>({
-    name: "",
-    client: "",
-    project: "",
-    sector: "aerospace",
-    startDate: "",
-    targetEndDate: "",
+    name: '',
+    client: '',
+    project: '',
+    sector: 'aerospace',
+    startDate: '',
+    targetEndDate: '',
   });
 
   const [step2, setStep2] = useState<Step2Data>({
-    processName: "",
-    department: "",
-    responsible: "",
+    processName: '',
+    department: '',
+    responsible: '',
     applicableNorms: [],
-    priority: "medium",
+    priority: 'medium',
   });
 
   const [step1Errors, setStep1Errors] = useState<
@@ -77,9 +77,9 @@ export default function NewAuditPage() {
 
   const validateStep1 = (): boolean => {
     const errors: Partial<Record<keyof Step1Data, string>> = {};
-    if (!step1.name.trim()) errors.name = "Audit name is required";
-    if (!step1.client.trim()) errors.client = "Client is required";
-    if (!step1.project.trim()) errors.project = "Project is required";
+    if (!step1.name.trim()) errors.name = 'Audit name is required';
+    if (!step1.client.trim()) errors.client = 'Client is required';
+    if (!step1.project.trim()) errors.project = 'Project is required';
     setStep1Errors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -99,9 +99,9 @@ export default function NewAuditPage() {
     setServerError(null);
     try {
       const hasProcess = !!step2.processName.trim();
-      const res = await fetch(apiUrl("/api/audits"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(apiUrl('/api/audits'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: step1.name,
           client: step1.client,
@@ -127,15 +127,15 @@ export default function NewAuditPage() {
       const data = await res.json();
       router.push(`/audits/${data.audit._id}`);
     } catch (e: any) {
-      setServerError(e.message ?? "Failed to create audit");
+      setServerError(e.message ?? 'Failed to create audit');
     } finally {
       setSubmitting(false);
     }
   };
 
   const steps = [
-    { num: 1, label: "Audit Identity" },
-    { num: 2, label: "First Process" },
+    { num: 1, label: 'Audit Identity' },
+    { num: 2, label: 'First Process' },
   ];
 
   return (
@@ -157,17 +157,17 @@ export default function NewAuditPage() {
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                     step > s.num
-                      ? "bg-green-sov text-white"
+                      ? 'bg-green-sov text-white'
                       : step === s.num
-                        ? "bg-blue-aria text-white"
-                        : "bg-slate-100 text-muted"
+                        ? 'bg-blue-aria text-white'
+                        : 'bg-slate-100 text-muted'
                   }`}
                 >
                   {step > s.num ? <Check size={13} /> : s.num}
                 </div>
                 <span
                   className={`text-sm font-medium ${
-                    step === s.num ? "text-text" : "text-muted"
+                    step === s.num ? 'text-text' : 'text-muted'
                   }`}
                 >
                   {s.label}
@@ -321,7 +321,7 @@ export default function NewAuditPage() {
       {step === 2 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
           <h2 className="font-display font-semibold text-lg text-text">
-            First Process{" "}
+            First Process{' '}
             <span className="text-muted font-normal text-sm">(optional)</span>
           </h2>
           <p className="text-sm text-muted">
@@ -431,10 +431,10 @@ export default function NewAuditPage() {
             >
               {submitting && <Spinner size="sm" />}
               {submitting
-                ? "Creating…"
+                ? 'Creating…'
                 : step2.processName.trim()
-                  ? "Create Audit"
-                  : "Create Audit (no process)"}
+                  ? 'Create Audit'
+                  : 'Create Audit (no process)'}
             </button>
           </div>
         </div>

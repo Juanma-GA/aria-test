@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/mongodb";
-import { UseCase } from "@/lib/models";
+import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/mongodb';
+import { UseCase } from '@/lib/models';
 
 /** Recalculate total score and category from dimension values */
 function recalculateScore(dimensions: Record<string, { value: number }>) {
   const DIM_KEYS = [
-    "d1_efficiencyImpact",
-    "d2_qualityImpact",
-    "d3_techMaturity",
-    "d4_dataReadiness",
-    "d5_sovereigntyIndex",
-    "d6_governanceComplexity",
+    'd1_efficiencyImpact',
+    'd2_qualityImpact',
+    'd3_techMaturity',
+    'd4_dataReadiness',
+    'd5_sovereigntyIndex',
+    'd6_governanceComplexity',
   ];
   let total = 0;
   for (const key of DIM_KEYS) {
@@ -21,11 +21,11 @@ function recalculateScore(dimensions: Record<string, { value: number }>) {
 
   let category: string;
   if (total >= 22 && d6 >= 4) {
-    category = "quick_win";
+    category = 'quick_win';
   } else if (total >= 14) {
-    category = "mid_term";
+    category = 'mid_term';
   } else {
-    category = "strategic";
+    category = 'strategic';
   }
 
   return { total, category };
@@ -42,39 +42,39 @@ export async function GET(
     const useCase = await UseCase.findOne({ auditId, _id: cuId }).lean();
     if (!useCase) {
       return NextResponse.json(
-        { error: "Use case not found" },
+        { error: 'Use case not found' },
         { status: 404 },
       );
     }
 
     return NextResponse.json(useCase);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
 }
 
 const EDITABLE_FIELDS = [
-  "description",
-  "aiTypes",
-  "targetActivities",
-  "b2Compatible",
-  "requiresClientIT",
-  "timeSavedPerProfile",
-  "estimatedDevCostEur",
-  "devCostExplanation",
-  "estimatedImplWeeks",
-  "status",
-  "blockedReason",
-  "blockedAxis",
-  "unblockCondition",
-  "reviewDate",
-  "notes",
-  "computeCost",
-  "sovereigntyAnalysis",
+  'description',
+  'aiTypes',
+  'targetActivities',
+  'b2Compatible',
+  'requiresClientIT',
+  'timeSavedPerProfile',
+  'estimatedDevCostEur',
+  'devCostExplanation',
+  'estimatedImplWeeks',
+  'status',
+  'blockedReason',
+  'blockedAxis',
+  'unblockCondition',
+  'reviewDate',
+  'notes',
+  'computeCost',
+  'sovereigntyAnalysis',
 ] as const;
 
 export async function PATCH(
@@ -92,7 +92,7 @@ export async function PATCH(
     }).lean()) as any;
     if (!existing) {
       return NextResponse.json(
-        { error: "Use case not found" },
+        { error: 'Use case not found' },
         { status: 404 },
       );
     }
@@ -111,7 +111,7 @@ export async function PATCH(
         ...(body.score.dimensions ?? {}),
       };
       const { total, category } = recalculateScore(mergedDimensions);
-      $set["score"] = {
+      $set['score'] = {
         ...(existing.score ?? {}),
         ...body.score,
         dimensions: mergedDimensions,
@@ -126,7 +126,7 @@ export async function PATCH(
 
     if (result.matchedCount === 0) {
       return NextResponse.json(
-        { error: "Use case not found during update" },
+        { error: 'Use case not found during update' },
         { status: 404 },
       );
     }
@@ -134,9 +134,9 @@ export async function PATCH(
     const updated = await UseCase.findOne({ _id: cuId }).lean();
     return NextResponse.json(updated);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -153,17 +153,17 @@ export async function DELETE(
     const useCase = await UseCase.findOne({ auditId, _id: cuId });
     if (!useCase) {
       return NextResponse.json(
-        { error: "Use case not found" },
+        { error: 'Use case not found' },
         { status: 404 },
       );
     }
 
     await useCase.deleteOne();
-    return NextResponse.json({ message: "Use case deleted successfully" });
+    return NextResponse.json({ message: 'Use case deleted successfully' });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

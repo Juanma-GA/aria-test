@@ -1,66 +1,66 @@
-"use client";
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
-import { useAuthStore } from "@/lib/store/authStore";
-import { apiUrl } from "@/lib/utils";
+'use client';
+import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { useAuthStore } from '@/lib/store/authStore';
+import { apiUrl } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
-    const res = await fetch(apiUrl("/api/auth/login"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch(apiUrl('/api/auth/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
     });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || data.message || "Invalid credentials");
+      throw new Error(data.error || data.message || 'Invalid credentials');
     }
 
     const data = await res.json();
     setUser(data.user, data.accessToken);
-    router.push("/dashboard");
+    router.push('/dashboard');
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setIsLoading(true);
     try {
       await doLogin(email, password);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDemoSetup = async () => {
-    setError("");
+    setError('');
     setIsDemoLoading(true);
     try {
-      const seedRes = await fetch(apiUrl("/api/seed"), { method: "POST" });
+      const seedRes = await fetch(apiUrl('/api/seed'), { method: 'POST' });
       if (!seedRes.ok) {
         const data = await seedRes.json().catch(() => ({}));
-        throw new Error(data.error || "Seed failed");
+        throw new Error(data.error || 'Seed failed');
       }
       const seedData = await seedRes.json();
       // Auto-login with demo credentials returned from seed, or use defaults
-      const demoEmail = seedData.email || "demo@aria.ai";
-      const demoPassword = seedData.password || "demo1234";
+      const demoEmail = seedData.email || 'demo@aria.ai';
+      const demoPassword = seedData.password || 'demo1234';
       await doLogin(demoEmail, demoPassword);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Demo setup failed");
+      setError(err instanceof Error ? err.message : 'Demo setup failed');
     } finally {
       setIsDemoLoading(false);
     }
@@ -71,7 +71,7 @@ export default function LoginPage() {
       {/* Left navy panel */}
       <div
         className="hidden lg:flex flex-col justify-between p-10 w-[480px] shrink-0"
-        style={{ backgroundColor: "#0B1929" }}
+        style={{ backgroundColor: '#0B1929' }}
       >
         {/* Logo */}
         <div>
@@ -95,10 +95,10 @@ export default function LoginPage() {
           </p>
           <ul className="space-y-3 text-sm text-slate-400">
             {[
-              "Process-level AI opportunity mapping",
-              "Sovereignty & compliance scoring",
-              "ROI-driven use case prioritisation",
-              "POC lifecycle tracking",
+              'Process-level AI opportunity mapping',
+              'Sovereignty & compliance scoring',
+              'ROI-driven use case prioritisation',
+              'POC lifecycle tracking',
             ].map((item) => (
               <li key={item} className="flex items-start gap-2">
                 <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-light shrink-0" />
@@ -179,7 +179,7 @@ export default function LoginPage() {
                 className="btn-primary w-full flex items-center justify-center gap-2"
               >
                 {isLoading && <Loader2 size={15} className="animate-spin" />}
-                {isLoading ? "Signing in…" : "Sign in"}
+                {isLoading ? 'Signing in…' : 'Sign in'}
               </button>
             </form>
 
@@ -195,8 +195,8 @@ export default function LoginPage() {
                   <Loader2 size={13} className="animate-spin" />
                 )}
                 {isDemoLoading
-                  ? "Setting up demo…"
-                  : "First time? Run demo setup"}
+                  ? 'Setting up demo…'
+                  : 'First time? Run demo setup'}
               </button>
             </div>
           </div>

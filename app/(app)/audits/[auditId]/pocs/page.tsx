@@ -1,34 +1,34 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Plus, ArrowLeft, Download } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
-import type { POC } from "@/lib/types";
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Plus, ArrowLeft, Download } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
+import type { POC } from '@/lib/types';
 
 const PHASE_COLORS = {
-  design: "slate",
-  execution: "blue",
-  evaluation: "amber",
-  closed: "green",
+  design: 'slate',
+  execution: 'blue',
+  evaluation: 'amber',
+  closed: 'green',
 } as const;
 const DECISION_COLORS = {
-  go: "green",
-  go_conditional: "teal",
-  no_go_redesign: "amber",
-  no_go_discard: "red",
-  paused: "purple",
-  pending: "slate",
+  go: 'green',
+  go_conditional: 'teal',
+  no_go_redesign: 'amber',
+  no_go_discard: 'red',
+  paused: 'purple',
+  pending: 'slate',
 } as const;
 const DECISION_LABELS = {
-  go: "GO",
-  go_conditional: "GO Conditional",
-  no_go_redesign: "No-Go – Redesign",
-  no_go_discard: "No-Go – Discard",
-  paused: "Paused",
-  pending: "Pending",
+  go: 'GO',
+  go_conditional: 'GO Conditional',
+  no_go_redesign: 'No-Go – Redesign',
+  no_go_discard: 'No-Go – Discard',
+  paused: 'Paused',
+  pending: 'Pending',
 };
 
 type EnrichedPOC = POC & {
@@ -43,7 +43,7 @@ export default function POCsPage() {
   const [pocs, setPocs] = useState<EnrichedPOC[]>([]);
 
   useEffect(() => {
-    fetch(apiUrl(`/api/audits/${auditId}/pocs`), { credentials: "include" })
+    fetch(apiUrl(`/api/audits/${auditId}/pocs`), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         setPocs(Array.isArray(data) ? data : []);
@@ -102,16 +102,16 @@ export default function POCsPage() {
             <thead className="bg-smoke border-b border-border">
               <tr>
                 {[
-                  "POC-ID",
-                  "Name",
-                  "Use Case",
-                  "Process",
-                  "Responsible",
-                  "Start",
-                  "Deadline",
-                  "Phase",
-                  "Decision",
-                  "",
+                  'POC-ID',
+                  'Name',
+                  'Use Case',
+                  'Process',
+                  'Responsible',
+                  'Start',
+                  'Deadline',
+                  'Phase',
+                  'Decision',
+                  '',
                 ].map((h) => (
                   <th
                     key={h}
@@ -128,7 +128,7 @@ export default function POCsPage() {
                 const procLabel =
                   pd?.procId && pd?.name
                     ? `${pd.procId} · ${pd.name}`
-                    : (pd?.procId ?? "—");
+                    : (pd?.procId ?? '—');
                 return (
                   <tr
                     key={poc._id}
@@ -152,17 +152,17 @@ export default function POCsPage() {
                       {procLabel}
                     </td>
                     <td className="py-3 px-3 text-xs">
-                      {poc.design?.responsibleUserId || "—"}
+                      {poc.design?.responsibleUserId || '—'}
                     </td>
                     <td className="py-3 px-3 text-xs text-muted">
                       {poc.design?.startDate
                         ? new Date(poc.design.startDate).toLocaleDateString()
-                        : "—"}
+                        : '—'}
                     </td>
                     <td className="py-3 px-3 text-xs text-muted">
                       {poc.design?.deadlineDate
                         ? new Date(poc.design.deadlineDate).toLocaleDateString()
-                        : "—"}
+                        : '—'}
                     </td>
                     <td className="py-3 px-3">
                       <Badge variant={PHASE_COLORS[poc.phase]}>
@@ -172,10 +172,10 @@ export default function POCsPage() {
                     <td className="py-3 px-3">
                       <Badge
                         variant={
-                          DECISION_COLORS[poc.decision?.decision || "pending"]
+                          DECISION_COLORS[poc.decision?.decision || 'pending']
                         }
                       >
-                        {DECISION_LABELS[poc.decision?.decision || "pending"]}
+                        {DECISION_LABELS[poc.decision?.decision || 'pending']}
                       </Badge>
                     </td>
                     <td className="py-3 px-3 text-blue-aria text-xs">Open →</td>

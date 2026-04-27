@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Process, UseCase } from "@/lib/models";
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { Process, UseCase } from '@/lib/models';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
   const vals = (Object.values(b2.axes) as any[])
     .map((a) =>
-      a.status === "green"
+      a.status === 'green'
         ? 5
-        : a.status === "amber"
+        : a.status === 'amber'
           ? 3
-          : a.status === "red"
+          : a.status === 'red'
             ? 1
             : null,
     )
@@ -55,7 +55,7 @@ export async function GET(
     ]);
 
     if (!process) {
-      return NextResponse.json({ error: "Process not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Process not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -65,9 +65,9 @@ export async function GET(
       useCaseCount: ucCount,
     });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -88,8 +88,8 @@ export async function PATCH(
     // This avoids issues with the 'id' virtual field name in nested subdocuments.
     const setOps: Record<string, any> = { ...rest };
 
-    if (b1 !== undefined) setOps["b1"] = b1;
-    if (b3 !== undefined) setOps["b3"] = b3;
+    if (b1 !== undefined) setOps['b1'] = b1;
+    if (b3 !== undefined) setOps['b3'] = b3;
 
     // B2: merge axes individually so partial updates don't wipe other axes
     if (b2?.axes) {
@@ -105,7 +105,7 @@ export async function PATCH(
     )) as any;
 
     if (!updated) {
-      return NextResponse.json({ error: "Process not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Process not found' }, { status: 404 });
     }
 
     const ucCount = await UseCase.countDocuments({ processId: procId });
@@ -117,10 +117,10 @@ export async function PATCH(
       useCaseCount: ucCount,
     });
   } catch (err) {
-    console.error("PATCH process error:", err);
-    console.error("[API]", err);
+    console.error('PATCH process error:', err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -136,19 +136,19 @@ export async function DELETE(
 
     const process = await Process.findOne({ auditId, _id: procId });
     if (!process) {
-      return NextResponse.json({ error: "Process not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Process not found' }, { status: 404 });
     }
 
     await UseCase.deleteMany({ processId: procId });
     await process.deleteOne();
 
     return NextResponse.json({
-      message: "Process and related use cases deleted",
+      message: 'Process and related use cases deleted',
     });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

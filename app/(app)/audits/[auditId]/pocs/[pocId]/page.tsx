@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Plus,
@@ -11,25 +11,25 @@ import {
   ChevronUp,
   Bot,
   RefreshCw,
-} from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { SaveIndicator } from "@/components/ui/SaveIndicator";
-import { apiUrl } from "@/lib/utils";
+} from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { SaveIndicator } from '@/components/ui/SaveIndicator';
+import { apiUrl } from '@/lib/utils';
 import type {
   POC,
   POCPhase,
   POCDecisionType,
   POCCriterion,
   POCMilestone,
-} from "@/lib/types";
+} from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
-  { key: "design", label: "Design", num: 1 },
-  { key: "execution", label: "Execution", num: 2 },
-  { key: "evaluation", label: "Evaluation", num: 3 },
-  { key: "closed", label: "Decision", num: 4 },
+  { key: 'design', label: 'Design', num: 1 },
+  { key: 'execution', label: 'Execution', num: 2 },
+  { key: 'evaluation', label: 'Evaluation', num: 3 },
+  { key: 'closed', label: 'Decision', num: 4 },
 ];
 
 const DECISIONS: {
@@ -39,41 +39,41 @@ const DECISIONS: {
   desc: string;
 }[] = [
   {
-    key: "go",
-    label: "GO — Scale to implementation",
-    color: "bg-green-sov text-white border-green-sov",
-    desc: "All criteria met. Proceed to full implementation.",
+    key: 'go',
+    label: 'GO — Scale to implementation',
+    color: 'bg-green-sov text-white border-green-sov',
+    desc: 'All criteria met. Proceed to full implementation.',
   },
   {
-    key: "go_conditional",
-    label: "GO Conditional — Scale with conditions",
-    color: "bg-teal-poc text-white border-teal-poc",
-    desc: "Most criteria met. One condition pending.",
+    key: 'go_conditional',
+    label: 'GO Conditional — Scale with conditions',
+    color: 'bg-teal-poc text-white border-teal-poc',
+    desc: 'Most criteria met. One condition pending.',
   },
   {
-    key: "no_go_redesign",
-    label: "No-Go — Redesign POC",
-    color: "bg-amber-sov text-white border-amber-sov",
-    desc: "Criteria not met. Redesign and retry.",
+    key: 'no_go_redesign',
+    label: 'No-Go — Redesign POC',
+    color: 'bg-amber-sov text-white border-amber-sov',
+    desc: 'Criteria not met. Redesign and retry.',
   },
   {
-    key: "no_go_discard",
-    label: "No-Go — Discard use case",
-    color: "bg-red-sov text-white border-red-sov",
-    desc: "Use case not viable in this context. Move to Blocked.",
+    key: 'no_go_discard',
+    label: 'No-Go — Discard use case',
+    color: 'bg-red-sov text-white border-red-sov',
+    desc: 'Use case not viable in this context. Move to Blocked.',
   },
   {
-    key: "paused",
-    label: "Paused — External dependency",
-    color: "bg-purple-aria text-white border-purple-aria",
-    desc: "Unresolved external dependency. Document and track.",
+    key: 'paused',
+    label: 'Paused — External dependency',
+    color: 'bg-purple-aria text-white border-purple-aria',
+    desc: 'Unresolved external dependency. Document and track.',
   },
 ];
 
-const MILESTONE_STATUS_COLORS: Record<"pending" | "done" | "missed", string> = {
-  pending: "border-border text-muted",
-  done: "border-green-sov bg-green-sov text-white",
-  missed: "border-red-sov bg-red-sov text-white",
+const MILESTONE_STATUS_COLORS: Record<'pending' | 'done' | 'missed', string> = {
+  pending: 'border-border text-muted',
+  done: 'border-green-sov bg-green-sov text-white',
+  missed: 'border-red-sov bg-red-sov text-white',
 };
 
 function SectionAccordion({
@@ -90,10 +90,10 @@ function SectionAccordion({
   badge?: React.ReactNode;
 }) {
   const phaseOrder: POCPhase[] = [
-    "design",
-    "execution",
-    "evaluation",
-    "closed",
+    'design',
+    'execution',
+    'evaluation',
+    'closed',
   ];
   const isActive = phase === currentPhase;
   const isDone = phaseOrder.indexOf(phase) < phaseOrder.indexOf(currentPhase);
@@ -101,7 +101,7 @@ function SectionAccordion({
 
   return (
     <div
-      className={`card border-l-4 ${isActive ? "border-teal-poc" : isDone ? "border-green-sov" : "border-border"}`}
+      className={`card border-l-4 ${isActive ? 'border-teal-poc' : isDone ? 'border-green-sov' : 'border-border'}`}
     >
       <button
         className="w-full flex items-center justify-between p-4 text-left"
@@ -112,7 +112,7 @@ function SectionAccordion({
             <CheckCircle2 size={16} className="text-green-sov" />
           ) : (
             <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border font-bold ${isActive ? "border-teal-poc text-teal-poc" : "border-muted text-muted"}`}
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border font-bold ${isActive ? 'border-teal-poc text-teal-poc' : 'border-muted text-muted'}`}
             >
               {PHASES.find((p) => p.key === phase)?.num}
             </span>
@@ -140,14 +140,14 @@ export default function POCDetailPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [poc, setPoc] = useState<POC | null>(null);
-  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">(
-    "saved",
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>(
+    'saved',
   );
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), {
-      credentials: "include",
+      credentials: 'include',
     })
       .then((r) => r.json())
       .then((data) => {
@@ -159,29 +159,29 @@ export default function POCDetailPage() {
 
   const save = useCallback(
     async (updated: Partial<POC>) => {
-      setSaveStatus("saving");
+      setSaveStatus('saving');
       try {
         const res = await fetch(
           apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
           {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updated),
           },
         );
         const data = await res.json();
         setPoc(data);
-        setSaveStatus("saved");
+        setSaveStatus('saved');
       } catch {
-        setSaveStatus("unsaved");
+        setSaveStatus('unsaved');
       }
     },
     [auditId, pocId],
   );
 
   const trigger = (updated: Partial<POC>) => {
-    setSaveStatus("unsaved");
+    setSaveStatus('unsaved');
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => save(updated), 2000);
   };
@@ -220,9 +220,9 @@ export default function POCDetailPage() {
     if (!poc) return;
     const criterion: POCCriterion = {
       id: uuidv4(),
-      criterion: "",
-      description: "",
-      successThreshold: "",
+      criterion: '',
+      description: '',
+      successThreshold: '',
     };
     const next = {
       ...poc,
@@ -261,10 +261,10 @@ export default function POCDetailPage() {
     const milestones: POCMilestone[] = poc.execution?.milestones ?? [];
     const m: POCMilestone = {
       id: uuidv4(),
-      name: "",
+      name: '',
       dueDate: new Date(),
-      status: "pending",
-      notes: "",
+      status: 'pending',
+      notes: '',
     };
     const next = {
       ...poc,
@@ -322,11 +322,11 @@ export default function POCDetailPage() {
     if (!poc) return;
     const next = {
       ...poc,
-      phase: "closed" as POCPhase,
+      phase: 'closed' as POCPhase,
       decision: { ...poc.decision, decision, decidedAt: new Date() },
     };
     setPoc(next as POC);
-    await save({ phase: "closed", decision: next.decision });
+    await save({ phase: 'closed', decision: next.decision });
   };
 
   const advanceTo = async (nextPhase: POCPhase) => {
@@ -339,17 +339,17 @@ export default function POCDetailPage() {
   const [simOpen, setSimOpen] = useState(false);
   const [refreshingFill, setRefreshingFill] = useState(false);
   const [refreshingCompute, setRefreshingCompute] = useState(false);
-  const [computeRationale, setComputeRationale] = useState("");
+  const [computeRationale, setComputeRationale] = useState('');
   const aiGeneratedFields: string[] = (poc as any)?.aiGeneratedFields ?? [];
 
   const GPU_PRESETS: Record<
     string,
     { name: string; tdpW: number; priceEur: number; vramGb: number }
   > = {
-    rtx_4090: { name: "RTX 4090", tdpW: 450, priceEur: 2000, vramGb: 24 },
-    a100_40gb: { name: "A100 40GB", tdpW: 300, priceEur: 10000, vramGb: 40 },
-    a100_80gb: { name: "A100 80GB", tdpW: 400, priceEur: 15000, vramGb: 80 },
-    h100: { name: "H100 80GB", tdpW: 700, priceEur: 30000, vramGb: 80 },
+    rtx_4090: { name: 'RTX 4090', tdpW: 450, priceEur: 2000, vramGb: 24 },
+    a100_40gb: { name: 'A100 40GB', tdpW: 300, priceEur: 10000, vramGb: 40 },
+    a100_80gb: { name: 'A100 80GB', tdpW: 400, priceEur: 15000, vramGb: 80 },
+    h100: { name: 'H100 80GB', tdpW: 700, priceEur: 30000, vramGb: 80 },
   };
 
   const WORKING_HOURS_PER_YEAR = 215 * 8; // 1720h — 215 working days × 8h
@@ -366,12 +366,12 @@ export default function POCDetailPage() {
     // GPU class by throughput tier only
     const gpuModel =
       annualReps < 10_000
-        ? "rtx_4090"
+        ? 'rtx_4090'
         : annualReps < 100_000
-          ? "a100_40gb"
+          ? 'a100_40gb'
           : annualReps < 500_000
-            ? "a100_80gb"
-            : "h100";
+            ? 'a100_80gb'
+            : 'h100';
     // Realistic continuous-batching capacity per GPU (vLLM/TGI, medium-size model ~7–13B)
     const concPerGpu: Record<string, number> = {
       rtx_4090: 8,
@@ -387,12 +387,12 @@ export default function POCDetailPage() {
     );
     const peakRps = (cu / sec).toFixed(1);
     const batchCap = concPerGpu[gpuModel];
-    const rationale = `${annualReps.toLocaleString()} exec/yr ÷ ${WORKING_HOURS_PER_YEAR}h = ${avgRps.toFixed(4)} req/s avg · ${cu} concurrent users (${batchCap} batch cap/GPU → ${gpusForConcurrency} GPU${gpusForConcurrency !== 1 ? "s" : ""}) · GPU load ${(utilizationPct * 100).toFixed(1)}% · ${nGpus}× ${GPU_PRESETS[gpuModel].name}`;
+    const rationale = `${annualReps.toLocaleString()} exec/yr ÷ ${WORKING_HOURS_PER_YEAR}h = ${avgRps.toFixed(4)} req/s avg · ${cu} concurrent users (${batchCap} batch cap/GPU → ${gpusForConcurrency} GPU${gpusForConcurrency !== 1 ? 's' : ''}) · GPU load ${(utilizationPct * 100).toFixed(1)}% · ${nGpus}× ${GPU_PRESETS[gpuModel].name}`;
     return { gpuModel, nGpus, utilizationPct, rationale };
   }
 
   const milestones: POCMilestone[] = poc?.execution?.milestones ?? [];
-  const doneMilestones = milestones.filter((m) => m.status === "done").length;
+  const doneMilestones = milestones.filter((m) => m.status === 'done').length;
   const currentPhaseIdx = PHASES.findIndex((p) => p.key === poc?.phase);
 
   if (loading || !poc)
@@ -422,7 +422,7 @@ export default function POCDetailPage() {
               — {poc.name}
             </span>
           )}
-          <Badge variant={currentPhaseIdx === 3 ? "green" : "blue"}>
+          <Badge variant={currentPhaseIdx === 3 ? 'green' : 'blue'}>
             {poc.phase}
           </Badge>
         </div>
@@ -437,13 +437,13 @@ export default function POCDetailPage() {
           return (
             <div key={p.key} className="flex items-center flex-1">
               <div
-                className={`flex items-center gap-2 flex-1 justify-center py-1 rounded text-xs font-medium ${active ? "bg-teal-poc text-white" : done ? "text-green-sov" : "text-muted"}`}
+                className={`flex items-center gap-2 flex-1 justify-center py-1 rounded text-xs font-medium ${active ? 'bg-teal-poc text-white' : done ? 'text-green-sov' : 'text-muted'}`}
               >
                 {done ? (
                   <CheckCircle2 size={14} />
                 ) : (
                   <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border ${active ? "border-white bg-white/20" : "border-current"}`}
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border ${active ? 'border-white bg-white/20' : 'border-current'}`}
                   >
                     {p.num}
                   </span>
@@ -452,7 +452,7 @@ export default function POCDetailPage() {
               </div>
               {i < PHASES.length - 1 && (
                 <div
-                  className={`h-px w-4 ${done ? "bg-green-sov" : "bg-border"}`}
+                  className={`h-px w-4 ${done ? 'bg-green-sov' : 'bg-border'}`}
                 />
               )}
             </div>
@@ -474,7 +474,7 @@ export default function POCDetailPage() {
                 <input
                   className="form-input"
                   placeholder="Short descriptive name for this POC…"
-                  value={poc.name || ""}
+                  value={poc.name || ''}
                   onChange={(e) => {
                     const next = { ...poc, name: e.target.value };
                     setPoc(next as POC);
@@ -494,9 +494,9 @@ export default function POCDetailPage() {
                         const res = await fetch(
                           `/api/audits/${auditId}/pocs/${pocId}/ai/fill-design`,
                           {
-                            method: "POST",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
                           },
                         );
                         const data = await res.json();
@@ -518,12 +518,12 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea"
-                  value={poc.design?.measurableObjective || ""}
+                  value={poc.design?.measurableObjective || ''}
                   onChange={(e) =>
-                    updateDesign("measurableObjective", e.target.value)
+                    updateDesign('measurableObjective', e.target.value)
                   }
                 />
-                {aiGeneratedFields.includes("measurableObjective") &&
+                {aiGeneratedFields.includes('measurableObjective') &&
                   poc.design?.measurableObjective && (
                     <div className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-600">
                       <Bot size={10} />
@@ -536,9 +536,9 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea"
-                  value={poc.design?.scopeDescription || ""}
+                  value={poc.design?.scopeDescription || ''}
                   onChange={(e) =>
-                    updateDesign("scopeDescription", e.target.value)
+                    updateDesign('scopeDescription', e.target.value)
                   }
                 />
               </div>
@@ -552,9 +552,9 @@ export default function POCDetailPage() {
                       ? new Date(poc.design.startDate)
                           .toISOString()
                           .slice(0, 10)
-                      : ""
+                      : ''
                   }
-                  onChange={(e) => updateDesign("startDate", e.target.value)}
+                  onChange={(e) => updateDesign('startDate', e.target.value)}
                 />
               </div>
               <div>
@@ -567,9 +567,9 @@ export default function POCDetailPage() {
                       ? new Date(poc.design.deadlineDate)
                           .toISOString()
                           .slice(0, 10)
-                      : ""
+                      : ''
                   }
-                  onChange={(e) => updateDesign("deadlineDate", e.target.value)}
+                  onChange={(e) => updateDesign('deadlineDate', e.target.value)}
                 />
               </div>
               <div className="col-span-2">
@@ -577,9 +577,9 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea"
-                  value={poc.design?.requiredResources || ""}
+                  value={poc.design?.requiredResources || ''}
                   onChange={(e) =>
-                    updateDesign("requiredResources", e.target.value)
+                    updateDesign('requiredResources', e.target.value)
                   }
                 />
               </div>
@@ -588,9 +588,9 @@ export default function POCDetailPage() {
                 <input
                   type="number"
                   className="form-input"
-                  value={poc.design?.estimatedDevCostEur || ""}
+                  value={poc.design?.estimatedDevCostEur || ''}
                   onChange={(e) =>
-                    updateDesign("estimatedDevCostEur", Number(e.target.value))
+                    updateDesign('estimatedDevCostEur', Number(e.target.value))
                   }
                 />
               </div>
@@ -599,12 +599,12 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea"
-                  value={poc.design?.activeB2Restrictions || ""}
+                  value={poc.design?.activeB2Restrictions || ''}
                   onChange={(e) =>
-                    updateDesign("activeB2Restrictions", e.target.value)
+                    updateDesign('activeB2Restrictions', e.target.value)
                   }
                 />
-                {aiGeneratedFields.includes("activeB2Restrictions") &&
+                {aiGeneratedFields.includes('activeB2Restrictions') &&
                   poc.design?.activeB2Restrictions && (
                     <div className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-600">
                       <Bot size={10} />
@@ -642,7 +642,7 @@ export default function POCDetailPage() {
                           className="form-input text-xs"
                           value={c.criterion}
                           onChange={(e) =>
-                            updateCriterion(c.id, "criterion", e.target.value)
+                            updateCriterion(c.id, 'criterion', e.target.value)
                           }
                         />
                       </div>
@@ -652,7 +652,7 @@ export default function POCDetailPage() {
                           className="form-input text-xs"
                           value={c.description}
                           onChange={(e) =>
-                            updateCriterion(c.id, "description", e.target.value)
+                            updateCriterion(c.id, 'description', e.target.value)
                           }
                         />
                       </div>
@@ -667,7 +667,7 @@ export default function POCDetailPage() {
                             onChange={(e) =>
                               updateCriterion(
                                 c.id,
-                                "successThreshold",
+                                'successThreshold',
                                 e.target.value,
                               )
                             }
@@ -686,9 +686,9 @@ export default function POCDetailPage() {
               )}
             </div>
 
-            {poc.phase === "design" && (
+            {poc.phase === 'design' && (
               <button
-                onClick={() => advanceTo("execution")}
+                onClick={() => advanceTo('execution')}
                 disabled={(poc.design?.successCriteria || []).length < 2}
                 className="btn-primary disabled:opacity-50"
               >
@@ -755,9 +755,9 @@ export default function POCDetailPage() {
             0,
           );
           const setSubs = (next: typeof subs) =>
-            updateComputeCost("subscriptions", next);
+            updateComputeCost('subscriptions', next);
           const addSub = () =>
-            setSubs([...subs, { tool: "", users: 1, monthlyPerUser: 0 }]);
+            setSubs([...subs, { tool: '', users: 1, monthlyPerUser: 0 }]);
           const removeSub = (i: number) =>
             setSubs(subs.filter((_, idx) => idx !== i));
           const updateSub = (
@@ -771,24 +771,24 @@ export default function POCDetailPage() {
 
           // Cost per execution
           const infraCost =
-            cc.deploymentModel === "on_premise"
+            cc.deploymentModel === 'on_premise'
               ? onPremCost
-              : cc.deploymentModel === "hybrid"
+              : cc.deploymentModel === 'hybrid'
                 ? hybridCost
                 : cloudCost;
           const activeCost = infraCost + subscriptionsCost;
           const costPerExec = annualReps > 0 ? activeCost / annualReps : 0;
 
-          const deploymentModel: string = cc.deploymentModel ?? "cloud_api";
+          const deploymentModel: string = cc.deploymentModel ?? 'cloud_api';
 
           // Auto-recommendation
-          let recommendation = "";
+          let recommendation = '';
           if (annualReps > 0) {
             if (cloudCost < onPremCost)
-              recommendation = "Cloud API recommended — lower annual cost";
+              recommendation = 'Cloud API recommended — lower annual cost';
             else if (breakevenMonths !== null && breakevenMonths < 24)
               recommendation = `On-Premise recommended — break-even in ${breakevenMonths} months`;
-            else recommendation = "Hybrid may offer balanced cost/control";
+            else recommendation = 'Hybrid may offer balanced cost/control';
           }
 
           return (
@@ -805,7 +805,7 @@ export default function POCDetailPage() {
                   {(annualReps > 0 || subscriptionsCost > 0) && (
                     <span className="text-xs text-muted bg-slate-100 px-2 py-0.5 rounded">
                       Total: €
-                      {activeCost.toLocaleString("en-GB", {
+                      {activeCost.toLocaleString('en-GB', {
                         maximumFractionDigits: 0,
                       })}
                       /yr
@@ -819,11 +819,11 @@ export default function POCDetailPage() {
                       setRefreshingCompute(true);
                       try {
                         const res = await fetch(
-                          apiUrl("/api/ai/refresh-compute-estimates"),
+                          apiUrl('/api/ai/refresh-compute-estimates'),
                           {
-                            method: "POST",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               computeCost: cc,
                               useCaseDescription: (poc as any).cuId,
@@ -886,16 +886,16 @@ export default function POCDetailPage() {
                     <label className="form-label mb-2">Deployment Model</label>
                     <div className="flex gap-1 border border-border rounded-sm p-1 w-fit">
                       {[
-                        { key: "cloud_api", label: "Cloud API" },
-                        { key: "on_premise", label: "On-Premise GPU" },
-                        { key: "hybrid", label: "Hybrid" },
+                        { key: 'cloud_api', label: 'Cloud API' },
+                        { key: 'on_premise', label: 'On-Premise GPU' },
+                        { key: 'hybrid', label: 'Hybrid' },
                       ].map((opt) => (
                         <button
                           key={opt.key}
                           onClick={() =>
-                            updateComputeCost("deploymentModel", opt.key)
+                            updateComputeCost('deploymentModel', opt.key)
                           }
-                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${deploymentModel === opt.key ? "bg-blue-aria text-white" : "text-muted hover:text-text"}`}
+                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${deploymentModel === opt.key ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
                         >
                           {opt.label}
                         </button>
@@ -910,10 +910,10 @@ export default function POCDetailPage() {
                       <input
                         type="number"
                         className="form-input"
-                        value={cc.annualReps || ""}
+                        value={cc.annualReps || ''}
                         onChange={(e) =>
                           updateComputeCost(
-                            "annualReps",
+                            'annualReps',
                             Number(e.target.value),
                           )
                         }
@@ -925,10 +925,10 @@ export default function POCDetailPage() {
                       <input
                         type="number"
                         className="form-input"
-                        value={cc.concurrentUsers || ""}
+                        value={cc.concurrentUsers || ''}
                         onChange={(e) =>
                           updateComputeCost(
-                            "concurrentUsers",
+                            'concurrentUsers',
                             Number(e.target.value),
                           )
                         }
@@ -942,10 +942,10 @@ export default function POCDetailPage() {
                       <input
                         type="number"
                         className="form-input"
-                        value={cc.avgResponseTimeSec || ""}
+                        value={cc.avgResponseTimeSec || ''}
                         onChange={(e) =>
                           updateComputeCost(
-                            "avgResponseTimeSec",
+                            'avgResponseTimeSec',
                             Number(e.target.value),
                           )
                         }
@@ -955,7 +955,7 @@ export default function POCDetailPage() {
                   </div>
 
                   {/* Conditional inputs */}
-                  {deploymentModel === "cloud_api" && (
+                  {deploymentModel === 'cloud_api' && (
                     <div className="space-y-3">
                       <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
                         Cloud API Parameters
@@ -968,10 +968,10 @@ export default function POCDetailPage() {
                           <input
                             type="number"
                             className="form-input"
-                            value={cc.inputTokensPerExec || ""}
+                            value={cc.inputTokensPerExec || ''}
                             onChange={(e) =>
                               updateComputeCost(
-                                "inputTokensPerExec",
+                                'inputTokensPerExec',
                                 Number(e.target.value),
                               )
                             }
@@ -985,10 +985,10 @@ export default function POCDetailPage() {
                           <input
                             type="number"
                             className="form-input"
-                            value={cc.outputTokensPerExec || ""}
+                            value={cc.outputTokensPerExec || ''}
                             onChange={(e) =>
                               updateComputeCost(
-                                "outputTokensPerExec",
+                                'outputTokensPerExec',
                                 Number(e.target.value),
                               )
                             }
@@ -1002,10 +1002,10 @@ export default function POCDetailPage() {
                           <input
                             type="number"
                             className="form-input"
-                            value={cc.pricePerMInputTokens || ""}
+                            value={cc.pricePerMInputTokens || ''}
                             onChange={(e) =>
                               updateComputeCost(
-                                "pricePerMInputTokens",
+                                'pricePerMInputTokens',
                                 Number(e.target.value),
                               )
                             }
@@ -1019,10 +1019,10 @@ export default function POCDetailPage() {
                           <input
                             type="number"
                             className="form-input"
-                            value={cc.pricePerMOutputTokens || ""}
+                            value={cc.pricePerMOutputTokens || ''}
                             onChange={(e) =>
                               updateComputeCost(
-                                "pricePerMOutputTokens",
+                                'pricePerMOutputTokens',
                                 Number(e.target.value),
                               )
                             }
@@ -1034,19 +1034,19 @@ export default function POCDetailPage() {
                         <label className="form-label mb-1">Model Presets</label>
                         <div className="flex gap-2 flex-wrap">
                           {[
-                            { label: "Mistral Medium", input: 2, output: 6 },
-                            { label: "GPT-4o", input: 5, output: 15 },
-                            { label: "Claude Sonnet", input: 3, output: 15 },
+                            { label: 'Mistral Medium', input: 2, output: 6 },
+                            { label: 'GPT-4o', input: 5, output: 15 },
+                            { label: 'Claude Sonnet', input: 3, output: 15 },
                           ].map((p) => (
                             <button
                               key={p.label}
                               onClick={() => {
                                 updateComputeCost(
-                                  "pricePerMInputTokens",
+                                  'pricePerMInputTokens',
                                   p.input,
                                 );
                                 updateComputeCost(
-                                  "pricePerMOutputTokens",
+                                  'pricePerMOutputTokens',
                                   p.output,
                                 );
                               }}
@@ -1060,7 +1060,7 @@ export default function POCDetailPage() {
                     </div>
                   )}
 
-                  {deploymentModel === "on_premise" && (
+                  {deploymentModel === 'on_premise' && (
                     <div className="space-y-3">
                       <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
                         On-Premise GPU Parameters
@@ -1091,10 +1091,10 @@ export default function POCDetailPage() {
                           <input
                             type="number"
                             className="form-input"
-                            value={cc.amortizationYears || ""}
+                            value={cc.amortizationYears || ''}
                             onChange={(e) =>
                               updateComputeCost(
-                                "amortizationYears",
+                                'amortizationYears',
                                 Number(e.target.value),
                               )
                             }
@@ -1109,10 +1109,10 @@ export default function POCDetailPage() {
                             type="number"
                             className="form-input"
                             step="0.01"
-                            value={cc.electricityRateEur || ""}
+                            value={cc.electricityRateEur || ''}
                             onChange={(e) =>
                               updateComputeCost(
-                                "electricityRateEur",
+                                'electricityRateEur',
                                 Number(e.target.value),
                               )
                             }
@@ -1157,7 +1157,7 @@ export default function POCDetailPage() {
                     </div>
                   )}
 
-                  {deploymentModel === "hybrid" && (
+                  {deploymentModel === 'hybrid' && (
                     <div className="space-y-3">
                       <h4 className="text-xs font-semibold text-text uppercase tracking-wide">
                         Hybrid Split
@@ -1174,7 +1174,7 @@ export default function POCDetailPage() {
                           value={cc.onPremPct ?? 70}
                           onChange={(e) =>
                             updateComputeCost(
-                              "onPremPct",
+                              'onPremPct',
                               Number(e.target.value),
                             )
                           }
@@ -1220,7 +1220,7 @@ export default function POCDetailPage() {
                               placeholder="e.g. GitHub Copilot"
                               value={sub.tool}
                               onChange={(e) =>
-                                updateSub(i, "tool", e.target.value)
+                                updateSub(i, 'tool', e.target.value)
                               }
                             />
                             <input
@@ -1231,7 +1231,7 @@ export default function POCDetailPage() {
                               onChange={(e) =>
                                 updateSub(
                                   i,
-                                  "users",
+                                  'users',
                                   parseInt(e.target.value) || 1,
                                 )
                               }
@@ -1245,7 +1245,7 @@ export default function POCDetailPage() {
                               onChange={(e) =>
                                 updateSub(
                                   i,
-                                  "monthlyPerUser",
+                                  'monthlyPerUser',
                                   parseFloat(e.target.value) || 0,
                                 )
                               }
@@ -1284,28 +1284,28 @@ export default function POCDetailPage() {
                       </h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div
-                          className={`rounded p-3 border ${deploymentModel === "cloud_api" ? "border-blue-aria bg-blue-aria/5" : "border-border bg-slate-50"}`}
+                          className={`rounded p-3 border ${deploymentModel === 'cloud_api' ? 'border-blue-aria bg-blue-aria/5' : 'border-border bg-slate-50'}`}
                         >
                           <div className="text-[10px] text-muted uppercase tracking-wide mb-1">
                             Cloud API
                           </div>
                           <div className="text-lg font-bold text-text">
                             €
-                            {cloudCost.toLocaleString("en-GB", {
+                            {cloudCost.toLocaleString('en-GB', {
                               maximumFractionDigits: 0,
                             })}
                           </div>
                           <div className="text-[10px] text-muted">/year</div>
                         </div>
                         <div
-                          className={`rounded p-3 border ${deploymentModel === "on_premise" ? "border-blue-aria bg-blue-aria/5" : "border-border bg-slate-50"}`}
+                          className={`rounded p-3 border ${deploymentModel === 'on_premise' ? 'border-blue-aria bg-blue-aria/5' : 'border-border bg-slate-50'}`}
                         >
                           <div className="text-[10px] text-muted uppercase tracking-wide mb-1">
                             On-Premise
                           </div>
                           <div className="text-lg font-bold text-text">
                             €
-                            {onPremCost.toLocaleString("en-GB", {
+                            {onPremCost.toLocaleString('en-GB', {
                               maximumFractionDigits: 0,
                             })}
                           </div>
@@ -1313,14 +1313,14 @@ export default function POCDetailPage() {
                             /year (amort. + elec. + maint.)
                           </div>
                         </div>
-                        {deploymentModel === "hybrid" && (
+                        {deploymentModel === 'hybrid' && (
                           <div className="rounded p-3 border border-blue-aria bg-blue-aria/5">
                             <div className="text-[10px] text-muted uppercase tracking-wide mb-1">
                               Hybrid ({cc.onPremPct ?? 70}% On-Prem)
                             </div>
                             <div className="text-lg font-bold text-text">
                               €
-                              {hybridCost.toLocaleString("en-GB", {
+                              {hybridCost.toLocaleString('en-GB', {
                                 maximumFractionDigits: 0,
                               })}
                             </div>
@@ -1334,13 +1334,13 @@ export default function POCDetailPage() {
                             </div>
                             <div className="text-lg font-bold text-text">
                               €
-                              {subscriptionsCost.toLocaleString("en-GB", {
+                              {subscriptionsCost.toLocaleString('en-GB', {
                                 maximumFractionDigits: 0,
                               })}
                             </div>
                             <div className="text-[10px] text-muted">
                               /year ({subs.length} subscription
-                              {subs.length !== 1 ? "s" : ""})
+                              {subs.length !== 1 ? 's' : ''})
                             </div>
                           </div>
                         )}
@@ -1350,16 +1350,16 @@ export default function POCDetailPage() {
                           </div>
                           <div className="text-xl font-bold text-blue-aria">
                             €
-                            {activeCost.toLocaleString("en-GB", {
+                            {activeCost.toLocaleString('en-GB', {
                               maximumFractionDigits: 0,
                             })}
                           </div>
                           {annualReps > 0 && (
                             <div className="text-[10px] text-muted">
                               €
-                              {costPerExec.toLocaleString("en-GB", {
+                              {costPerExec.toLocaleString('en-GB', {
                                 maximumFractionDigits: 4,
-                              })}{" "}
+                              })}{' '}
                               / execution
                             </div>
                           )}
@@ -1425,7 +1425,7 @@ export default function POCDetailPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border">
-                        {["Milestone", "Due Date", "Status", "Notes", ""].map(
+                        {['Milestone', 'Due Date', 'Status', 'Notes', ''].map(
                           (h) => (
                             <th
                               key={h}
@@ -1446,7 +1446,7 @@ export default function POCDetailPage() {
                               value={m.name}
                               placeholder="Milestone name…"
                               onChange={(e) =>
-                                updateMilestone(m.id, "name", e.target.value)
+                                updateMilestone(m.id, 'name', e.target.value)
                               }
                             />
                           </td>
@@ -1459,10 +1459,10 @@ export default function POCDetailPage() {
                                   ? new Date(m.dueDate)
                                       .toISOString()
                                       .slice(0, 10)
-                                  : ""
+                                  : ''
                               }
                               onChange={(e) =>
-                                updateMilestone(m.id, "dueDate", e.target.value)
+                                updateMilestone(m.id, 'dueDate', e.target.value)
                               }
                             />
                           </td>
@@ -1471,7 +1471,7 @@ export default function POCDetailPage() {
                               className={`form-input text-xs font-medium border-2 ${MILESTONE_STATUS_COLORS[m.status]}`}
                               value={m.status}
                               onChange={(e) =>
-                                updateMilestone(m.id, "status", e.target.value)
+                                updateMilestone(m.id, 'status', e.target.value)
                               }
                             >
                               <option value="pending">Pending</option>
@@ -1485,7 +1485,7 @@ export default function POCDetailPage() {
                               value={m.notes}
                               placeholder="Notes…"
                               onChange={(e) =>
-                                updateMilestone(m.id, "notes", e.target.value)
+                                updateMilestone(m.id, 'notes', e.target.value)
                               }
                             />
                           </td>
@@ -1531,8 +1531,8 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea text-xs"
-                  value={poc.execution?.incidents || ""}
-                  onChange={(e) => updateExecution("incidents", e.target.value)}
+                  value={poc.execution?.incidents || ''}
+                  onChange={(e) => updateExecution('incidents', e.target.value)}
                 />
               </div>
               <div>
@@ -1540,17 +1540,17 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea text-xs"
-                  value={poc.execution?.planDeviations || ""}
+                  value={poc.execution?.planDeviations || ''}
                   onChange={(e) =>
-                    updateExecution("planDeviations", e.target.value)
+                    updateExecution('planDeviations', e.target.value)
                   }
                 />
               </div>
             </div>
 
-            {poc.phase === "execution" && (
+            {poc.phase === 'execution' && (
               <button
-                onClick={() => advanceTo("evaluation")}
+                onClick={() => advanceTo('evaluation')}
                 disabled={milestones.length === 0}
                 className="btn-primary disabled:opacity-50"
               >
@@ -1577,7 +1577,7 @@ export default function POCDetailPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="font-medium text-sm">
-                          {c.criterion || "Unnamed criterion"}
+                          {c.criterion || 'Unnamed criterion'}
                         </div>
                         <div className="text-xs text-muted">
                           Threshold: {c.successThreshold}
@@ -1587,7 +1587,7 @@ export default function POCDetailPage() {
                         <input
                           className="form-input text-xs w-36"
                           placeholder="Actual result…"
-                          value={c.actualResult || ""}
+                          value={c.actualResult || ''}
                           onChange={(e) =>
                             updateCriterionResult(
                               c.id,
@@ -1600,13 +1600,13 @@ export default function POCDetailPage() {
                           onClick={() =>
                             updateCriterionResult(
                               c.id,
-                              c.actualResult || "",
+                              c.actualResult || '',
                               !c.passed,
                             )
                           }
-                          className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${c.passed ? "bg-green-sov text-white border-green-sov" : "border-border text-muted hover:border-green-sov"}`}
+                          className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${c.passed ? 'bg-green-sov text-white border-green-sov' : 'border-border text-muted hover:border-green-sov'}`}
                         >
-                          {c.passed ? "✓ Pass" : "✗ Fail"}
+                          {c.passed ? '✓ Pass' : '✗ Fail'}
                         </button>
                       </div>
                     </div>
@@ -1622,10 +1622,10 @@ export default function POCDetailPage() {
 
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: "Technical Lessons", field: "technicalLessons" },
+                { label: 'Technical Lessons', field: 'technicalLessons' },
                 {
-                  label: "Organisational Lessons",
-                  field: "organisationalLessons",
+                  label: 'Organisational Lessons',
+                  field: 'organisationalLessons',
                 },
               ].map(({ label, field }) => (
                 <div key={field}>
@@ -1639,7 +1639,7 @@ export default function POCDetailPage() {
                           string,
                           string
                         >
-                      )[field] || ""
+                      )[field] || ''
                     }
                     onChange={(e) => updateEvaluation(field, e.target.value)}
                   />
@@ -1652,10 +1652,10 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea text-xs"
-                  value={poc.evaluation?.estimatedProductionImpact || ""}
+                  value={poc.evaluation?.estimatedProductionImpact || ''}
                   onChange={(e) =>
                     updateEvaluation(
-                      "estimatedProductionImpact",
+                      'estimatedProductionImpact',
                       e.target.value,
                     )
                   }
@@ -1666,17 +1666,17 @@ export default function POCDetailPage() {
                 <input
                   type="number"
                   className="form-input"
-                  value={poc.evaluation?.actualCostEur || ""}
+                  value={poc.evaluation?.actualCostEur || ''}
                   onChange={(e) =>
-                    updateEvaluation("actualCostEur", Number(e.target.value))
+                    updateEvaluation('actualCostEur', Number(e.target.value))
                   }
                 />
               </div>
             </div>
 
-            {poc.phase === "evaluation" && (
+            {poc.phase === 'evaluation' && (
               <button
-                onClick={() => advanceTo("closed")}
+                onClick={() => advanceTo('closed')}
                 className="btn-primary"
               >
                 Proceed to Decision →
@@ -1699,15 +1699,15 @@ export default function POCDetailPage() {
                   <button
                     key={d.key}
                     onClick={() => setDecision(d.key)}
-                    className={`flex items-start gap-3 p-4 rounded border-2 text-left transition-all ${active ? d.color : "border-border hover:border-blue-aria"}`}
+                    className={`flex items-start gap-3 p-4 rounded border-2 text-left transition-all ${active ? d.color : 'border-border hover:border-blue-aria'}`}
                   >
                     <span
-                      className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 ${active ? "border-current bg-current" : "border-muted"}`}
+                      className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 ${active ? 'border-current bg-current' : 'border-muted'}`}
                     />
                     <div>
                       <div className="font-semibold text-sm">{d.label}</div>
                       <div
-                        className={`text-xs mt-0.5 ${active ? "opacity-80" : "text-muted"}`}
+                        className={`text-xs mt-0.5 ${active ? 'opacity-80' : 'text-muted'}`}
                       >
                         {d.desc}
                       </div>
@@ -1722,7 +1722,7 @@ export default function POCDetailPage() {
                 <textarea
                   rows={3}
                   className="form-textarea"
-                  value={poc.decision?.justification || ""}
+                  value={poc.decision?.justification || ''}
                   onChange={(e) => {
                     const n = {
                       ...poc,
@@ -1736,13 +1736,13 @@ export default function POCDetailPage() {
                   }}
                 />
               </div>
-              {poc.decision?.decision === "go_conditional" && (
+              {poc.decision?.decision === 'go_conditional' && (
                 <div>
                   <label className="form-label">Conditional Requirement</label>
                   <textarea
                     rows={2}
                     className="form-textarea"
-                    value={poc.decision?.conditionalRequirement || ""}
+                    value={poc.decision?.conditionalRequirement || ''}
                     onChange={(e) => {
                       const n = {
                         ...poc,
@@ -1762,7 +1762,7 @@ export default function POCDetailPage() {
                 <textarea
                   rows={2}
                   className="form-textarea"
-                  value={poc.decision?.nextSteps || ""}
+                  value={poc.decision?.nextSteps || ''}
                   onChange={(e) => {
                     const n = {
                       ...poc,
@@ -1774,8 +1774,8 @@ export default function POCDetailPage() {
                 />
               </div>
             </div>
-            {(poc.decision?.decision === "go" ||
-              poc.decision?.decision === "go_conditional") && (
+            {(poc.decision?.decision === 'go' ||
+              poc.decision?.decision === 'go_conditional') && (
               <div className="p-3 bg-green-sov-light rounded text-sm text-green-sov flex items-center gap-2">
                 <CheckCircle2 size={16} />
                 <span>

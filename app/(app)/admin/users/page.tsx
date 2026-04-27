@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, ShieldCheck, User, Eye } from "lucide-react";
-import { toast } from "sonner";
-import { useAuthStore } from "@/lib/store/authStore";
-import { Spinner } from "@/components/ui/Spinner";
-import { Badge } from "@/components/ui/Badge";
-import { Modal } from "@/components/ui/Modal";
-import { apiUrl } from "@/lib/utils";
-import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, Pencil, Trash2, ShieldCheck, User, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuthStore } from '@/lib/store/authStore';
+import { Spinner } from '@/components/ui/Spinner';
+import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { apiUrl } from '@/lib/utils';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
-type UserRole = "admin" | "consultant" | "viewer";
+type UserRole = 'admin' | 'consultant' | 'viewer';
 
 interface UserRecord {
   _id: string;
@@ -21,10 +21,10 @@ interface UserRecord {
   createdAt: string;
 }
 
-const ROLE_VARIANTS: Record<UserRole, "red" | "blue" | "default"> = {
-  admin: "red",
-  consultant: "blue",
-  viewer: "default",
+const ROLE_VARIANTS: Record<UserRole, 'red' | 'blue' | 'default'> = {
+  admin: 'red',
+  consultant: 'blue',
+  viewer: 'default',
 };
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
@@ -34,10 +34,10 @@ const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
 };
 
 const EMPTY_FORM = {
-  name: "",
-  email: "",
-  password: "",
-  userRole: "consultant" as UserRole,
+  name: '',
+  email: '',
+  password: '',
+  userRole: 'consultant' as UserRole,
 };
 
 export default function UsersPage() {
@@ -56,19 +56,19 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (me && me.role !== "admin") {
-      router.replace("/dashboard");
+    if (me && me.role !== 'admin') {
+      router.replace('/dashboard');
     }
   }, [me, router]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(apiUrl("/api/users"));
-      if (!res.ok) throw new Error("Failed to load users");
+      const res = await fetch(apiUrl('/api/users'));
+      if (!res.ok) throw new Error('Failed to load users');
       setUsers(await res.json());
     } catch {
-      toast.error("Could not load users");
+      toast.error('Could not load users');
     } finally {
       setLoading(false);
     }
@@ -86,17 +86,17 @@ export default function UsersPage() {
 
   const openEdit = (u: UserRecord) => {
     setEditing(u);
-    setForm({ name: u.name, email: u.email, password: "", userRole: u.role });
+    setForm({ name: u.name, email: u.email, password: '', userRole: u.role });
     setModalOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.email.trim()) {
-      toast.error("Name and email are required");
+      toast.error('Name and email are required');
       return;
     }
     if (!editing && !form.password) {
-      toast.error("Password is required for new users");
+      toast.error('Password is required for new users');
       return;
     }
     setSaving(true);
@@ -109,28 +109,28 @@ export default function UsersPage() {
         };
         if (form.password) body.password = form.password;
         const res = await fetch(apiUrl(`/api/users/${editing._id}`), {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) {
-          toast.error(data.error ?? "Error updating user");
+          toast.error(data.error ?? 'Error updating user');
           return;
         }
-        toast.success("User updated");
+        toast.success('User updated');
       } else {
-        const res = await fetch(apiUrl("/api/users"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const res = await fetch(apiUrl('/api/users'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         });
         const data = await res.json();
         if (!res.ok) {
-          toast.error(data.error ?? "Error creating user");
+          toast.error(data.error ?? 'Error creating user');
           return;
         }
-        toast.success("User created");
+        toast.success('User created');
       }
       setModalOpen(false);
       fetchUsers();
@@ -144,14 +144,14 @@ export default function UsersPage() {
     setDeleting(true);
     try {
       const res = await fetch(apiUrl(`/api/users/${deleteTarget._id}`), {
-        method: "DELETE",
+        method: 'DELETE',
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? "Error deleting user");
+        toast.error(data.error ?? 'Error deleting user');
         return;
       }
-      toast.success("User deleted");
+      toast.success('User deleted');
       setDeleteTarget(null);
       fetchUsers();
     } finally {
@@ -174,7 +174,7 @@ export default function UsersPage() {
         <div>
           <h1 className="text-xl font-semibold text-text">User Management</h1>
           <p className="text-sm text-muted mt-0.5">
-            {users.length} user{users.length !== 1 ? "s" : ""} registered
+            {users.length} user{users.length !== 1 ? 's' : ''} registered
           </p>
         </div>
         <button
@@ -238,7 +238,7 @@ export default function UsersPage() {
                       title={
                         u._id === me?.id
                           ? "Can't delete your own account"
-                          : "Delete"
+                          : 'Delete'
                       }
                     >
                       <Trash2 size={14} />
@@ -255,7 +255,7 @@ export default function UsersPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? "Edit User" : "New User"}
+        title={editing ? 'Edit User' : 'New User'}
         size="md"
       >
         <div className="space-y-4">
@@ -282,7 +282,7 @@ export default function UsersPage() {
           </div>
           <div>
             <label className="form-label">
-              Password{" "}
+              Password{' '}
               {editing && (
                 <span className="text-muted font-normal">
                   (leave blank to keep current)
@@ -292,7 +292,7 @@ export default function UsersPage() {
             <input
               type="password"
               className="form-input"
-              placeholder={editing ? "New password…" : "Password…"}
+              placeholder={editing ? 'New password…' : 'Password…'}
               value={form.password}
               onChange={(e) =>
                 setForm((f) => ({ ...f, password: e.target.value }))
@@ -328,7 +328,7 @@ export default function UsersPage() {
               disabled={saving}
             >
               {saving && <Spinner size="sm" />}
-              {editing ? "Save changes" : "Create user"}
+              {editing ? 'Save changes' : 'Create user'}
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Plus,
   Trash2,
@@ -22,22 +22,22 @@ import {
   ClipboardCopy,
   Globe,
   Printer,
-} from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
-import ReactMarkdown from "react-markdown";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { TagInput } from "@/components/ui/TagInput";
-import { apiUrl } from "@/lib/utils";
-import { Modal } from "@/components/ui/Modal";
+} from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import ReactMarkdown from 'react-markdown';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { TagInput } from '@/components/ui/TagInput';
+import { apiUrl } from '@/lib/utils';
+import { Modal } from '@/components/ui/Modal';
 import type {
   ProcessActivity,
   ProcessTask,
   ProfileHours,
   FileAttachment,
   ProfileEntry,
-} from "@/lib/types";
+} from '@/lib/types';
 
 // ── File list with real upload ─────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ function FileList({
       reader.readAsDataURL(file);
     });
     // Reset so same file can be re-selected
-    if (inputRef.current) inputRef.current.value = "";
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   return (
@@ -125,20 +125,20 @@ function emptyActivity(order: number): ProcessActivity {
   return {
     id: uuidv4(),
     order,
-    name: "",
+    name: '',
     tools: [],
     inputs: [],
     outputs: [],
     inputFiles: [],
     outputFiles: [],
-    responsibleProfile: "",
+    responsibleProfile: '',
     profileHours: [],
     estimatedTimeHours: 0,
     annualRepetitions: 1,
     stepRepetitions: 1,
     isDecisionPoint: false,
     linkedUseCaseIds: [],
-    notes: "",
+    notes: '',
     tasks: [],
   };
 }
@@ -178,10 +178,10 @@ export default function B3Page() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(true);
-  const [processName, setProcessName] = useState("");
+  const [processName, setProcessName] = useState('');
   const [b1Profiles, setB1Profiles] = useState<ProfileEntry[]>([]);
   const [activities, setActivities] = useState<ProcessActivity[]>([]);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState('');
   const [annualRepetitions, setAnnualRepetitions] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -192,18 +192,18 @@ export default function B3Page() {
 
   useEffect(() => {
     fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-      credentials: "include",
+      credentials: 'include',
     })
       .then((r) => r.json())
       .then((data) => {
-        setProcessName(data.name || "");
+        setProcessName(data.name || '');
         setB1Profiles(data.b1?.profiles || []);
         setActivities(
           (data.b3?.activities || []).sort(
             (a: ProcessActivity, b: ProcessActivity) => a.order - b.order,
           ),
         );
-        setNotes(data.b3?.notes || "");
+        setNotes(data.b3?.notes || '');
         setAnnualRepetitions(data.b3?.annualRepetitions || 1);
         setLoading(false);
       })
@@ -218,19 +218,19 @@ export default function B3Page() {
       const res = await fetch(
         apiUrl(`/api/audits/${auditId}/processes/${procId}/ai/process-report`),
         {
-          method: "POST",
-          credentials: "include",
+          method: 'POST',
+          credentials: 'include',
         },
       );
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? "Error generating report");
+        toast.error(data.error ?? 'Error generating report');
         setReportOpen(false);
         return;
       }
       setReportMarkdown(data.markdown);
     } catch {
-      toast.error("Could not connect to AI service");
+      toast.error('Could not connect to AI service');
       setReportOpen(false);
     } finally {
       setReportLoading(false);
@@ -239,11 +239,11 @@ export default function B3Page() {
 
   const downloadReport = () => {
     if (!reportMarkdown) return;
-    const blob = new Blob([reportMarkdown], { type: "text/markdown" });
+    const blob = new Blob([reportMarkdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `process-report-${processName.replace(/\s+/g, "-").toLowerCase()}.md`;
+    a.download = `process-report-${processName.replace(/\s+/g, '-').toLowerCase()}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -251,12 +251,12 @@ export default function B3Page() {
   const copyReport = async () => {
     if (!reportMarkdown) return;
     await navigator.clipboard.writeText(reportMarkdown);
-    toast.success("Report copied to clipboard");
+    toast.success('Report copied to clipboard');
   };
 
   const mdToHtmlContent = (md: string): string => {
-    const lines = md.split("\n");
-    let html = "";
+    const lines = md.split('\n');
+    let html = '';
     let inUl = false;
     let inOl = false;
     let inTable = false;
@@ -264,17 +264,17 @@ export default function B3Page() {
 
     const closeList = () => {
       if (inUl) {
-        html += "</ul>";
+        html += '</ul>';
         inUl = false;
       }
       if (inOl) {
-        html += "</ol>";
+        html += '</ol>';
         inOl = false;
       }
     };
     const closeTable = () => {
       if (inTable) {
-        html += "</tbody></table>";
+        html += '</tbody></table>';
         inTable = false;
         tableHeader = true;
       }
@@ -282,9 +282,9 @@ export default function B3Page() {
 
     const inline = (s: string) =>
       s
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>")
-        .replace(/`(.+?)`/g, "<code>$1</code>");
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code>$1</code>');
 
     for (const raw of lines) {
       const line = raw.trimEnd();
@@ -293,23 +293,23 @@ export default function B3Page() {
       if (/^\|.+\|/.test(line)) {
         if (!inTable) {
           closeList();
-          html += "<table>";
+          html += '<table>';
           inTable = true;
           tableHeader = true;
         }
         if (/^\|[-| :]+\|$/.test(line)) {
-          html += "<tbody>";
+          html += '<tbody>';
           tableHeader = false;
           continue;
         }
         const cells = line
-          .replace(/^\||\|$/g, "")
-          .split("|")
+          .replace(/^\||\|$/g, '')
+          .split('|')
           .map((c) => inline(c.trim()));
         if (tableHeader) {
-          html += `<thead><tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr></thead>`;
+          html += `<thead><tr>${cells.map((c) => `<th>${c}</th>`).join('')}</tr></thead>`;
         } else {
-          html += `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+          html += `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
         }
         continue;
       }
@@ -328,7 +328,7 @@ export default function B3Page() {
       if (ulm) {
         if (!inUl) {
           closeList();
-          html += "<ul>";
+          html += '<ul>';
           inUl = true;
         }
         html += `<li>${inline(ulm[1])}</li>`;
@@ -340,7 +340,7 @@ export default function B3Page() {
       if (olm) {
         if (!inOl) {
           closeList();
-          html += "<ol>";
+          html += '<ol>';
           inOl = true;
         }
         html += `<li>${inline(olm[1])}</li>`;
@@ -358,14 +358,14 @@ export default function B3Page() {
       // HR
       if (/^---+$/.test(line)) {
         closeList();
-        html += "<hr>";
+        html += '<hr>';
         continue;
       }
 
       // Empty line
-      if (line === "") {
+      if (line === '') {
         closeList();
-        html += "<br>";
+        html += '<br>';
         continue;
       }
 
@@ -381,7 +381,7 @@ export default function B3Page() {
   const exportHtml = () => {
     if (!reportMarkdown) return;
     const body = mdToHtmlContent(reportMarkdown);
-    const slug = processName.replace(/\s+/g, "-").toLowerCase();
+    const slug = processName.replace(/\s+/g, '-').toLowerCase();
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -409,9 +409,9 @@ export default function B3Page() {
 ${body}
 </body>
 </html>`;
-    const blob = new Blob([html], { type: "text/html" });
+    const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = `process-report-${slug}.html`;
     a.click();
@@ -446,9 +446,9 @@ ${body}
 ${body}
 </body>
 </html>`;
-    const win = window.open("", "_blank");
+    const win = window.open('', '_blank');
     if (!win) {
-      toast.error("Allow pop-ups to export PDF");
+      toast.error('Allow pop-ups to export PDF');
       return;
     }
     win.document.write(html);
@@ -463,9 +463,9 @@ ${body}
     setSaving(true);
     try {
       await fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ b3: { activities, notes, annualRepetitions } }),
       });
       setSaved(true);
@@ -486,13 +486,13 @@ ${body}
       prev.map((a) => {
         if (a.id !== id) return a;
         const updated = { ...a, [field]: value };
-        if (field === "profileHours" || field === "stepRepetitions") {
+        if (field === 'profileHours' || field === 'stepRepetitions') {
           const ph =
-            field === "profileHours"
+            field === 'profileHours'
               ? (value as ProfileHours[])
               : (a.profileHours ?? []);
           const reps =
-            field === "stepRepetitions" ? Number(value) : a.stepRepetitions;
+            field === 'stepRepetitions' ? Number(value) : a.stepRepetitions;
           if (ph.length > 0) updated.estimatedTimeHours = recalcTime(ph, reps);
         }
         return updated;
@@ -531,8 +531,8 @@ ${body}
         const ph = [
           ...(a.profileHours ?? []),
           {
-            profileId: firstProfile?.id ?? "",
-            role: firstProfile?.role ?? "",
+            profileId: firstProfile?.id ?? '',
+            role: firstProfile?.role ?? '',
             hours: 0,
           },
         ];
@@ -560,7 +560,7 @@ ${body}
         if (a.id !== actId) return a;
         return {
           ...a,
-          tasks: [...(a.tasks ?? []), { id: uuidv4(), description: "" }],
+          tasks: [...(a.tasks ?? []), { id: uuidv4(), description: '' }],
         };
       }),
     );
@@ -690,7 +690,7 @@ ${body}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 disabled:opacity-50 transition-colors"
           >
             {saving ? <Spinner size="sm" /> : <Save size={14} />}
-            {saving ? "Saving…" : saved ? "Saved" : "Save"}
+            {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
           </button>
           <button
             onClick={addActivity}
@@ -710,7 +710,7 @@ ${body}
           Time/run: <strong className="text-text">{totalTime}h</strong>
         </span>
         <span className="text-muted flex items-center gap-1">
-          Decision points:{" "}
+          Decision points:{' '}
           <strong className="text-text flex items-center gap-1">
             <Diamond size={12} />
             {decisionCount}
@@ -731,7 +731,7 @@ ${body}
         </div>
         {totalAnnualHours > 0 && (
           <span className="text-muted">
-            Annual total:{" "}
+            Annual total:{' '}
             <strong className="text-text">{totalAnnualHours}h</strong>
           </span>
         )}
@@ -772,8 +772,8 @@ ${body}
                   <div
                     className={`flex-1 border rounded-sm shadow-sm mb-2 ${
                       act.isDecisionPoint
-                        ? "border-amber-300 bg-amber-50/40"
-                        : "border-border bg-white"
+                        ? 'border-amber-300 bg-amber-50/40'
+                        : 'border-border bg-white'
                     }`}
                   >
                     {/* Card header — always visible */}
@@ -788,7 +788,7 @@ ${body}
                         placeholder="Step name…"
                         value={act.name}
                         onChange={(e) =>
-                          updateActivity(act.id, "name", e.target.value)
+                          updateActivity(act.id, 'name', e.target.value)
                         }
                       />
                       {act.estimatedTimeHours > 0 && (
@@ -854,7 +854,7 @@ ${body}
                             <TagInput
                               value={act.tools}
                               onChange={(v) =>
-                                updateActivity(act.id, "tools", v)
+                                updateActivity(act.id, 'tools', v)
                               }
                               placeholder="Add tool + Enter"
                             />
@@ -871,7 +871,7 @@ ${body}
                               onChange={(e) =>
                                 updateActivity(
                                   act.id,
-                                  "stepRepetitions",
+                                  'stepRepetitions',
                                   parseInt(e.target.value) || 1,
                                 )
                               }
@@ -885,7 +885,7 @@ ${body}
                             <TagInput
                               value={act.inputs}
                               onChange={(v) =>
-                                updateActivity(act.id, "inputs", v)
+                                updateActivity(act.id, 'inputs', v)
                               }
                               placeholder="Add input + Enter"
                             />
@@ -895,7 +895,7 @@ ${body}
                             <FileList
                               files={act.inputFiles ?? []}
                               onChange={(v) =>
-                                updateActivity(act.id, "inputFiles", v)
+                                updateActivity(act.id, 'inputFiles', v)
                               }
                             />
                           </div>
@@ -904,7 +904,7 @@ ${body}
                             <TagInput
                               value={act.outputs}
                               onChange={(v) =>
-                                updateActivity(act.id, "outputs", v)
+                                updateActivity(act.id, 'outputs', v)
                               }
                               placeholder="Add output + Enter"
                             />
@@ -914,7 +914,7 @@ ${body}
                             <FileList
                               files={act.outputFiles ?? []}
                               onChange={(v) =>
-                                updateActivity(act.id, "outputFiles", v)
+                                updateActivity(act.id, 'outputFiles', v)
                               }
                             />
                           </div>
@@ -955,14 +955,14 @@ ${body}
                                     updateProfileHour(
                                       act.id,
                                       phIdx,
-                                      "profileId",
+                                      'profileId',
                                       e.target.value,
                                     );
                                     if (prof)
                                       updateProfileHour(
                                         act.id,
                                         phIdx,
-                                        "role",
+                                        'role',
                                         prof.role,
                                       );
                                   }}
@@ -984,7 +984,7 @@ ${body}
                                     updateProfileHour(
                                       act.id,
                                       phIdx,
-                                      "role",
+                                      'role',
                                       e.target.value,
                                     )
                                   }
@@ -1001,7 +1001,7 @@ ${body}
                                   updateProfileHour(
                                     act.id,
                                     phIdx,
-                                    "hours",
+                                    'hours',
                                     parseFloat(e.target.value) || 0,
                                   )
                                 }
@@ -1017,7 +1017,7 @@ ${body}
                           ))}
                           {(act.profileHours ?? []).length > 0 && (
                             <p className="text-[10px] text-muted mt-1">
-                              Estimated time:{" "}
+                              Estimated time:{' '}
                               <strong>{act.estimatedTimeHours}h</strong> (sum of
                               profile hours × step reps)
                             </p>
@@ -1029,20 +1029,20 @@ ${body}
                             onClick={() =>
                               updateActivity(
                                 act.id,
-                                "isDecisionPoint",
+                                'isDecisionPoint',
                                 !act.isDecisionPoint,
                               )
                             }
                             className={`flex items-center gap-2 px-3 py-2 rounded text-xs border transition-colors ${
                               act.isDecisionPoint
-                                ? "bg-amber-500 text-white border-amber-500"
-                                : "border-border text-muted hover:border-amber-500"
+                                ? 'bg-amber-500 text-white border-amber-500'
+                                : 'border-border text-muted hover:border-amber-500'
                             }`}
                           >
-                            <Diamond size={13} />{" "}
+                            <Diamond size={13} />{' '}
                             {act.isDecisionPoint
-                              ? "Remove Decision Point"
-                              : "Mark as Decision Point"}
+                              ? 'Remove Decision Point'
+                              : 'Mark as Decision Point'}
                           </button>
                         </div>
 
@@ -1094,7 +1094,7 @@ ${body}
                             className="form-textarea"
                             value={act.notes}
                             onChange={(e) =>
-                              updateActivity(act.id, "notes", e.target.value)
+                              updateActivity(act.id, 'notes', e.target.value)
                             }
                           />
                         </div>
@@ -1132,7 +1132,7 @@ ${body}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-aria text-white font-medium rounded-sm shadow-lg hover:bg-blue-aria/90 disabled:opacity-60"
           >
             {saving ? <Spinner size="sm" /> : <Save size={15} />}
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
       )}

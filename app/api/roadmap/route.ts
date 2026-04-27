@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Roadmap, Audit, UseCase } from "@/lib/models";
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { Roadmap, Audit, UseCase } from '@/lib/models';
 
 export async function GET() {
   try {
@@ -10,7 +10,7 @@ export async function GET() {
 
     const auditIds = roadmaps.map((r) => String(r.auditId));
     const audits = await Audit.find({ _id: { $in: auditIds } })
-      .select("name client")
+      .select('name client')
       .lean();
     const auditMap = Object.fromEntries(audits.map((a) => [String(a._id), a]));
 
@@ -26,7 +26,7 @@ export async function GET() {
       ),
     );
     const useCases = await UseCase.find({ _id: { $in: ucIds } })
-      .select("cuId")
+      .select('cuId')
       .lean();
     const ucMap = Object.fromEntries(useCases.map((u) => [String(u._id), u]));
 
@@ -50,9 +50,9 @@ export async function GET() {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

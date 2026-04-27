@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { apiUrl } from "@/lib/utils";
+import { useEffect, useState } from 'react';
+import { apiUrl } from '@/lib/utils';
 
 interface Audit {
   _id: string;
@@ -15,7 +15,7 @@ export default function Audits() {
   const [audits, setAudits] = useState<Audit[]>([]);
 
   useEffect(() => {
-    fetch(apiUrl("/api/audits"))
+    fetch(apiUrl('/api/audits'))
       .then((res) => res.json())
       .then((data) => setAudits(data));
   }, []);

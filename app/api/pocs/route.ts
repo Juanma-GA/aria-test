@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { POC, Audit, UseCase } from "@/lib/models";
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { POC, Audit, UseCase } from '@/lib/models';
 
 export async function GET() {
   try {
     await dbConnect();
     const pocs = await POC.find({})
-      .populate("processId", "procId name")
+      .populate('processId', 'procId name')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -16,10 +16,10 @@ export async function GET() {
 
     const [audits, useCases] = await Promise.all([
       Audit.find({ _id: { $in: auditIds } })
-        .select("name client")
+        .select('name client')
         .lean(),
       UseCase.find({ _id: { $in: ucIds } })
-        .select("cuId description")
+        .select('cuId description')
         .lean(),
     ]);
 
@@ -34,9 +34,9 @@ export async function GET() {
 
     return NextResponse.json(enriched);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { TagInput } from "@/components/ui/TagInput";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
-import type { Priority } from "@/lib/types";
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { TagInput } from '@/components/ui/TagInput';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
+import type { Priority } from '@/lib/types';
 
 interface FormData {
   processName: string;
@@ -18,9 +18,9 @@ interface FormData {
 }
 
 const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
 ];
 
 function FieldError({ message }: { message?: string }) {
@@ -34,11 +34,11 @@ export default function NewProcessPage() {
   const auditId = params?.auditId as string;
 
   const [form, setForm] = useState<FormData>({
-    processName: "",
-    department: "",
-    responsible: "",
+    processName: '',
+    department: '',
+    responsible: '',
     applicableNorms: [],
-    priority: "medium",
+    priority: 'medium',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
     {},
@@ -48,7 +48,7 @@ export default function NewProcessPage() {
 
   const validate = (): boolean => {
     const errs: Partial<Record<keyof FormData, string>> = {};
-    if (!form.processName.trim()) errs.processName = "Process name is required";
+    if (!form.processName.trim()) errs.processName = 'Process name is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -60,8 +60,8 @@ export default function NewProcessPage() {
     setServerError(null);
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}/processes`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.processName,
           department: form.department,
@@ -82,7 +82,7 @@ export default function NewProcessPage() {
         router.push(`/audits/${auditId}`);
       }
     } catch (e: any) {
-      setServerError(e.message ?? "Failed to create process");
+      setServerError(e.message ?? 'Failed to create process');
     } finally {
       setSubmitting(false);
     }
@@ -217,7 +217,7 @@ export default function NewProcessPage() {
             className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Spinner size="sm" />}
-            {submitting ? "Adding…" : "Add Process"}
+            {submitting ? 'Adding…' : 'Add Process'}
           </button>
         </div>
       </form>

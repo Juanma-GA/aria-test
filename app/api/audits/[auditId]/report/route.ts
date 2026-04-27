@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Audit, Process, UseCase, POC } from "@/lib/models";
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { Audit, Process, UseCase, POC } from '@/lib/models';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -13,12 +13,12 @@ function scoreTotal(score: any): number {
 }
 
 function scoreCategory(score: any): string {
-  if (!score?.dimensions) return "Strategic";
+  if (!score?.dimensions) return 'Strategic';
   const total = scoreTotal(score);
   const d6 = score.dimensions?.d6_governanceComplexity?.value ?? 0;
-  if (total >= 22 && d6 >= 4) return "Quick Win";
-  if (total >= 14) return "Mid-term";
-  return "Strategic";
+  if (total >= 22 && d6 >= 4) return 'Quick Win';
+  if (total >= 14) return 'Mid-term';
+  return 'Strategic';
 }
 
 function sovereigntyLevel(axes: Record<string, any>): {
@@ -27,38 +27,38 @@ function sovereigntyLevel(axes: Record<string, any>): {
 } {
   const vals = Object.values(axes)
     .map((a: any) =>
-      a.status === "green"
+      a.status === 'green'
         ? 5
-        : a.status === "amber"
+        : a.status === 'amber'
           ? 3
-          : a.status === "red"
+          : a.status === 'red'
             ? 1
             : 0,
     )
     .filter((v) => v > 0) as number[];
-  if (!vals.length) return { index: 0, level: "Not assessed" };
+  if (!vals.length) return { index: 0, level: 'Not assessed' };
   const index = vals.reduce<number>((s, v) => s + v, 0) / vals.length;
   const level =
     index >= 4.5
-      ? "Full Autonomy"
+      ? 'Full Autonomy'
       : index >= 3.5
-        ? "Managed"
+        ? 'Managed'
         : index >= 2.5
-          ? "Conditioned"
+          ? 'Conditioned'
           : index >= 1.5
-            ? "Restricted"
-            : "Critical";
+            ? 'Restricted'
+            : 'Critical';
   return { index: Math.round(index * 10) / 10, level };
 }
 
 const fmt = (d: Date | string | undefined) =>
   d
-    ? new Date(d).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
+    ? new Date(d).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
       })
-    : "—";
+    : '—';
 
 const fmtEur = (n: number) =>
   n >= 1_000_000
@@ -68,11 +68,11 @@ const fmtEur = (n: number) =>
       : `€${Math.round(n)}`;
 
 const AXIS_LABELS: Record<string, string> = {
-  axis1_InfoClassification: "Info Classification",
-  axis2_ProcessSovereignty: "Process Sovereignty",
-  axis3_ToolSovereignty: "Tool Sovereignty",
-  axis4_DataSovereignty: "Data Sovereignty",
-  axis5_Infrastructure: "Infrastructure",
+  axis1_InfoClassification: 'Info Classification',
+  axis2_ProcessSovereignty: 'Process Sovereignty',
+  axis3_ToolSovereignty: 'Tool Sovereignty',
+  axis4_DataSovereignty: 'Data Sovereignty',
+  axis5_Infrastructure: 'Infrastructure',
 };
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ function buildPrompt(
     const cc = (uc as any).computeCost ?? {};
     const reps = cc.annualReps ?? 0;
     if (reps === 0) return 0;
-    const model = cc.deploymentModel ?? "cloud_api";
+    const model = cc.deploymentModel ?? 'cloud_api';
     const cloudCost =
       (((cc.inputTokensPerExec ?? 1000) * reps) / 1_000_000) *
         (cc.pricePerMInputTokens ?? 2) +
@@ -161,19 +161,19 @@ function buildPrompt(
     );
     // For simplicity in report: use cloud cost only (most common case)
     return (
-      (model === "cloud_api" ? cloudCost : cloudCost * 0.7) + subscriptionsCost
+      (model === 'cloud_api' ? cloudCost : cloudCost * 0.7) + subscriptionsCost
     );
   }
 
-  const eligibleUCs = useCases.filter((u) => u.status === "eligible");
-  const blockedUCs = useCases.filter((u) => u.status === "blocked");
-  const pendingUCs = useCases.filter((u) => u.status === "pending_review");
+  const eligibleUCs = useCases.filter((u) => u.status === 'eligible');
+  const blockedUCs = useCases.filter((u) => u.status === 'blocked');
+  const pendingUCs = useCases.filter((u) => u.status === 'pending_review');
 
   for (const uc of eligibleUCs) {
     const total = scoreTotal(uc.score);
     const cat = scoreCategory(uc.score);
-    if (cat === "Quick Win") qwCount++;
-    else if (cat === "Mid-term") mtCount++;
+    if (cat === 'Quick Win') qwCount++;
+    else if (cat === 'Mid-term') mtCount++;
     else stCount++;
     totalDevCost += uc.estimatedDevCostEur ?? 0;
 
@@ -197,11 +197,11 @@ function buildPrompt(
 
   const pocGo = pocs.filter(
     (p) =>
-      p.decision?.decision === "go" ||
-      p.decision?.decision === "go_conditional",
+      p.decision?.decision === 'go' ||
+      p.decision?.decision === 'go_conditional',
   ).length;
-  const pocClosed = pocs.filter((p) => p.phase === "closed").length;
-  const pocActive = pocs.filter((p) => p.phase !== "closed").length;
+  const pocClosed = pocs.filter((p) => p.phase === 'closed').length;
+  const pocActive = pocs.filter((p) => p.phase !== 'closed').length;
 
   // ── Global sovereignty ──────────────────────────────────────────────────────
   const axisCountByStatus: Record<string, Record<string, number>> = {};
@@ -227,31 +227,31 @@ function buildPrompt(
     _: {
       status:
         avgSovIndex >= 4.5
-          ? "green"
+          ? 'green'
           : avgSovIndex >= 3.5
-            ? "green"
+            ? 'green'
             : avgSovIndex >= 2.5
-              ? "amber"
-              : "red",
+              ? 'amber'
+              : 'red',
     },
   });
   const sovLevelLabel =
     avgSovIndex >= 4.5
-      ? "Full Autonomy"
+      ? 'Full Autonomy'
       : avgSovIndex >= 3.5
-        ? "Managed"
+        ? 'Managed'
         : avgSovIndex >= 2.5
-          ? "Conditioned"
+          ? 'Conditioned'
           : avgSovIndex >= 1.5
-            ? "Restricted"
-            : "Critical";
+            ? 'Restricted'
+            : 'Critical';
 
   const sovereigntyTableRows = Object.entries(AXIS_LABELS)
     .map(([key, label]) => {
       const c = axisCountByStatus[key] ?? { green: 0, amber: 0, red: 0 };
       return `| ${label} | ${c.green} ✅ | ${c.amber} 🟡 | ${c.red} 🔴 |`;
     })
-    .join("\n");
+    .join('\n');
 
   const ucRequiresClientIT = useCases.filter((u) => u.requiresClientIT).length;
 
@@ -266,7 +266,7 @@ function buildPrompt(
       const profilesStr =
         profiles
           .map((pr: any) => `${pr.role} (×${pr.count}, €${pr.hourlyRateEur}/h)`)
-          .join(", ") || "—";
+          .join(', ') || '—';
       const activities: any[] = p.b3?.activities ?? [];
       const annualReps = p.b3?.annualRepetitions ?? 0;
       const totalHrsRun = activities.reduce(
@@ -281,23 +281,23 @@ function buildPrompt(
       const axisLines = Object.entries(AXIS_LABELS)
         .map(([key, label]) => {
           const ax = axes[key];
-          const status = ax?.status ?? "not assessed";
+          const status = ax?.status ?? 'not assessed';
           const icon =
-            status === "green"
-              ? "✅"
-              : status === "amber"
-                ? "🟡"
-                : status === "red"
-                  ? "🔴"
-                  : "⬜";
+            status === 'green'
+              ? '✅'
+              : status === 'amber'
+                ? '🟡'
+                : status === 'red'
+                  ? '🔴'
+                  : '⬜';
           const fw =
             (
               ax?.normativeFrameworks ??
               (ax?.normativeFramework ? [ax.normativeFramework] : [])
-            ).join(", ") || "—";
-          return `  ${icon} ${label}: ${status.toUpperCase()} | Frameworks: ${fw}${ax?.findings ? ` | "${ax.findings.slice(0, 120)}"` : ""}`;
+            ).join(', ') || '—';
+          return `  ${icon} ${label}: ${status.toUpperCase()} | Frameworks: ${fw}${ax?.findings ? ` | "${ax.findings.slice(0, 120)}"` : ''}`;
         })
-        .join("\n");
+        .join('\n');
 
       const procUCs = ucByProcess[String(p._id)] ?? [];
       const m = processMetrics[String(p._id)];
@@ -319,33 +319,33 @@ function buildPrompt(
               : null;
           const dims = uc.score?.dimensions ?? {};
           const dimStr = [
-            "d1_efficiencyImpact",
-            "d2_qualityImpact",
-            "d3_techMaturity",
-            "d4_dataReadiness",
-            "d5_sovereigntyIndex",
+            'd1_efficiencyImpact',
+            'd2_qualityImpact',
+            'd3_techMaturity',
+            'd4_dataReadiness',
+            'd5_sovereigntyIndex',
           ]
-            .map((k, i) => `D${i + 1}=${dims[k]?.value ?? "?"}`)
-            .join(" ");
-          return `  • ${uc.cuId} [${(uc.aiTypes ?? []).join("/")}] | Score: ${total}/30 (${cat}) | ${uc.status.toUpperCase()}
-    Time saved: ${timeSaved}h/run → ${fmtEur(annualSaving)}/yr gross | Compute: ${fmtEur(computeCost)}/yr | Dev: ${fmtEur(uc.estimatedDevCostEur ?? 0)}${payback !== null ? ` | Payback: ${payback}m` : ""}
-    ${dimStr} | Client IT: ${uc.requiresClientIT ? "Yes" : "No"}
-    ${uc.sovereigntyAnalysis ? `Sovereignty note: "${uc.sovereigntyAnalysis.slice(0, 200)}"` : ""}`;
+            .map((k, i) => `D${i + 1}=${dims[k]?.value ?? '?'}`)
+            .join(' ');
+          return `  • ${uc.cuId} [${(uc.aiTypes ?? []).join('/')}] | Score: ${total}/30 (${cat}) | ${uc.status.toUpperCase()}
+    Time saved: ${timeSaved}h/run → ${fmtEur(annualSaving)}/yr gross | Compute: ${fmtEur(computeCost)}/yr | Dev: ${fmtEur(uc.estimatedDevCostEur ?? 0)}${payback !== null ? ` | Payback: ${payback}m` : ''}
+    ${dimStr} | Client IT: ${uc.requiresClientIT ? 'Yes' : 'No'}
+    ${uc.sovereigntyAnalysis ? `Sovereignty note: "${uc.sovereigntyAnalysis.slice(0, 200)}"` : ''}`;
         })
-        .join("\n");
+        .join('\n');
 
       return `### ${p.procId} — ${p.name}
-Department: ${p.b1?.clientDepartment ?? p.department ?? "—"} | Client contact: ${p.b1?.clientResponsible ?? p.responsible ?? "—"} | Tech Director: ${p.b1?.technicalDirectorResponsible ?? "—"}
+Department: ${p.b1?.clientDepartment ?? p.department ?? '—'} | Client contact: ${p.b1?.clientResponsible ?? p.responsible ?? '—'} | Tech Director: ${p.b1?.technicalDirectorResponsible ?? '—'}
 People impacted: ${peopleCount} | Annual repetitions: ${annualReps}
 Profiles: ${profilesStr}
 Process map: ${activities.length} activities (${decisionPoints} decision points) | ${totalHrsRun.toFixed(1)}h/run | ${(totalHrsRun * annualReps).toFixed(0)}h/yr total
-Activities: ${activities.map((a: any) => `${a.name}(${a.estimatedTimeHours ?? 0}h${a.isDecisionPoint ? ", DP" : ""})`).join(" → ") || "—"}
+Activities: ${activities.map((a: any) => `${a.name}(${a.estimatedTimeHours ?? 0}h${a.isDecisionPoint ? ', DP' : ''})`).join(' → ') || '—'}
 Sovereignty [${sovIdx}/5 — ${sovLevel}]:
 ${axisLines}
 Use cases (${procUCs.length}):
-${ucLines || "  (none identified)"}`;
+${ucLines || '  (none identified)'}`;
     })
-    .join("\n\n");
+    .join('\n\n');
 
   // ── UC ranking table ────────────────────────────────────────────────────────
   const allUCsRanked = [...useCases].sort(
@@ -365,20 +365,20 @@ ${ucLines || "  (none identified)"}`;
       const payback =
         (uc.estimatedDevCostEur ?? 0) > 0 && annualSaving > 0
           ? `${Math.round((uc.estimatedDevCostEur / annualSaving) * 12)}m`
-          : "—";
+          : '—';
       const proc = processes.find((p) => String(p._id) === pid);
-      return `| ${uc.cuId} | ${uc.description.slice(0, 50)}… | ${(uc.aiTypes ?? []).join("/")} | ${total}/30 | ${cat} | ${fmtEur(annualSaving)}/yr | ${fmtEur(uc.estimatedDevCostEur ?? 0)} | ${payback} | ${uc.status} |`;
+      return `| ${uc.cuId} | ${uc.description.slice(0, 50)}… | ${(uc.aiTypes ?? []).join('/')} | ${total}/30 | ${cat} | ${fmtEur(annualSaving)}/yr | ${fmtEur(uc.estimatedDevCostEur ?? 0)} | ${payback} | ${uc.status} |`;
     })
-    .join("\n");
+    .join('\n');
 
   // ── Compute cost table ──────────────────────────────────────────────────────
   const computeTableRows = eligibleUCs
     .map((uc) => {
       const cc = (uc as any).computeCost ?? {};
       const cost = computeAnnualCostForUC(uc);
-      return `| ${uc.cuId} | ${cc.deploymentModel ?? "cloud_api"} | ${(cc.annualReps ?? 0).toLocaleString()} | ${fmtEur(cost)}/yr |`;
+      return `| ${uc.cuId} | ${cc.deploymentModel ?? 'cloud_api'} | ${(cc.annualReps ?? 0).toLocaleString()} | ${fmtEur(cost)}/yr |`;
     })
-    .join("\n");
+    .join('\n');
 
   // ── POC section ─────────────────────────────────────────────────────────────
   const pocLines = pocs
@@ -387,26 +387,26 @@ ${ucLines || "  (none identified)"}`;
       const procRef = poc.processId?.procId ?? String(poc.processId);
       const milestones: any[] = poc.execution?.milestones ?? [];
       const doneMilestones = milestones.filter(
-        (m) => m.status === "done",
+        (m) => m.status === 'done',
       ).length;
       const progressStr =
         milestones.length > 0
           ? `${doneMilestones}/${milestones.length} milestones`
-          : "no milestones";
+          : 'no milestones';
       const lines = [
         `### ${poc.pocId} → UC: ${ucRef} | Process: ${procRef}`,
-        `Phase: ${poc.phase} | Decision: ${poc.decision?.decision ?? "pending"} | Progress: ${progressStr}`,
-        `Objective: ${poc.design?.measurableObjective ?? "—"}`,
+        `Phase: ${poc.phase} | Decision: ${poc.decision?.decision ?? 'pending'} | Progress: ${progressStr}`,
+        `Objective: ${poc.design?.measurableObjective ?? '—'}`,
         poc.design?.activeB2Restrictions
           ? `B2 restrictions: ${poc.design.activeB2Restrictions}`
-          : "",
+          : '',
       ];
-      if (poc.phase === "closed" || poc.evaluation?.resultsVsCriteria) {
+      if (poc.phase === 'closed' || poc.evaluation?.resultsVsCriteria) {
         lines.push(
-          `Results vs criteria: ${poc.evaluation?.resultsVsCriteria ?? "—"}`,
+          `Results vs criteria: ${poc.evaluation?.resultsVsCriteria ?? '—'}`,
         );
         lines.push(
-          `Technical lessons: ${poc.evaluation?.technicalLessons ?? "—"}`,
+          `Technical lessons: ${poc.evaluation?.technicalLessons ?? '—'}`,
         );
         lines.push(
           `Actual cost: ${fmtEur(poc.evaluation?.actualCostEur ?? 0)}`,
@@ -414,9 +414,9 @@ ${ucLines || "  (none identified)"}`;
         if (poc.decision?.justification)
           lines.push(`Decision rationale: ${poc.decision.justification}`);
       }
-      return lines.filter(Boolean).join("\n");
+      return lines.filter(Boolean).join('\n');
     })
-    .join("\n\n");
+    .join('\n\n');
 
   // ── Prompt ──────────────────────────────────────────────────────────────────
   return `You are a senior digital transformation consultant specialised in industrial AI for the defence, aerospace, naval, and railway sectors.
@@ -437,7 +437,7 @@ AUDIT DATA
 AUDIT METADATA:
 - Name: ${audit.name}
 - Client: ${audit.client}
-- Project: ${audit.project || "—"}
+- Project: ${audit.project || '—'}
 - Sector: ${audit.sector}
 - Period: ${fmt(audit.startDate)} → ${fmt(audit.targetEndDate)}
 
@@ -451,7 +451,7 @@ GLOBAL METRICS:
 - Estimated annual compute cost: ${fmtEur(totalComputeCostEur)}
 - Net annual saving: ${fmtEur(netAnnualSaving)}
 - Total development investment: ${fmtEur(totalDevCost)}
-- Overall payback: ${paybackMonths !== null ? `${paybackMonths} months` : "N/A"}
+- Overall payback: ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'}
 - Use cases requiring client IT approval: ${ucRequiresClientIT}
 - POCs: ${pocs.length} total | ${pocActive} active | ${pocClosed} closed | ${pocGo} with GO decision
 
@@ -475,7 +475,7 @@ USE CASE RANKING (ALL, ordered by score DESC)
 
 | ID | Description | AI Types | Score/30 | Category | Saving/yr | Dev Cost | Payback | Status |
 |----|-------------|----------|----------|----------|-----------|----------|---------|--------|
-${ucTableRows || "| — | No use cases | — | — | — | — | — | — | — |"}
+${ucTableRows || '| — | No use cases | — | — | — | — | — | — | — |'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 COMPUTE COST (eligible UCs only)
@@ -483,13 +483,13 @@ COMPUTE COST (eligible UCs only)
 
 | UC ID | Deployment | Annual Executions | Estimated Cost/yr |
 |-------|-----------|-------------------|-------------------|
-${computeTableRows || "| — | — | — | — |"}
+${computeTableRows || '| — | — | — | — |'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 POCS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-${pocLines || "No POCs recorded."}
+${pocLines || 'No POCs recorded.'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GENERATE THE REPORT WITH EXACTLY THESE 10 SECTIONS IN THIS ORDER:
@@ -572,7 +572,7 @@ For each blocked UC: reason for blockage and specific condition required to unbl
 | Annual compute cost | ${fmtEur(totalComputeCostEur)} |
 | Net annual saving | ${fmtEur(netAnnualSaving)} |
 | Total dev investment | ${fmtEur(totalDevCost)} |
-| Overall payback | ${paybackMonths !== null ? `${paybackMonths} months` : "N/A"} |
+| Overall payback | ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'} |
 
 5b. Reproduce the compute cost table (already computed — reproduce verbatim).
 
@@ -662,16 +662,16 @@ export async function GET(
     await dbConnect();
     const { auditId } = await params;
     const audit = (await Audit.findById(auditId)
-      .select("report")
+      .select('report')
       .lean()) as any;
     if (!audit)
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!audit.report?.markdown) return NextResponse.json({ exists: false });
     return NextResponse.json({ exists: true, report: audit.report });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -693,13 +693,13 @@ export async function POST(
       Process.find({ auditId }).lean(),
       UseCase.find({ auditId }).lean(),
       POC.find({ auditId })
-        .populate("useCaseId", "cuId description aiTypes")
-        .populate("processId", "procId name")
+        .populate('useCaseId', 'cuId description aiTypes')
+        .populate('processId', 'procId name')
         .lean(),
     ]);
 
     if (!audit)
-      return NextResponse.json({ error: "Audit not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
 
     const prompt = buildPrompt(
       audit,
@@ -710,22 +710,22 @@ export async function POST(
 
     if (!process.env.MISTRAL_API_KEY) {
       return NextResponse.json(
-        { error: "MISTRAL_API_KEY no configurada en .env.local" },
+        { error: 'MISTRAL_API_KEY no configurada en .env.local' },
         { status: 500 },
       );
     }
 
     const mistralRes = await fetch(
-      "https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions",
+      'https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions',
       {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "mistral-medium-latest",
-          messages: [{ role: "user", content: prompt }],
+          model: 'mistral-medium-latest',
+          messages: [{ role: 'user', content: prompt }],
           max_tokens: 6000,
           temperature: 0.2,
         }),
@@ -742,19 +742,19 @@ export async function POST(
 
     const mistralData = await mistralRes.json();
     const markdown = (mistralData.choices?.[0]?.message?.content ??
-      "") as string;
+      '') as string;
 
     await Audit.findByIdAndUpdate(auditId, {
-      "report.generatedAt": new Date(),
-      "report.model": "mistral-medium-latest",
-      "report.markdown": markdown,
+      'report.generatedAt': new Date(),
+      'report.model': 'mistral-medium-latest',
+      'report.markdown': markdown,
     });
 
-    return NextResponse.json({ markdown, model: "mistral-medium-latest" });
+    return NextResponse.json({ markdown, model: 'mistral-medium-latest' });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

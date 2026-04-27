@@ -1,9 +1,9 @@
-"use client";
-import { useState, useEffect } from "react";
-import { Settings, User, Lock, Info } from "lucide-react";
-import { toast } from "sonner";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
+'use client';
+import { useState, useEffect } from 'react';
+import { Settings, User, Lock, Info } from 'lucide-react';
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
 
 export default function SettingsPage() {
   const [user, setUser] = useState<{ name?: string; email?: string } | null>(
@@ -11,13 +11,13 @@ export default function SettingsPage() {
   );
   const [loading, setLoading] = useState(true);
   // password change state
-  const [currentPwd, setCurrentPwd] = useState("");
-  const [newPwd, setNewPwd] = useState("");
-  const [confirmPwd, setConfirmPwd] = useState("");
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(apiUrl("/api/auth/me"), { credentials: "include" })
+    fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         setUser(data);
@@ -29,19 +29,19 @@ export default function SettingsPage() {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPwd !== confirmPwd) {
-      toast.error("Passwords do not match");
+      toast.error('Passwords do not match');
       return;
     }
     if (newPwd.length < 8) {
-      toast.error("Password must be at least 8 characters");
+      toast.error('Password must be at least 8 characters');
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(apiUrl("/api/auth/me"), {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(apiUrl('/api/auth/me'), {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentPassword: currentPwd,
           newPassword: newPwd,
@@ -49,12 +49,12 @@ export default function SettingsPage() {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error ?? "Failed");
+        throw new Error(d.error ?? 'Failed');
       }
-      toast.success("Password updated");
-      setCurrentPwd("");
-      setNewPwd("");
-      setConfirmPwd("");
+      toast.success('Password updated');
+      setCurrentPwd('');
+      setNewPwd('');
+      setConfirmPwd('');
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -88,11 +88,11 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="form-label">Name</label>
-            <input className="form-input" value={user?.name ?? ""} readOnly />
+            <input className="form-input" value={user?.name ?? ''} readOnly />
           </div>
           <div>
             <label className="form-label">Email</label>
-            <input className="form-input" value={user?.email ?? ""} readOnly />
+            <input className="form-input" value={user?.email ?? ''} readOnly />
           </div>
         </div>
         <p className="text-xs text-muted">
@@ -138,7 +138,7 @@ export default function SettingsPage() {
             />
           </div>
           <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? "Saving…" : "Update Password"}
+            {saving ? 'Saving…' : 'Update Password'}
           </button>
         </form>
       </div>

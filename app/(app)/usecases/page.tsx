@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { X, TrendingUp, AlertTriangle, Pencil } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { apiUrl } from "@/lib/utils";
-import { AI_TYPE_LABELS } from "@/lib/types";
-import type { AIType, UseCaseStatus } from "@/lib/types";
-import { calculateScore } from "@/lib/calculations";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { X, TrendingUp, AlertTriangle, Pencil } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { apiUrl } from '@/lib/utils';
+import { AI_TYPE_LABELS } from '@/lib/types';
+import type { AIType, UseCaseStatus } from '@/lib/types';
+import { calculateScore } from '@/lib/calculations';
 
 interface ProcessData {
   b1Profiles: {
@@ -59,33 +59,33 @@ interface GlobalUseCase {
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
-  d1_efficiencyImpact: "Efficiency Impact",
-  d2_qualityImpact: "Quality Impact",
-  d3_techMaturity: "Tech Maturity",
-  d4_dataReadiness: "Data Readiness",
-  d5_sovereigntyIndex: "Sovereignty Index",
-  d6_governanceComplexity: "Governance Complexity",
+  d1_efficiencyImpact: 'Efficiency Impact',
+  d2_qualityImpact: 'Quality Impact',
+  d3_techMaturity: 'Tech Maturity',
+  d4_dataReadiness: 'Data Readiness',
+  d5_sovereigntyIndex: 'Sovereignty Index',
+  d6_governanceComplexity: 'Governance Complexity',
 };
 
-const STATUS_VARIANTS: Record<UseCaseStatus, "green" | "red" | "amber"> = {
-  eligible: "green",
-  blocked: "red",
-  pending_review: "amber",
+const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'red' | 'amber'> = {
+  eligible: 'green',
+  blocked: 'red',
+  pending_review: 'amber',
 };
 
 const AI_TYPE_COLORS: Record<
   AIType,
-  "purple" | "blue" | "teal" | "amber" | "green" | "slate"
+  'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'
 > = {
-  generative_llm: "purple",
-  extraction_nlp: "blue",
-  classification_ml: "teal",
-  rag: "blue",
-  validation: "amber",
-  prediction: "green",
-  intelligent_automation: "teal",
-  agentic_ai: "purple",
-  other: "slate",
+  generative_llm: 'purple',
+  extraction_nlp: 'blue',
+  classification_ml: 'teal',
+  rag: 'blue',
+  validation: 'amber',
+  prediction: 'green',
+  intelligent_automation: 'teal',
+  agentic_ai: 'purple',
+  other: 'slate',
 };
 
 function fmt(n: number) {
@@ -133,7 +133,7 @@ function ScoreBar({ value }: { value: number }) {
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
-            className={`w-4 h-2 rounded-sm ${i <= value ? "bg-blue-aria" : "bg-slate-200"}`}
+            className={`w-4 h-2 rounded-sm ${i <= value ? 'bg-blue-aria' : 'bg-slate-200'}`}
           />
         ))}
       </div>
@@ -178,23 +178,23 @@ function UCSlideOver({
               {uc.cuId}
             </span>
             <Badge variant={STATUS_VARIANTS[uc.status]}>
-              {uc.status.replace("_", " ")}
+              {uc.status.replace('_', ' ')}
             </Badge>
             {total !== null && (
               <Badge
                 variant={
-                  cat === "quick_win"
-                    ? "green"
-                    : cat === "mid_term"
-                      ? "amber"
-                      : "blue"
+                  cat === 'quick_win'
+                    ? 'green'
+                    : cat === 'mid_term'
+                      ? 'amber'
+                      : 'blue'
                 }
               >
-                {cat === "quick_win"
-                  ? "Quick Win"
-                  : cat === "mid_term"
-                    ? "Mid-term"
-                    : "Strategic"}
+                {cat === 'quick_win'
+                  ? 'Quick Win'
+                  : cat === 'mid_term'
+                    ? 'Mid-term'
+                    : 'Strategic'}
               </Badge>
             )}
           </div>
@@ -263,7 +263,7 @@ function UCSlideOver({
                 Process
               </p>
               <span className="text-xs text-text">
-                {uc.process ? `${uc.process.procId} · ${uc.process.name}` : "—"}
+                {uc.process ? `${uc.process.procId} · ${uc.process.name}` : '—'}
               </span>
             </div>
           </div>
@@ -367,7 +367,7 @@ function UCSlideOver({
               </div>
               {/* Process context */}
               <div className="mt-2 text-[10px] text-muted bg-slate-50 rounded-sm px-3 py-2 border border-border">
-                Process: {pd!.totalProcessHoursPerRun}h/run ·{" "}
+                Process: {pd!.totalProcessHoursPerRun}h/run ·{' '}
                 {pd!.annualRepetitions} runs/yr · Avg rate €
                 {Math.round(roi.avgRate)}/h
               </div>
@@ -416,7 +416,7 @@ function UCSlideOver({
           )}
 
           {/* Blocked info */}
-          {uc.status === "blocked" &&
+          {uc.status === 'blocked' &&
             (uc.blockedReason || uc.unblockCondition) && (
               <div className="rounded-sm bg-red-50 border border-red-200 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-red-700">
@@ -464,12 +464,12 @@ function UCSlideOver({
 export default function GlobalUseCasesPage() {
   const [useCases, setUseCases] = useState<GlobalUseCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | UseCaseStatus>("all");
-  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<'all' | UseCaseStatus>('all');
+  const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<GlobalUseCase | null>(null);
 
   useEffect(() => {
-    fetch(apiUrl("/api/usecases"), { credentials: "include" })
+    fetch(apiUrl('/api/usecases'), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         setUseCases(Array.isArray(data) ? data : []);
@@ -479,14 +479,14 @@ export default function GlobalUseCasesPage() {
   }, []);
 
   const filtered = useCases.filter((uc) => {
-    if (filter !== "all" && uc.status !== filter) return false;
+    if (filter !== 'all' && uc.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
         uc.description.toLowerCase().includes(q) ||
         uc.cuId.toLowerCase().includes(q) ||
-        (uc.audit?.name ?? "").toLowerCase().includes(q) ||
-        (uc.process?.name ?? "").toLowerCase().includes(q)
+        (uc.audit?.name ?? '').toLowerCase().includes(q) ||
+        (uc.process?.name ?? '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -494,9 +494,9 @@ export default function GlobalUseCasesPage() {
 
   const counts = {
     all: useCases.length,
-    eligible: useCases.filter((u) => u.status === "eligible").length,
-    blocked: useCases.filter((u) => u.status === "blocked").length,
-    pending_review: useCases.filter((u) => u.status === "pending_review")
+    eligible: useCases.filter((u) => u.status === 'eligible').length,
+    blocked: useCases.filter((u) => u.status === 'blocked').length,
+    pending_review: useCases.filter((u) => u.status === 'pending_review')
       .length,
   };
 
@@ -524,18 +524,18 @@ export default function GlobalUseCasesPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
-          {(["all", "eligible", "blocked", "pending_review"] as const).map(
+          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
             (f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${
                   filter === f
-                    ? "bg-blue-aria text-white"
-                    : "text-muted hover:text-text"
+                    ? 'bg-blue-aria text-white'
+                    : 'text-muted hover:text-text'
                 }`}
               >
-                {f === "pending_review" ? "Pending" : f} ({counts[f]})
+                {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
               </button>
             ),
           )}
@@ -560,16 +560,16 @@ export default function GlobalUseCasesPage() {
             <thead>
               <tr className="border-b border-border bg-slate-50">
                 {[
-                  "ID",
-                  "Description",
-                  "Audit / Process",
-                  "Client",
-                  "AI Types",
-                  "People",
-                  "Score",
-                  "Category",
-                  "Status",
-                  "ROI",
+                  'ID',
+                  'Description',
+                  'Audit / Process',
+                  'Client',
+                  'AI Types',
+                  'People',
+                  'Score',
+                  'Category',
+                  'Status',
+                  'ROI',
                 ].map((h) => (
                   <th
                     key={h}
@@ -619,7 +619,7 @@ export default function GlobalUseCasesPage() {
                           {uc.audit.name}
                         </Link>
                       ) : (
-                        "—"
+                        '—'
                       )}
                       {uc.process && (
                         <span className="text-muted">
@@ -628,7 +628,7 @@ export default function GlobalUseCasesPage() {
                       )}
                     </td>
                     <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">
-                      {uc.audit?.client ?? "—"}
+                      {uc.audit?.client ?? '—'}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex flex-wrap gap-1">
@@ -661,11 +661,11 @@ export default function GlobalUseCasesPage() {
                       {total !== null ? (
                         <Badge
                           variant={
-                            cat === "quick_win"
-                              ? "green"
-                              : cat === "mid_term"
-                                ? "amber"
-                                : "blue"
+                            cat === 'quick_win'
+                              ? 'green'
+                              : cat === 'mid_term'
+                                ? 'amber'
+                                : 'blue'
                           }
                         >
                           {cat}
@@ -676,7 +676,7 @@ export default function GlobalUseCasesPage() {
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant={STATUS_VARIANTS[uc.status]}>
-                        {uc.status.replace("_", " ")}
+                        {uc.status.replace('_', ' ')}
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-xs whitespace-nowrap">

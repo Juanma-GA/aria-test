@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Audit, Process, UseCase, POC, Roadmap } from "@/lib/models";
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import { Audit, Process, UseCase, POC, Roadmap } from '@/lib/models';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
   const vals = (Object.values(b2.axes) as any[])
     .map((a) =>
-      a.status === "green"
+      a.status === 'green'
         ? 5
-        : a.status === "amber"
+        : a.status === 'amber'
           ? 3
-          : a.status === "red"
+          : a.status === 'red'
             ? 1
             : null,
     )
@@ -28,11 +28,11 @@ export async function GET(
     const { auditId } = await params;
 
     const audit = await Audit.findById(auditId)
-      .populate("leadConsultant", "name")
+      .populate('leadConsultant', 'name')
       .lean();
 
     if (!audit) {
-      return NextResponse.json({ error: "Audit not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
     }
 
     const [processCount, useCaseCount, pocCount, processes, allUseCases] =
@@ -41,7 +41,7 @@ export async function GET(
         UseCase.countDocuments({ auditId }),
         POC.countDocuments({ auditId }),
         Process.find({ auditId }).lean(),
-        UseCase.find({ auditId, status: "eligible" }).lean(),
+        UseCase.find({ auditId, status: 'eligible' }).lean(),
       ]);
 
     const ucByProcess: Record<string, any[]> = {};
@@ -151,9 +151,9 @@ export async function GET(
       processes: processesWithMetrics,
     });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -197,14 +197,14 @@ export async function PATCH(
     }).lean();
 
     if (!audit) {
-      return NextResponse.json({ error: "Audit not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
     }
 
     return NextResponse.json(audit);
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }
@@ -217,18 +217,18 @@ export async function DELETE(
   try {
     await dbConnect();
     const { auditId } = await params;
-    const userRole = req.headers.get("x-user-role");
+    const userRole = req.headers.get('x-user-role');
 
-    if (userRole !== "admin") {
+    if (userRole !== 'admin') {
       return NextResponse.json(
-        { error: "Forbidden: admin only" },
+        { error: 'Forbidden: admin only' },
         { status: 403 },
       );
     }
 
     const audit = await Audit.findById(auditId);
     if (!audit) {
-      return NextResponse.json({ error: "Audit not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
     }
 
     await Promise.all([
@@ -239,11 +239,11 @@ export async function DELETE(
     ]);
     await Audit.findByIdAndDelete(auditId);
 
-    return NextResponse.json({ message: "Audit deleted successfully" });
+    return NextResponse.json({ message: 'Audit deleted successfully' });
   } catch (err) {
-    console.error("[API]", err);
+    console.error('[API]', err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

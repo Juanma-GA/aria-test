@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ChevronDown,
   ChevronUp,
@@ -11,100 +11,100 @@ import {
   Info,
   Plus,
   X,
-} from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { SaveIndicator } from "@/components/ui/SaveIndicator";
-import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { calculateSovereigntyIndex } from "@/lib/calculations";
-import { apiUrl } from "@/lib/utils";
+} from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { SaveIndicator } from '@/components/ui/SaveIndicator';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { calculateSovereigntyIndex } from '@/lib/calculations';
+import { apiUrl } from '@/lib/utils';
 import type {
   B2_Sovereignty,
   SovereigntyAxis,
   SovereigntyStatus,
   SovereigntyLevel,
   InfraMode,
-} from "@/lib/types";
+} from '@/lib/types';
 
 const AXIS_LABELS = [
   {
-    key: "axis1_InfoClassification",
-    label: "Axis 1 — Information Classification",
+    key: 'axis1_InfoClassification',
+    label: 'Axis 1 — Information Classification',
     description:
-      "What is the classification level of the data involved in this process?",
+      'What is the classification level of the data involved in this process?',
     colors: {
-      green: "Unclassified or public data — no restrictions on AI processing.",
+      green: 'Unclassified or public data — no restrictions on AI processing.',
       amber:
-        "Internal or confidential — AI usable with controlled access and audit trail.",
-      red: "Secret, ITAR/EAR, or NATO-classified — AI deployment requires explicit security clearance and will need to work within client-defined conditions.",
+        'Internal or confidential — AI usable with controlled access and audit trail.',
+      red: 'Secret, ITAR/EAR, or NATO-classified — AI deployment requires explicit security clearance and will need to work within client-defined conditions.',
     },
   },
   {
-    key: "axis2_ProcessSovereignty",
-    label: "Axis 2 — Process Sovereignty",
+    key: 'axis2_ProcessSovereignty',
+    label: 'Axis 2 — Process Sovereignty',
     description:
-      "Who owns and controls the execution and outcomes of this process?",
+      'Who owns and controls the execution and outcomes of this process?',
     colors: {
       green:
-        "Atexis fully controls process execution — AI can be deployed freely.",
+        'Atexis fully controls process execution — AI can be deployed freely.',
       amber:
-        "Process is shared or partially outsourced — AI requires contractual alignment.",
-      red: "Client or third party owns/controls the process — AI deployment will need to operate under conditions defined by the client.",
+        'Process is shared or partially outsourced — AI requires contractual alignment.',
+      red: 'Client or third party owns/controls the process — AI deployment will need to operate under conditions defined by the client.',
     },
   },
   {
-    key: "axis3_ToolSovereignty",
-    label: "Axis 3 — Tool Sovereignty",
-    description: "Do we control the tools used and their licensing terms?",
+    key: 'axis3_ToolSovereignty',
+    label: 'Axis 3 — Tool Sovereignty',
+    description: 'Do we control the tools used and their licensing terms?',
     colors: {
       green:
-        "Tools and licenses are under Atexis control — AI add-ons can be deployed freely.",
+        'Tools and licenses are under Atexis control — AI add-ons can be deployed freely.',
       amber:
-        "Commercial tools with limited licensing — AI add-ons need vendor or client approval.",
-      red: "Proprietary or client-controlled tools — AI integration will require working within the conditions the client allows.",
+        'Commercial tools with limited licensing — AI add-ons need vendor or client approval.',
+      red: 'Proprietary or client-controlled tools — AI integration will require working within the conditions the client allows.',
     },
   },
   {
-    key: "axis4_DataSovereignty",
-    label: "Axis 4 — Data Sovereignty",
-    description: "Who owns the data used for training or operation of AI?",
+    key: 'axis4_DataSovereignty',
+    label: 'Axis 4 — Data Sovereignty',
+    description: 'Who owns the data used for training or operation of AI?',
     colors: {
       green:
-        "Atexis controls all data and can use it for AI training and inference.",
+        'Atexis controls all data and can use it for AI training and inference.',
       amber:
-        "Shared data ownership — AI usage rights must be clarified contractually.",
-      red: "Client or third party owns key data — AI training or inference must be done within legally agreed conditions.",
+        'Shared data ownership — AI usage rights must be clarified contractually.',
+      red: 'Client or third party owns key data — AI training or inference must be done within legally agreed conditions.',
     },
   },
   {
-    key: "axis5_Infrastructure",
-    label: "Axis 5 — Infrastructure",
+    key: 'axis5_Infrastructure',
+    label: 'Axis 5 — Infrastructure',
     description:
-      "Where does the processing take place, and under whose control?",
+      'Where does the processing take place, and under whose control?',
     colors: {
-      green: "Atexis on-premise or Atexis cloud — full processing control.",
+      green: 'Atexis on-premise or Atexis cloud — full processing control.',
       amber:
-        "Hybrid or client-managed cloud — data residency must be contractually guaranteed.",
-      red: "Client on-premise/on-site or uncontrolled cloud — all AI steps will need to be executed under conditions specified by the client.",
+        'Hybrid or client-managed cloud — data residency must be contractually guaranteed.',
+      red: 'Client on-premise/on-site or uncontrolled cloud — all AI steps will need to be executed under conditions specified by the client.',
     },
   },
 ] as const;
 
 const NORMATIVE_PRESETS = [
-  "ISO 27001",
-  "ENS",
-  "NIST SP 800",
-  "ITAR/EAR",
-  "NATO STANAG",
-  "GDPR",
-  "NIS2",
+  'ISO 27001',
+  'ENS',
+  'NIST SP 800',
+  'ITAR/EAR',
+  'NATO STANAG',
+  'GDPR',
+  'NIS2',
 ];
 const INFRA_OPTIONS: { value: InfraMode; label: string }[] = [
-  { value: "client_onpremise", label: "Client on-premise / on-site" },
-  { value: "client_cloud", label: "Client cloud" },
-  { value: "atexis_onpremise", label: "Atexis on-premise" },
-  { value: "atexis_cloud", label: "Atexis cloud" },
-  { value: "hybrid", label: "Hybrid" },
+  { value: 'client_onpremise', label: 'Client on-premise / on-site' },
+  { value: 'client_cloud', label: 'Client cloud' },
+  { value: 'atexis_onpremise', label: 'Atexis on-premise' },
+  { value: 'atexis_cloud', label: 'Atexis cloud' },
+  { value: 'hybrid', label: 'Hybrid' },
 ];
 
 const LEVEL_CONFIG: Record<
@@ -112,52 +112,52 @@ const LEVEL_CONFIG: Record<
   { label: string; range: string; bg: string; text: string; bgLight: string }
 > = {
   full_autonomy: {
-    label: "Full Autonomy",
-    range: "≥ 4.5",
-    bg: "bg-emerald-700",
-    text: "text-emerald-700",
-    bgLight: "bg-emerald-50",
+    label: 'Full Autonomy',
+    range: '≥ 4.5',
+    bg: 'bg-emerald-700',
+    text: 'text-emerald-700',
+    bgLight: 'bg-emerald-50',
   },
   managed: {
-    label: "Managed",
-    range: "3.5 – 4.4",
-    bg: "bg-green-600",
-    text: "text-green-700",
-    bgLight: "bg-green-50",
+    label: 'Managed',
+    range: '3.5 – 4.4',
+    bg: 'bg-green-600',
+    text: 'text-green-700',
+    bgLight: 'bg-green-50',
   },
   conditioned: {
-    label: "Conditioned",
-    range: "2.5 – 3.4",
-    bg: "bg-amber-500",
-    text: "text-amber-700",
-    bgLight: "bg-amber-50",
+    label: 'Conditioned',
+    range: '2.5 – 3.4',
+    bg: 'bg-amber-500',
+    text: 'text-amber-700',
+    bgLight: 'bg-amber-50',
   },
   restricted: {
-    label: "Restricted",
-    range: "1.5 – 2.4",
-    bg: "bg-orange-500",
-    text: "text-orange-700",
-    bgLight: "bg-orange-50",
+    label: 'Restricted',
+    range: '1.5 – 2.4',
+    bg: 'bg-orange-500',
+    text: 'text-orange-700',
+    bgLight: 'bg-orange-50',
   },
   critical: {
-    label: "Critical",
-    range: "< 1.5",
-    bg: "bg-red-600",
-    text: "text-red-700",
-    bgLight: "bg-red-50",
+    label: 'Critical',
+    range: '< 1.5',
+    bg: 'bg-red-600',
+    text: 'text-red-700',
+    bgLight: 'bg-red-50',
   },
 };
 
 function emptyAxis(): SovereigntyAxis {
   return {
-    status: "amber" as SovereigntyStatus,
-    findings: "",
-    implications: "",
+    status: 'amber' as SovereigntyStatus,
+    findings: '',
+    implications: '',
     normativeFrameworks: [],
   };
 }
 
-function emptyAxes(): B2_Sovereignty["axes"] {
+function emptyAxes(): B2_Sovereignty['axes'] {
   return {
     axis1_InfoClassification: emptyAxis(),
     axis2_ProcessSovereignty: emptyAxis(),
@@ -171,7 +171,7 @@ function SovereigntyPanel({
   axes,
   className,
 }: {
-  axes: B2_Sovereignty["axes"];
+  axes: B2_Sovereignty['axes'];
   className?: string;
 }) {
   const result = calculateSovereigntyIndex(axes);
@@ -185,7 +185,7 @@ function SovereigntyPanel({
       </h3>
       <div className={`rounded-md p-4 text-center ${cfg.bg} text-white`}>
         <div className="text-4xl font-display font-bold">
-          {result.index > 0 ? result.index.toFixed(1) : "—"}
+          {result.index > 0 ? result.index.toFixed(1) : '—'}
         </div>
         <div className="text-xs mt-1 opacity-80">out of 5.0</div>
         <div className="text-sm font-semibold mt-1">{cfg.label}</div>
@@ -202,13 +202,13 @@ function SovereigntyPanel({
           return (
             <div
               key={lvl}
-              className={`flex items-center justify-between px-2 py-1 rounded ${active ? c.bgLight : ""}`}
+              className={`flex items-center justify-between px-2 py-1 rounded ${active ? c.bgLight : ''}`}
             >
               <span className="font-mono text-[10px] text-muted">
                 {c.range}
               </span>
               <span
-                className={`font-semibold ${active ? c.text : "text-muted"}`}
+                className={`font-semibold ${active ? c.text : 'text-muted'}`}
               >
                 {c.label}
               </span>
@@ -222,11 +222,11 @@ function SovereigntyPanel({
         {axisKeys.map((k, i) => {
           const axis = axes[k];
           const dot =
-            axis.status === "green"
-              ? "bg-green-sov"
-              : axis.status === "red"
-                ? "bg-red-sov"
-                : "bg-amber-sov";
+            axis.status === 'green'
+              ? 'bg-green-sov'
+              : axis.status === 'red'
+                ? 'bg-red-sov'
+                : 'bg-amber-sov';
           return (
             <div key={k} className="flex items-center gap-2 text-xs">
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
@@ -260,7 +260,7 @@ function FrameworkSelector({
   selected: string[];
   onChange: (frameworks: string[]) => void;
 }) {
-  const [customInput, setCustomInput] = useState("");
+  const [customInput, setCustomInput] = useState('');
 
   const toggle = (norm: string) => {
     const next = selected.includes(norm)
@@ -273,7 +273,7 @@ function FrameworkSelector({
     const trimmed = customInput.trim();
     if (!trimmed || selected.includes(trimmed)) return;
     onChange([...selected, trimmed]);
-    setCustomInput("");
+    setCustomInput('');
   };
 
   const remove = (norm: string) => onChange(selected.filter((n) => n !== norm));
@@ -292,8 +292,8 @@ function FrameworkSelector({
               onClick={() => toggle(norm)}
               className={`text-xs px-3 py-1 rounded border transition-colors ${
                 active
-                  ? "bg-blue-aria text-white border-blue-aria"
-                  : "border-border text-muted hover:border-blue-aria"
+                  ? 'bg-blue-aria text-white border-blue-aria'
+                  : 'border-border text-muted hover:border-blue-aria'
               }`}
             >
               {norm}
@@ -309,7 +309,7 @@ function FrameworkSelector({
           value={customInput}
           onChange={(e) => setCustomInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === 'Enter') {
               e.preventDefault();
               addCustom();
             }
@@ -352,11 +352,11 @@ export default function B2Page() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">(
-    "saved",
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>(
+    'saved',
   );
-  const [processName, setProcessName] = useState("");
-  const [axes, setAxes] = useState<B2_Sovereignty["axes"]>(emptyAxes());
+  const [processName, setProcessName] = useState('');
+  const [axes, setAxes] = useState<B2_Sovereignty['axes']>(emptyAxes());
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     axis1_InfoClassification: true,
   });
@@ -364,25 +364,25 @@ export default function B2Page() {
     open: boolean;
     axisKey: string;
     newStatus: SovereigntyStatus;
-  }>({ open: false, axisKey: "", newStatus: "red" });
+  }>({ open: false, axisKey: '', newStatus: 'red' });
   const saveRef = useRef(axes);
 
   useEffect(() => {
     fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-      credentials: "include",
+      credentials: 'include',
     })
       .then((r) => r.json())
       .then((data) => {
-        setProcessName(data.name || "");
+        setProcessName(data.name || '');
         if (data.b2?.axes) {
           // Migrate legacy normativeFramework string to normativeFrameworks array
-          const migratedAxes: B2_Sovereignty["axes"] =
-            {} as B2_Sovereignty["axes"];
+          const migratedAxes: B2_Sovereignty['axes'] =
+            {} as B2_Sovereignty['axes'];
           for (const [k, axis] of Object.entries(data.b2.axes)) {
             const a = axis as any;
             let frameworks: string[] = a.normativeFrameworks || [];
             if (!frameworks.length && a.normativeFramework) {
-              frameworks = a.normativeFramework.split(", ").filter(Boolean);
+              frameworks = a.normativeFramework.split(', ').filter(Boolean);
             }
             (migratedAxes as any)[k] = {
               ...a,
@@ -397,18 +397,18 @@ export default function B2Page() {
   }, [auditId, procId]);
 
   const saveAxes = useCallback(
-    async (updatedAxes: B2_Sovereignty["axes"]) => {
-      setSaveStatus("saving");
+    async (updatedAxes: B2_Sovereignty['axes']) => {
+      setSaveStatus('saving');
       try {
         await fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}/b2`), {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ axes: updatedAxes }),
         });
-        setSaveStatus("saved");
+        setSaveStatus('saved');
       } catch {
-        setSaveStatus("unsaved");
+        setSaveStatus('unsaved');
       }
     },
     [auditId, procId],
@@ -425,10 +425,10 @@ export default function B2Page() {
     };
     setAxes(next);
     saveRef.current = next;
-    setSaveStatus("unsaved");
+    setSaveStatus('unsaved');
 
-    if (field === "status" && value === "red") {
-      setConfirmModal({ open: true, axisKey, newStatus: "red" });
+    if (field === 'status' && value === 'red') {
+      setConfirmModal({ open: true, axisKey, newStatus: 'red' });
     } else {
       saveAxes(next);
     }
@@ -436,7 +436,7 @@ export default function B2Page() {
 
   const handleConfirmRed = async () => {
     await saveAxes(saveRef.current);
-    setConfirmModal({ open: false, axisKey: "", newStatus: "red" });
+    setConfirmModal({ open: false, axisKey: '', newStatus: 'red' });
   };
 
   const handleCancelRed = () => {
@@ -444,11 +444,11 @@ export default function B2Page() {
       ...axes,
       [confirmModal.axisKey]: {
         ...axes[confirmModal.axisKey as keyof typeof axes],
-        status: "amber" as SovereigntyStatus,
+        status: 'amber' as SovereigntyStatus,
       },
     };
     setAxes(reverted);
-    setConfirmModal({ open: false, axisKey: "", newStatus: "red" });
+    setConfirmModal({ open: false, axisKey: '', newStatus: 'red' });
   };
 
   const isComplete = AXIS_LABELS.every(({ key }) => {
@@ -496,11 +496,11 @@ export default function B2Page() {
             const axis = axes[key];
             const isOpen = expanded[key];
             const statusColor =
-              axis.status === "green"
-                ? "border-green-sov bg-green-sov-light"
-                : axis.status === "red"
-                  ? "border-red-sov bg-red-sov-light"
-                  : "border-amber-sov bg-amber-sov-light";
+              axis.status === 'green'
+                ? 'border-green-sov bg-green-sov-light'
+                : axis.status === 'red'
+                  ? 'border-red-sov bg-red-sov-light'
+                  : 'border-amber-sov bg-amber-sov-light';
 
             return (
               <div key={key} className={`card border-l-4 ${statusColor}`}>
@@ -511,7 +511,7 @@ export default function B2Page() {
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`w-3 h-3 rounded-full flex-shrink-0 ${axis.status === "green" ? "bg-green-sov" : axis.status === "red" ? "bg-red-sov" : "bg-amber-sov"}`}
+                      className={`w-3 h-3 rounded-full flex-shrink-0 ${axis.status === 'green' ? 'bg-green-sov' : axis.status === 'red' ? 'bg-red-sov' : 'bg-amber-sov'}`}
                     />
                     <span className="font-semibold text-sm">{label}</span>
                     {axis.findings && (
@@ -536,31 +536,31 @@ export default function B2Page() {
                     <div>
                       <label className="form-label">Status</label>
                       <div className="flex gap-3 mt-1 flex-wrap">
-                        {(["green", "amber", "red"] as SovereigntyStatus[]).map(
+                        {(['green', 'amber', 'red'] as SovereigntyStatus[]).map(
                           (s) => {
                             const active = axis.status === s;
                             const colours: Record<string, string> = {
                               green: active
-                                ? "bg-green-sov text-white border-green-sov"
-                                : "border-green-sov text-green-sov hover:bg-green-sov-light",
+                                ? 'bg-green-sov text-white border-green-sov'
+                                : 'border-green-sov text-green-sov hover:bg-green-sov-light',
                               amber: active
-                                ? "bg-amber-sov text-white border-amber-sov"
-                                : "border-amber-sov text-amber-sov hover:bg-amber-sov-light",
+                                ? 'bg-amber-sov text-white border-amber-sov'
+                                : 'border-amber-sov text-amber-sov hover:bg-amber-sov-light',
                               red: active
-                                ? "bg-red-sov text-white border-red-sov"
-                                : "border-red-sov text-red-sov hover:bg-red-sov-light",
+                                ? 'bg-red-sov text-white border-red-sov'
+                                : 'border-red-sov text-red-sov hover:bg-red-sov-light',
                             };
                             return (
                               <button
                                 key={s}
-                                onClick={() => updateAxis(key, "status", s)}
+                                onClick={() => updateAxis(key, 'status', s)}
                                 className={`px-5 py-2 rounded border-2 font-semibold text-sm transition-colors capitalize ${colours[s]}`}
                               >
-                                {s === "green"
-                                  ? "● Green"
-                                  : s === "amber"
-                                    ? "● Amber"
-                                    : "● Red"}
+                                {s === 'green'
+                                  ? '● Green'
+                                  : s === 'amber'
+                                    ? '● Amber'
+                                    : '● Red'}
                               </button>
                             );
                           },
@@ -569,11 +569,11 @@ export default function B2Page() {
                       {/* Contextual tooltip */}
                       <div
                         className={`mt-2 p-2 rounded text-xs flex items-start gap-1.5 ${
-                          axis.status === "green"
-                            ? "bg-green-sov-light text-green-700"
-                            : axis.status === "red"
-                              ? "bg-red-sov-light text-red-700"
-                              : "bg-amber-sov-light text-amber-700"
+                          axis.status === 'green'
+                            ? 'bg-green-sov-light text-green-700'
+                            : axis.status === 'red'
+                              ? 'bg-red-sov-light text-red-700'
+                              : 'bg-amber-sov-light text-amber-700'
                         }`}
                       >
                         <Info size={12} className="flex-shrink-0 mt-0.5" />
@@ -582,29 +582,29 @@ export default function B2Page() {
                     </div>
 
                     {/* Normative frameworks — only applicable to Info Classification axis */}
-                    {key === "axis1_InfoClassification" && (
+                    {key === 'axis1_InfoClassification' && (
                       <FrameworkSelector
                         axisKey={key}
                         selected={axis.normativeFrameworks ?? []}
                         onChange={(v) =>
-                          updateAxis(key, "normativeFrameworks", v)
+                          updateAxis(key, 'normativeFrameworks', v)
                         }
                       />
                     )}
 
                     {/* Axis 5 extra: infra mode */}
-                    {key === "axis5_Infrastructure" && (
+                    {key === 'axis5_Infrastructure' && (
                       <div>
                         <label className="form-label">
                           Infrastructure Mode
                         </label>
                         <select
                           className="form-input"
-                          value={axis.infrastructureMode || ""}
+                          value={axis.infrastructureMode || ''}
                           onChange={(e) =>
                             updateAxis(
                               key,
-                              "infrastructureMode",
+                              'infrastructureMode',
                               e.target.value,
                             )
                           }
@@ -628,7 +628,7 @@ export default function B2Page() {
                           placeholder="What was found in this audit for this axis…"
                           value={axis.findings}
                           onChange={(e) =>
-                            updateAxis(key, "findings", e.target.value)
+                            updateAxis(key, 'findings', e.target.value)
                           }
                         />
                       </div>
@@ -640,7 +640,7 @@ export default function B2Page() {
                           placeholder="What does this mean for AI deployment…"
                           value={axis.implications}
                           onChange={(e) =>
-                            updateAxis(key, "implications", e.target.value)
+                            updateAxis(key, 'implications', e.target.value)
                           }
                         />
                       </div>
