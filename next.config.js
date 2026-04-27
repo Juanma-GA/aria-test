@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/Customizations/Aria',
+  basePath: process.env.NODE_ENV === 'production' ? '/Customizations/Aria' : '',
   typescript: {
     ignoreBuildErrors: true,
   },
