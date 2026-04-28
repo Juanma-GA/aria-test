@@ -1559,7 +1559,9 @@ function SlideOver({
                   setAnalyzingSOV(true);
                   try {
                     const res = await fetch(
-                      `/api/audits/${auditId}/processes/${processId}/ai/sovereignty-analysis`,
+                      apiUrl(
+                        `/api/audits/${auditId}/processes/${processId}/ai/sovereignty-analysis`,
+                      ),
                       {
                         method: 'POST',
                         credentials: 'include',
@@ -2111,7 +2113,7 @@ export default function B5Page() {
                   setSelectedSuggestions(new Set());
                   try {
                     const res = await fetch(
-                      `/api/audits/${auditId}/ai/suggest-usecases`,
+                      apiUrl(`/api/audits/${auditId}/ai/suggest-usecases`),
                       {
                         method: 'POST',
                         credentials: 'include',
