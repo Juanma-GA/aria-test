@@ -7,13 +7,10 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Get the basePath for API calls - works with IIS deployment
- * Extracts '/Customizations/Aria' from current URL if present
+ * Uses NEXT_PUBLIC_BASE_PATH from .env.local (dev) or .env.production.local (prod)
  */
 export function getBasePath(): string {
-  if (typeof window === 'undefined') return '';
-  const pathname = window.location.pathname;
-  const match = pathname.match(/^\/Customizations\/Aria/);
-  return match ? match[0] : '';
+  return process.env.NEXT_PUBLIC_BASE_PATH || '';
 }
 
 /**

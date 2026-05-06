@@ -11,10 +11,12 @@ import {
   TrendingUp,
   Archive,
   Trash2,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { TagInput } from '@/components/ui/TagInput';
 import { BlockProgressBar } from '@/components/layout/BlockProgressBar';
 import { apiUrl } from '@/lib/utils';
 import type {
@@ -171,6 +173,25 @@ export default function AuditPage() {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Duplicate modal
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateForm, setDuplicateForm] = useState({
+    name: '',
+    client: '',
+    project: '',
+    sector: 'aerospace' as SectorType,
+    startDate: '',
+    targetEndDate: '',
+    processName: '',
+    department: '',
+    responsible: '',
+    applicableNorms: [] as string[],
+    priority: 'medium' as Priority,
+  });
+  const [savingDuplicate, setSavingDuplicate] = useState(false);
+  const [loadingDuplicate, setLoadingDuplicate] = useState(false);
+  const [loadingProcess, setLoadingProcess] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -275,6 +296,100 @@ export default function AuditPage() {
     }
   };
 
+  const handleDuplicateOpen = async () => {
+    if (!audit) return;
+
+    setLoadingDuplicate(true);
+
+    // Set Step 1 data
+    const baseForm = {
+      name: audit.name || '',
+      client: audit.client || '',
+      project: audit.project || '',
+      sector: audit.sector || 'aerospace',
+      startDate: audit.startDate ? audit.startDate.slice(0, 10) : '',
+      targetEndDate: audit.targetEndDate
+        ? audit.targetEndDate.slice(0, 10)
+        : '',
+      processName: '',
+      department: '',
+      responsible: '',
+      applicableNorms: [] as string[],
+      priority: 'medium' as Priority,
+    };
+
+    // Load first process data if exists
+    if (audit.processes && audit.processes.length > 0) {
+      const firstProc = audit.processes[0];
+      setLoadingProcess(true);
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/processes/${firstProc._id}`),
+        );
+        if (res.ok) {
+          const procData = await res.json();
+          baseForm.processName = procData.name || '';
+          baseForm.department = procData.department || '';
+          baseForm.responsible = procData.responsible || '';
+          baseForm.applicableNorms = procData.applicableNorms || [];
+          baseForm.priority = procData.priority || 'medium';
+        }
+      } catch (e) {
+        // If process fetch fails, just use empty Step 2 fields
+        console.error('Failed to load process:', e);
+      } finally {
+        setLoadingProcess(false);
+      }
+    }
+
+    setDuplicateForm(baseForm);
+    setLoadingDuplicate(false);
+    setDuplicateOpen(true);
+  };
+
+  const handleDuplicateSave = async () => {
+    if (!duplicateForm.name.trim() || !duplicateForm.client.trim()) return;
+    setSavingDuplicate(true);
+    try {
+      const hasProcess = !!duplicateForm.processName.trim();
+      const payload: any = {
+        name: duplicateForm.name,
+        client: duplicateForm.client,
+        project: duplicateForm.project,
+        sector: duplicateForm.sector,
+        startDate: duplicateForm.startDate,
+        targetEndDate: duplicateForm.targetEndDate,
+      };
+
+      if (hasProcess) {
+        payload.firstProcess = {
+          name: duplicateForm.processName,
+          department: duplicateForm.department,
+          responsible: duplicateForm.responsible,
+          applicableNorms: duplicateForm.applicableNorms,
+          priority: duplicateForm.priority,
+        };
+      }
+
+      const res = await fetch(apiUrl('/api/audits'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success('Audit duplicated successfully');
+        router.push(`/audits/${data.audit._id}`);
+      } else {
+        toast.error('Failed to duplicate audit');
+      }
+    } catch {
+      toast.error('Failed to duplicate audit');
+    } finally {
+      setSavingDuplicate(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -368,6 +483,18 @@ export default function AuditPage() {
             >
               <Pencil size={13} />
               Edit
+            </button>
+            <button
+              onClick={handleDuplicateOpen}
+              disabled={loadingDuplicate}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingDuplicate ? (
+                <Spinner size="sm" className="text-blue-aria" />
+              ) : (
+                <Copy size={13} />
+              )}
+              Duplicate
             </button>
             <button
               onClick={handleArchive}
@@ -713,6 +840,239 @@ export default function AuditPage() {
               >
                 {savingEdit && <Spinner size="sm" />}
                 {savingEdit ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Audit Modal */}
+      {duplicateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-sm shadow-xl w-full max-w-2xl mx-4 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-semibold text-lg text-text">
+                Duplicate Audit
+              </h2>
+              <button
+                onClick={() => setDuplicateOpen(false)}
+                className="text-muted hover:text-text"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingProcess && (
+              <div className="flex items-center gap-2 text-sm text-muted">
+                <Spinner size="sm" className="text-blue-aria" />
+                Loading process data...
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Step 1: Audit Identity */}
+              <div className="border-b border-border pb-4">
+                <h3 className="font-display font-semibold text-sm text-text mb-3">
+                  Audit Identity
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="form-label">
+                      Audit Name <span className="text-red-sov">*</span>
+                    </label>
+                    <input
+                      className="form-input"
+                      value={duplicateForm.name}
+                      onChange={(e) =>
+                        setDuplicateForm((f) => ({
+                          ...f,
+                          name: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label">
+                        Client <span className="text-red-sov">*</span>
+                      </label>
+                      <input
+                        className="form-input"
+                        value={duplicateForm.client}
+                        onChange={(e) =>
+                          setDuplicateForm((f) => ({
+                            ...f,
+                            client: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Project</label>
+                      <input
+                        className="form-input"
+                        value={duplicateForm.project}
+                        onChange={(e) =>
+                          setDuplicateForm((f) => ({
+                            ...f,
+                            project: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">Sector</label>
+                    <select
+                      className="form-input"
+                      value={duplicateForm.sector}
+                      onChange={(e) =>
+                        setDuplicateForm((f) => ({
+                          ...f,
+                          sector: e.target.value as SectorType,
+                        }))
+                      }
+                    >
+                      {SECTORS.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label">Start Date</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={duplicateForm.startDate}
+                        onChange={(e) =>
+                          setDuplicateForm((f) => ({
+                            ...f,
+                            startDate: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Target End Date</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={duplicateForm.targetEndDate}
+                        onChange={(e) =>
+                          setDuplicateForm((f) => ({
+                            ...f,
+                            targetEndDate: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: First Process */}
+              <div>
+                <h3 className="font-display font-semibold text-sm text-text mb-3">
+                  First Process (Optional)
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="form-label">Process Name</label>
+                    <input
+                      className="form-input"
+                      value={duplicateForm.processName}
+                      onChange={(e) =>
+                        setDuplicateForm((f) => ({
+                          ...f,
+                          processName: e.target.value,
+                        }))
+                      }
+                      placeholder="Leave empty to skip"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label">Department</label>
+                      <input
+                        className="form-input"
+                        value={duplicateForm.department}
+                        onChange={(e) =>
+                          setDuplicateForm((f) => ({
+                            ...f,
+                            department: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Responsible</label>
+                      <input
+                        className="form-input"
+                        value={duplicateForm.responsible}
+                        onChange={(e) =>
+                          setDuplicateForm((f) => ({
+                            ...f,
+                            responsible: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">Priority</label>
+                    <select
+                      className="form-input"
+                      value={duplicateForm.priority}
+                      onChange={(e) =>
+                        setDuplicateForm((f) => ({
+                          ...f,
+                          priority: e.target.value as Priority,
+                        }))
+                      }
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Applicable Norms</label>
+                    <TagInput
+                      value={duplicateForm.applicableNorms}
+                      onChange={(tags) =>
+                        setDuplicateForm((f) => ({
+                          ...f,
+                          applicableNorms: tags,
+                        }))
+                      }
+                      placeholder="Add norm and press Enter"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDuplicateOpen(false)}
+                className="px-4 py-2 text-sm text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDuplicateSave}
+                disabled={
+                  savingDuplicate ||
+                  !duplicateForm.name.trim() ||
+                  !duplicateForm.client.trim()
+                }
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 disabled:opacity-50 transition-colors"
+              >
+                {savingDuplicate && <Spinner size="sm" />}
+                {savingDuplicate ? 'Creating…' : 'Create Duplicate'}
               </button>
             </div>
           </div>

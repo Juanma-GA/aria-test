@@ -77,7 +77,7 @@ export default function POCsPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={`/api/audits/${auditId}/export/pocs`}
+            href={apiUrl(`/api/audits/${auditId}/export/pocs`)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
           >
             <Download size={13} />

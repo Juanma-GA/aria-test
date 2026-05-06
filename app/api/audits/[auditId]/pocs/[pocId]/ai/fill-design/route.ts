@@ -40,7 +40,8 @@ export async function POST(
       ? `Sovereignty level: ${LEVEL_LABELS[sovereigntyResult.level] ?? sovereigntyResult.level} (index ${sovereigntyResult.index.toFixed(2)}/5)${sovereigntyResult.hasCritical ? ' — CRITICAL constraints present' : ''}. Active axes: ${Object.entries(
           axes,
         )
-          .map(([k, v]: [string, any]) => `${k}:${v.compliance ?? 'N/A'}`)
+          .filter(([_, v]) => v && typeof v === 'object')
+          .map(([k, v]: [string, any]) => `${k}:${v.status ?? 'N/A'}`)
           .join(', ')}`
       : 'No sovereignty assessment available';
 
