@@ -1,47 +1,52 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Plus, Trash2, CheckCircle2, ArrowLeft, Save } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { TagInput } from "@/components/ui/TagInput";
-import { apiUrl } from "@/lib/utils";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Plus, Trash2, CheckCircle2, ArrowLeft, Save } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { TagInput } from '@/components/ui/TagInput';
+import { apiUrl } from '@/lib/utils';
 import type {
   Stakeholder,
   InfluenceLevel,
   AIAttitude,
   ProfileEntry,
-} from "@/lib/types";
+} from '@/lib/types';
+
+interface Suggestion {
+  value: string;
+  count: number;
+}
 
 const AI_ATTITUDE_COLORS: Record<
   AIAttitude,
-  "green" | "teal" | "slate" | "amber" | "red"
+  'green' | 'teal' | 'slate' | 'amber' | 'red'
 > = {
-  champion: "green",
-  supporter: "teal",
-  neutral: "slate",
-  sceptic: "amber",
-  blocker: "red",
-  unknown: "slate",
+  champion: 'green',
+  supporter: 'teal',
+  neutral: 'slate',
+  sceptic: 'amber',
+  blocker: 'red',
+  unknown: 'slate',
 };
 
 function emptyStakeholder(): Stakeholder {
   return {
-    role: "",
-    name: "",
-    type: "internal",
-    influenceLevel: "medium",
-    aiAttitude: "unknown",
-    notes: "",
+    role: '',
+    name: '',
+    type: 'internal',
+    influenceLevel: 'medium',
+    aiAttitude: 'unknown',
+    notes: '',
   };
 }
 
 function emptyProfile(): ProfileEntry {
   return {
     id: crypto.randomUUID(),
-    role: "",
-    type: "internal",
+    role: '',
+    type: 'internal',
     count: 1,
     hourlyRateEur: 0,
   };
@@ -54,12 +59,12 @@ export default function B1Page() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(true);
-  const [saveError, setSaveError] = useState("");
-  const [processName, setProcessName] = useState("");
+  const [saveError, setSaveError] = useState('');
+  const [processName, setProcessName] = useState('');
 
   // Audit read-only info
-  const [auditClient, setAuditClient] = useState("");
-  const [auditProject, setAuditProject] = useState("");
+  const [auditClient, setAuditClient] = useState('');
+  const [auditProject, setAuditProject] = useState('');
 
   // Process-level fields
   const [norms, setNorms] = useState<string[]>([]);
@@ -68,30 +73,94 @@ export default function B1Page() {
 
   // B1 fields
   const [b1, setB1] = useState({
-    formalName: "",
-    department: "",
-    contractReference: "",
-    captureDate: "",
+    formalName: '',
+    department: '',
+    contractReference: '',
+    captureDate: '',
     numberOfPeople: 0,
-    notes: "",
-    clientDepartment: "",
-    clientResponsible: "",
-    technicalDirectorResponsible: "",
+    notes: '',
+    clientDepartment: '',
+    clientResponsible: '',
+    technicalDirectorResponsible: '',
   });
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
   const [profiles, setProfiles] = useState<ProfileEntry[]>([]);
 
+  // Suggestions for predictive autocomplete
+  const [normsSuggestions, setNormsSuggestions] = useState<Suggestion[]>([]);
+  const [certsSuggestions, setCertsSuggestions] = useState<Suggestion[]>([]);
+
+  // Optimization: Cache and abort controller refs
+  const suggestionsCache = useRef(new Map<string, Suggestion[]>());
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Fetch suggestions callback with cache and abort
+  const fetchSuggestions = useCallback(async (field: string, query: string) => {
+    if (query.length < 2) return;
+
+    // Check cache first
+    const cacheKey = `${field}:${query.toLowerCase()}`;
+    const cached = suggestionsCache.current.get(cacheKey);
+    if (cached) {
+      if (field === 'norms') {
+        setNormsSuggestions(cached);
+      } else if (field === 'certs') {
+        setCertsSuggestions(cached);
+      }
+      return;
+    }
+
+    // Abort previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const res = await fetch(
+        apiUrl(
+          `/api/suggestions?field=${field}&query=${encodeURIComponent(query)}`,
+        ),
+        {
+          credentials: 'include',
+          signal: controller.signal,
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const suggestions = data.suggestions || [];
+
+        // Store in cache
+        suggestionsCache.current.set(cacheKey, suggestions);
+
+        if (field === 'norms') {
+          setNormsSuggestions(suggestions);
+        } else if (field === 'certs') {
+          setCertsSuggestions(suggestions);
+        }
+      }
+    } catch (e: any) {
+      // Ignore abort errors
+      if (e.name !== 'AbortError') {
+        console.error('Failed to fetch suggestions:', e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     Promise.all([
       fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-        credentials: "include",
+        credentials: 'include',
       }).then((r) => r.json()),
-      fetch(apiUrl(`/api/audits/${auditId}`), { credentials: "include" }).then(
+      fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' }).then(
         (r) => r.json(),
       ),
     ])
       .then(([procData, auditData]) => {
-        setProcessName(procData.name || "");
+        setProcessName(procData.name || '');
         setNorms(procData.applicableNorms || []);
         setCerts(procData.activeCertifications || []);
         setMaturity(procData.digitalMaturityLevel || 1);
@@ -102,22 +171,22 @@ export default function B1Page() {
             ...rest
           } = procData.b1;
           setB1({
-            formalName: rest.formalName || "",
-            department: rest.department || "",
-            contractReference: rest.contractReference || "",
-            captureDate: rest.captureDate ? rest.captureDate.slice(0, 10) : "",
+            formalName: rest.formalName || '',
+            department: rest.department || '',
+            contractReference: rest.contractReference || '',
+            captureDate: rest.captureDate ? rest.captureDate.slice(0, 10) : '',
             numberOfPeople: rest.numberOfPeople || 0,
-            notes: rest.notes || "",
-            clientDepartment: rest.clientDepartment || "",
-            clientResponsible: rest.clientResponsible || "",
+            notes: rest.notes || '',
+            clientDepartment: rest.clientDepartment || '',
+            clientResponsible: rest.clientResponsible || '',
             technicalDirectorResponsible:
-              rest.technicalDirectorResponsible || "",
+              rest.technicalDirectorResponsible || '',
           });
           setStakeholders(sh);
           setProfiles(pr);
         }
-        setAuditClient(auditData.client || "");
-        setAuditProject(auditData.project || "");
+        setAuditClient(auditData.client || '');
+        setAuditProject(auditData.project || '');
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -125,14 +194,14 @@ export default function B1Page() {
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveError("");
+    setSaveError('');
     try {
       const res = await fetch(
         apiUrl(`/api/audits/${auditId}/processes/${procId}`),
         {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             b1: { ...b1, stakeholders, profiles },
             applicableNorms: norms,
@@ -148,7 +217,7 @@ export default function B1Page() {
       }
       setSaved(true);
     } catch (e) {
-      setSaveError("Network error. Please try again.");
+      setSaveError('Network error. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -195,7 +264,7 @@ export default function B1Page() {
     markUnsaved();
   };
 
-  const isComplete = processName.trim() !== "" && stakeholders.length > 0;
+  const isComplete = processName.trim() !== '' && stakeholders.length > 0;
 
   if (loading)
     return (
@@ -231,7 +300,7 @@ export default function B1Page() {
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? <Spinner size="sm" /> : <Save size={14} />}
-          {saving ? "Saving…" : saved ? "Saved" : "Save"}
+          {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
         </button>
       </div>
 
@@ -256,7 +325,7 @@ export default function B1Page() {
                 Client
               </p>
               <p className="text-sm text-text font-medium">
-                {auditClient || "—"}
+                {auditClient || '—'}
               </p>
             </div>
             <div>
@@ -264,7 +333,7 @@ export default function B1Page() {
                 Project
               </p>
               <p className="text-sm text-text font-medium">
-                {auditProject || "—"}
+                {auditProject || '—'}
               </p>
             </div>
           </div>
@@ -274,7 +343,7 @@ export default function B1Page() {
             <input
               className="form-input"
               value={b1.contractReference}
-              onChange={(e) => updateB1("contractReference", e.target.value)}
+              onChange={(e) => updateB1('contractReference', e.target.value)}
             />
           </div>
 
@@ -298,7 +367,7 @@ export default function B1Page() {
               type="date"
               className="form-input"
               value={b1.captureDate}
-              onChange={(e) => updateB1("captureDate", e.target.value)}
+              onChange={(e) => updateB1('captureDate', e.target.value)}
             />
           </div>
 
@@ -307,7 +376,7 @@ export default function B1Page() {
             <input
               className="form-input"
               value={b1.clientDepartment}
-              onChange={(e) => updateB1("clientDepartment", e.target.value)}
+              onChange={(e) => updateB1('clientDepartment', e.target.value)}
               placeholder="e.g. Engineering Operations"
             />
           </div>
@@ -317,7 +386,7 @@ export default function B1Page() {
             <input
               className="form-input"
               value={b1.clientResponsible}
-              onChange={(e) => updateB1("clientResponsible", e.target.value)}
+              onChange={(e) => updateB1('clientResponsible', e.target.value)}
               placeholder="Name of the client contact"
             />
           </div>
@@ -328,7 +397,7 @@ export default function B1Page() {
               className="form-input"
               value={b1.technicalDirectorResponsible}
               onChange={(e) =>
-                updateB1("technicalDirectorResponsible", e.target.value)
+                updateB1('technicalDirectorResponsible', e.target.value)
               }
               placeholder="Atexis Technical Director"
             />
@@ -349,6 +418,8 @@ export default function B1Page() {
                 markUnsaved();
               }}
               placeholder="Type norm + Enter"
+              suggestions={normsSuggestions}
+              onFetchSuggestions={(q) => fetchSuggestions('norms', q)}
             />
           </div>
           <div>
@@ -360,6 +431,8 @@ export default function B1Page() {
                 markUnsaved();
               }}
               placeholder="Type cert + Enter"
+              suggestions={certsSuggestions}
+              onFetchSuggestions={(q) => fetchSuggestions('certs', q)}
             />
           </div>
           <div>
@@ -368,7 +441,7 @@ export default function B1Page() {
               rows={4}
               className="form-textarea"
               value={b1.notes}
-              onChange={(e) => updateB1("notes", e.target.value)}
+              onChange={(e) => updateB1('notes', e.target.value)}
               placeholder="Additional context..."
             />
           </div>
@@ -401,7 +474,7 @@ export default function B1Page() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Role", "Type", "Quantity", "Hourly Rate (€)", ""].map(
+                  {['Role', 'Type', 'Quantity', 'Hourly Rate (€)', ''].map(
                     (h) => (
                       <th
                         key={h}
@@ -424,7 +497,7 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={p.role}
                         onChange={(e) =>
-                          updateProfile(i, "role", e.target.value)
+                          updateProfile(i, 'role', e.target.value)
                         }
                         placeholder="e.g. Design Engineer"
                       />
@@ -434,7 +507,7 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={p.type}
                         onChange={(e) =>
-                          updateProfile(i, "type", e.target.value)
+                          updateProfile(i, 'type', e.target.value)
                         }
                       >
                         <option value="internal">Internal</option>
@@ -450,7 +523,7 @@ export default function B1Page() {
                         onChange={(e) =>
                           updateProfile(
                             i,
-                            "count",
+                            'count',
                             parseInt(e.target.value) || 1,
                           )
                         }
@@ -465,7 +538,7 @@ export default function B1Page() {
                         onChange={(e) =>
                           updateProfile(
                             i,
-                            "hourlyRateEur",
+                            'hourlyRateEur',
                             parseFloat(e.target.value) || 0,
                           )
                         }
@@ -508,13 +581,13 @@ export default function B1Page() {
               <thead>
                 <tr className="border-b border-border">
                   {[
-                    "Role",
-                    "Name",
-                    "Type",
-                    "Influence",
-                    "AI Attitude",
-                    "Notes",
-                    "",
+                    'Role',
+                    'Name',
+                    'Type',
+                    'Influence',
+                    'AI Attitude',
+                    'Notes',
+                    '',
                   ].map((h) => (
                     <th
                       key={h}
@@ -536,7 +609,7 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={s.role}
                         onChange={(e) =>
-                          updateStakeholder(i, "role", e.target.value)
+                          updateStakeholder(i, 'role', e.target.value)
                         }
                       />
                     </td>
@@ -545,16 +618,16 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={s.name}
                         onChange={(e) =>
-                          updateStakeholder(i, "name", e.target.value)
+                          updateStakeholder(i, 'name', e.target.value)
                         }
                       />
                     </td>
                     <td className="py-2 px-2">
                       <select
                         className="form-input text-xs"
-                        value={s.type ?? "internal"}
+                        value={s.type ?? 'internal'}
                         onChange={(e) =>
-                          updateStakeholder(i, "type", e.target.value)
+                          updateStakeholder(i, 'type', e.target.value)
                         }
                       >
                         <option value="internal">Internal</option>
@@ -566,19 +639,19 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={s.influenceLevel}
                         onChange={(e) =>
-                          updateStakeholder(i, "influenceLevel", e.target.value)
+                          updateStakeholder(i, 'influenceLevel', e.target.value)
                         }
                       >
                         {(
                           [
-                            "very_high",
-                            "high",
-                            "medium",
-                            "low",
+                            'very_high',
+                            'high',
+                            'medium',
+                            'low',
                           ] as InfluenceLevel[]
                         ).map((v) => (
                           <option key={v} value={v}>
-                            {v.replace("_", " ")}
+                            {v.replace('_', ' ')}
                           </option>
                         ))}
                       </select>
@@ -588,17 +661,17 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={s.aiAttitude}
                         onChange={(e) =>
-                          updateStakeholder(i, "aiAttitude", e.target.value)
+                          updateStakeholder(i, 'aiAttitude', e.target.value)
                         }
                       >
                         {(
                           [
-                            "champion",
-                            "supporter",
-                            "neutral",
-                            "sceptic",
-                            "blocker",
-                            "unknown",
+                            'champion',
+                            'supporter',
+                            'neutral',
+                            'sceptic',
+                            'blocker',
+                            'unknown',
                           ] as AIAttitude[]
                         ).map((v) => (
                           <option key={v} value={v}>
@@ -612,7 +685,7 @@ export default function B1Page() {
                         className="form-input text-xs"
                         value={s.notes}
                         onChange={(e) =>
-                          updateStakeholder(i, "notes", e.target.value)
+                          updateStakeholder(i, 'notes', e.target.value)
                         }
                       />
                     </td>
@@ -630,13 +703,13 @@ export default function B1Page() {
             </table>
           </div>
         )}
-        {stakeholders.some((s) => s.aiAttitude !== "unknown") && (
+        {stakeholders.some((s) => s.aiAttitude !== 'unknown') && (
           <div className="mt-3 flex flex-wrap gap-2">
             {stakeholders
-              .filter((s) => s.aiAttitude !== "unknown")
+              .filter((s) => s.aiAttitude !== 'unknown')
               .map((s, i) => (
                 <span key={i} className="flex items-center gap-1 text-xs">
-                  <span className="text-muted">{s.name || "Stakeholder"}:</span>
+                  <span className="text-muted">{s.name || 'Stakeholder'}:</span>
                   <Badge variant={AI_ATTITUDE_COLORS[s.aiAttitude]}>
                     {s.aiAttitude}
                   </Badge>
@@ -655,7 +728,7 @@ export default function B1Page() {
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-aria text-white font-medium rounded-sm shadow-lg hover:bg-blue-aria/90 disabled:opacity-60 transition-colors"
           >
             {saving ? <Spinner size="sm" /> : <Save size={15} />}
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
       )}

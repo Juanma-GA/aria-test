@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Plus,
@@ -38,6 +38,11 @@ import type {
   FileAttachment,
   ProfileEntry,
 } from '@/lib/types';
+
+interface Suggestion {
+  value: string;
+  count: number;
+}
 
 // ── File list with real upload ─────────────────────────────────────────────────
 
@@ -189,6 +194,77 @@ export default function B3Page() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState<string | null>(null);
+
+  // Suggestions for predictive autocomplete
+  const [toolsSuggestions, setToolsSuggestions] = useState<Suggestion[]>([]);
+  const [inputsSuggestions, setInputsSuggestions] = useState<Suggestion[]>([]);
+  const [outputsSuggestions, setOutputsSuggestions] = useState<Suggestion[]>(
+    [],
+  );
+
+  // Optimization: Cache and abort controller refs
+  const suggestionsCache = useRef(new Map<string, Suggestion[]>());
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Fetch suggestions callback with cache and abort
+  const fetchSuggestions = useCallback(async (field: string, query: string) => {
+    if (query.length < 2) return;
+
+    // Check cache first
+    const cacheKey = `${field}:${query.toLowerCase()}`;
+    const cached = suggestionsCache.current.get(cacheKey);
+    if (cached) {
+      if (field === 'tools') {
+        setToolsSuggestions(cached);
+      } else if (field === 'inputs') {
+        setInputsSuggestions(cached);
+      } else if (field === 'outputs') {
+        setOutputsSuggestions(cached);
+      }
+      return;
+    }
+
+    // Abort previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const res = await fetch(
+        apiUrl(
+          `/api/suggestions?field=${field}&query=${encodeURIComponent(query)}`,
+        ),
+        {
+          credentials: 'include',
+          signal: controller.signal,
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const suggestions = data.suggestions || [];
+
+        // Store in cache
+        suggestionsCache.current.set(cacheKey, suggestions);
+
+        if (field === 'tools') {
+          setToolsSuggestions(suggestions);
+        } else if (field === 'inputs') {
+          setInputsSuggestions(suggestions);
+        } else if (field === 'outputs') {
+          setOutputsSuggestions(suggestions);
+        }
+      }
+    } catch (e: any) {
+      // Ignore abort errors
+      if (e.name !== 'AbortError') {
+        console.error('Failed to fetch suggestions:', e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
@@ -857,6 +933,10 @@ ${body}
                                 updateActivity(act.id, 'tools', v)
                               }
                               placeholder="Add tool + Enter"
+                              suggestions={toolsSuggestions}
+                              onFetchSuggestions={(q) =>
+                                fetchSuggestions('tools', q)
+                              }
                             />
                           </div>
                           <div>
@@ -888,6 +968,10 @@ ${body}
                                 updateActivity(act.id, 'inputs', v)
                               }
                               placeholder="Add input + Enter"
+                              suggestions={inputsSuggestions}
+                              onFetchSuggestions={(q) =>
+                                fetchSuggestions('inputs', q)
+                              }
                             />
                             <p className="text-[10px] text-muted mt-1">
                               Example files:
@@ -907,6 +991,10 @@ ${body}
                                 updateActivity(act.id, 'outputs', v)
                               }
                               placeholder="Add output + Enter"
+                              suggestions={outputsSuggestions}
+                              onFetchSuggestions={(q) =>
+                                fetchSuggestions('outputs', q)
+                              }
                             />
                             <p className="text-[10px] text-muted mt-1">
                               Example files:
