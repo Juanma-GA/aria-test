@@ -546,8 +546,8 @@ function SlideOver({
     setSaving(true);
     try {
       const url = editUC
-        ? `/api/audits/${auditId}/usecases/${editUC._id}`
-        : `/api/audits/${auditId}/usecases`;
+        ? apiUrl(`/api/audits/${auditId}/usecases/${editUC._id}`)
+        : apiUrl(`/api/audits/${auditId}/usecases`);
       const method = editUC ? 'PATCH' : 'POST';
       const res = await fetch(url, {
         method,

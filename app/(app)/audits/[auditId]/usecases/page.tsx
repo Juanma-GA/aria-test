@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { AI_TYPE_LABELS } from "@/lib/types";
-import type { AIType, UseCaseStatus, B2CompatibilityType } from "@/lib/types";
-import { calculateScore } from "@/lib/calculations";
-import { apiUrl } from "@/lib/utils";
-import { TrendingUp, Download } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
+import { AI_TYPE_LABELS } from '@/lib/types';
+import type { AIType, UseCaseStatus, B2CompatibilityType } from '@/lib/types';
+import { calculateScore } from '@/lib/calculations';
+import { apiUrl } from '@/lib/utils';
+import { TrendingUp, Download } from 'lucide-react';
 
 interface AuditUseCase {
   _id: string;
@@ -43,25 +43,25 @@ interface AuditUseCase {
   };
 }
 
-const STATUS_VARIANTS: Record<UseCaseStatus, "green" | "red" | "amber"> = {
-  eligible: "green",
-  blocked: "red",
-  pending_review: "amber",
+const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'red' | 'amber'> = {
+  eligible: 'green',
+  blocked: 'red',
+  pending_review: 'amber',
 };
 
 const AI_TYPE_COLORS: Record<
   AIType,
-  "purple" | "blue" | "teal" | "amber" | "green" | "slate"
+  'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'
 > = {
-  generative_llm: "purple",
-  extraction_nlp: "blue",
-  classification_ml: "teal",
-  rag: "blue",
-  validation: "amber",
-  prediction: "green",
-  intelligent_automation: "teal",
-  agentic_ai: "purple",
-  other: "slate",
+  generative_llm: 'purple',
+  extraction_nlp: 'blue',
+  classification_ml: 'teal',
+  rag: 'blue',
+  validation: 'amber',
+  prediction: 'green',
+  intelligent_automation: 'teal',
+  agentic_ai: 'purple',
+  other: 'slate',
 };
 
 function peopleImpacted(uc: AuditUseCase): number {
@@ -86,11 +86,11 @@ export default function AuditUseCasesPage() {
   const router = useRouter();
   const [useCases, setUseCases] = useState<AuditUseCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | UseCaseStatus>("all");
-  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<'all' | UseCaseStatus>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetch(apiUrl(`/api/audits/${auditId}/usecases`), { credentials: "include" })
+    fetch(apiUrl(`/api/audits/${auditId}/usecases`), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         setUseCases(Array.isArray(data) ? data : []);
@@ -100,7 +100,7 @@ export default function AuditUseCasesPage() {
   }, [auditId]);
 
   const filtered = useCases.filter((uc) => {
-    if (filter !== "all" && uc.status !== filter) return false;
+    if (filter !== 'all' && uc.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -114,9 +114,9 @@ export default function AuditUseCasesPage() {
 
   const counts = {
     all: useCases.length,
-    eligible: useCases.filter((u) => u.status === "eligible").length,
-    blocked: useCases.filter((u) => u.status === "blocked").length,
-    pending_review: useCases.filter((u) => u.status === "pending_review")
+    eligible: useCases.filter((u) => u.status === 'eligible').length,
+    blocked: useCases.filter((u) => u.status === 'blocked').length,
+    pending_review: useCases.filter((u) => u.status === 'pending_review')
       .length,
   };
 
@@ -140,7 +140,7 @@ export default function AuditUseCasesPage() {
           </p>
         </div>
         <a
-          href={`/api/audits/${auditId}/export/usecases`}
+          href={apiUrl(`/api/audits/${auditId}/export/usecases`)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
         >
           <Download size={13} />
@@ -151,14 +151,14 @@ export default function AuditUseCasesPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
-          {(["all", "eligible", "blocked", "pending_review"] as const).map(
+          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
             (f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? "bg-blue-aria text-white" : "text-muted hover:text-text"}`}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
               >
-                {f === "pending_review" ? "Pending" : f} ({counts[f]})
+                {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
               </button>
             ),
           )}
@@ -183,15 +183,15 @@ export default function AuditUseCasesPage() {
             <thead>
               <tr className="border-b border-border bg-slate-50">
                 {[
-                  "ID",
-                  "Description",
-                  "Process",
-                  "AI Types",
-                  "People",
-                  "Score",
-                  "Category",
-                  "Status",
-                  "ROI",
+                  'ID',
+                  'Description',
+                  'Process',
+                  'AI Types',
+                  'People',
+                  'Score',
+                  'Category',
+                  'Status',
+                  'ROI',
                 ].map((h) => (
                   <th
                     key={h}
@@ -252,10 +252,10 @@ export default function AuditUseCasesPage() {
                           href={`/audits/${auditId}/processes/${proc._id}/b5`}
                           className="text-blue-aria hover:underline"
                         >
-                          {proc.procId} · {proc.name || ""}
+                          {proc.procId} · {proc.name || ''}
                         </Link>
                       ) : (
-                        "—"
+                        '—'
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -289,18 +289,18 @@ export default function AuditUseCasesPage() {
                       {cat ? (
                         <Badge
                           variant={
-                            cat === "quick_win"
-                              ? "green"
-                              : cat === "mid_term"
-                                ? "amber"
-                                : "blue"
+                            cat === 'quick_win'
+                              ? 'green'
+                              : cat === 'mid_term'
+                                ? 'amber'
+                                : 'blue'
                           }
                         >
-                          {cat === "quick_win"
-                            ? "Quick Win"
-                            : cat === "mid_term"
-                              ? "Mid-term"
-                              : "Strategic"}
+                          {cat === 'quick_win'
+                            ? 'Quick Win'
+                            : cat === 'mid_term'
+                              ? 'Mid-term'
+                              : 'Strategic'}
                         </Badge>
                       ) : (
                         <span className="text-muted text-xs">Not scored</span>
@@ -308,7 +308,7 @@ export default function AuditUseCasesPage() {
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant={STATUS_VARIANTS[uc.status]}>
-                        {uc.status.replace("_", " ")}
+                        {uc.status.replace('_', ' ')}
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-xs whitespace-nowrap">

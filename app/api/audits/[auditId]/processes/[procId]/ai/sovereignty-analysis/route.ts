@@ -35,9 +35,10 @@ export async function POST(
 
     const axesDetail =
       Object.entries(axes)
+        .filter(([_, v]) => v && typeof v === 'object')
         .map(([k, v]: [string, any]) => {
           const frameworks = (v.normativeFrameworks ?? []).join(', ') || 'none';
-          return `- ${k}: compliance=${v.compliance ?? 'N/A'}, frameworks=[${frameworks}], notes="${v.notes ?? ''}"`;
+          return `- ${k}: status=${v.status ?? 'N/A'}, frameworks=[${frameworks}], notes="${v.notes ?? ''}"`;
         })
         .join('\n') || 'No axes assessed';
 

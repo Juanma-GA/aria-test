@@ -24,21 +24,21 @@ export default function ExportPage() {
       icon: <Lightbulb size={20} className="text-blue-aria" />,
       title: 'Use Cases',
       description: 'All use cases with scores, savings estimates, and ROI data',
-      href: `/api/audits/${auditId}/export/usecases`,
+      href: apiUrl(`/api/audits/${auditId}/export/usecases`),
     },
     {
       icon: <FlaskConical size={20} className="text-blue-aria" />,
       title: 'POCs',
       description:
         'All POCs with phase, decision, milestones, and evaluation results',
-      href: `/api/audits/${auditId}/export/pocs`,
+      href: apiUrl(`/api/audits/${auditId}/export/pocs`),
     },
     {
       icon: <GitBranch size={20} className="text-blue-aria" />,
       title: 'Process Map',
       description:
         'All process activities with time estimates, tools, and profiles',
-      href: `/api/audits/${auditId}/export/processes`,
+      href: apiUrl(`/api/audits/${auditId}/export/processes`),
     },
   ];
 
