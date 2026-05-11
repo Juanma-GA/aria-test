@@ -20,6 +20,33 @@ export interface IUseCase extends Document {
   reviewDate?: Date;
   notes: string;
   sovereigntyAnalysis?: string;
+  isArchived?: boolean;
+  archivedAt?: Date;
+  /**
+   * Catalog-driven compute calculator state. Same shape as POC and
+   * Industrialization so the breakdown can flow UC → POC → Industrialization
+   * with optional inheritance. Snapshots model/GPU specs at the moment they
+   * were picked. `computedAnnualEur` is server-derived on save.
+   */
+  computeBreakdown?: {
+    mode?: '' | 'cloud_api' | 'on_premise' | 'hybrid';
+    modelId?: mongoose.Types.ObjectId;
+    modelNameSnapshot?: string;
+    modelPriceInSnapshot?: number;
+    modelPriceOutSnapshot?: number;
+    gpuId?: mongoose.Types.ObjectId;
+    gpuNameSnapshot?: string;
+    gpuPriceSnapshot?: number;
+    gpuTdpSnapshot?: number;
+    annualReps?: number;
+    inputTokensPerExec?: number;
+    outputTokensPerExec?: number;
+    nGpus?: number;
+    amortizationYears?: number;
+    electricityRateEur?: number;
+    onPremPct?: number;
+    computedAnnualEur?: number;
+  };
   // B6 Score embedded
   score?: {
     dimensions: {
@@ -69,25 +96,36 @@ const UseCaseSchema = new Schema<IUseCase>({
   reviewDate: { type: Date },
   notes: { type: String, default: '' },
   sovereigntyAnalysis: { type: String, default: '' },
-  computeCost: {
-    deploymentModel: { type: String, enum: ['cloud_api', 'on_premise', 'hybrid'], default: 'cloud_api' },
-    annualReps: { type: Number, default: 0 },
-    concurrentUsers: { type: Number, default: 1 },
-    avgResponseTimeSec: { type: Number, default: 2 },
-    inputTokensPerExec: { type: Number, default: 1000 },
-    outputTokensPerExec: { type: Number, default: 500 },
-    pricePerMInputTokens: { type: Number, default: 2 },
-    pricePerMOutputTokens: { type: Number, default: 6 },
-    gpuModel: { type: String, enum: ['rtx_4090', 'a100_40gb', 'a100_80gb', 'h100'], default: 'a100_40gb' },
-    nGpus: { type: Number, default: 1 },
-    amortizationYears: { type: Number, default: 4 },
-    electricityRateEur: { type: Number, default: 0.15 },
-    onPremPct: { type: Number, default: 70 },
-    subscriptions: [{
-      tool: { type: String, default: '' },
-      users: { type: Number, default: 1 },
-      monthlyPerUser: { type: Number, default: 0 },
-    }],
+  isArchived: { type: Boolean, default: false, index: true },
+  archivedAt: { type: Date },
+  computeBreakdown: {
+    // '' means dormant (no calculator-driven projection). Otherwise the server
+    // recompute fills computedAnnualEur from the inputs on save.
+    mode: { type: String, enum: ['', 'cloud_api', 'on_premise', 'hybrid'], default: '' },
+    modelId: { type: Schema.Types.ObjectId, ref: 'Catalog' },
+    modelNameSnapshot: { type: String, default: '' },
+    modelPriceInSnapshot: { type: Number, default: 0 },
+    modelPriceOutSnapshot: { type: Number, default: 0 },
+    gpuId: { type: Schema.Types.ObjectId, ref: 'Catalog' },
+    gpuNameSnapshot: { type: String, default: '' },
+    gpuPriceSnapshot: { type: Number, default: 0 },
+    gpuTdpSnapshot: { type: Number, default: 0 },
+    concurrentUsersPerGpuSnapshot: { type: Number, default: 0, min: 0 },
+    annualReps: { type: Number, default: 0, min: 0 },
+    inputTokensPerExec: { type: Number, default: 1000, min: 0 },
+    outputTokensPerExec: { type: Number, default: 500, min: 0 },
+    nGpus: { type: Number, default: 1, min: 0 },
+    amortizationYears: { type: Number, default: 4, min: 1 },
+    electricityRateEur: { type: Number, default: 0.15, min: 0 },
+    onPremPct: { type: Number, default: 100, min: 0, max: 100 },
+    workingHoursPerDay: { type: Number, default: 10, min: 0, max: 24 },
+    workingDaysPerWeek: { type: Number, default: 5, min: 0, max: 7 },
+    workingWeeksPerYear: { type: Number, default: 48, min: 0, max: 53 },
+    maxConcurrentUsersSupported: { type: Number, default: 0, min: 0 },
+    peakConcurrentUsers: { type: Number, default: 0, min: 0 },
+    peakUsageFractionOfWindow: { type: Number, default: 25, min: 0, max: 100 },
+    hwPreexisting: { type: Boolean, default: false },
+    computedAnnualEur: { type: Number, default: 0, min: 0 },
   },
   score: {
     dimensions: {

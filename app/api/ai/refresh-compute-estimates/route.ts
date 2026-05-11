@@ -1,45 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 
+/**
+ * Suggest realistic input/output token volumes for a use case.
+ *
+ * Token *pricing* now lives on the AI model catalog (snapshotted into
+ * `computeBreakdown.modelPriceInSnapshot` / `modelPriceOutSnapshot` when the
+ * user picks a model), so we no longer ask the model to invent prices —
+ * only to size token usage based on the use case description.
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { computeCost, useCaseDescription, aiTypes } = body;
+    const { computeBreakdown, useCaseDescription, aiTypes } = body;
+    const cb = computeBreakdown ?? {};
 
-    const cc = computeCost ?? {};
-
-    const prompt = `You are an AI infrastructure expert. Review the following compute cost parameters for an AI use case and suggest updated, realistic estimates based on current market pricing (2024-2025).
+    const prompt = `You are an AI infrastructure expert. Estimate realistic token volumes per execution for the following AI use case.
 
 USE CASE: ${useCaseDescription || 'Not specified'}
 AI TYPES: ${(aiTypes ?? []).join(', ') || 'Not specified'}
-CURRENT PARAMETERS:
-- Deployment model: ${cc.deploymentModel ?? 'cloud_api'}
-- Annual executions: ${cc.annualReps ?? 0}
-- Avg response time: ${cc.avgResponseTimeSec ?? 2}s
-- Concurrent users: ${cc.concurrentUsers ?? 1}
-- Input tokens/exec: ${cc.inputTokensPerExec ?? 1000}
-- Output tokens/exec: ${cc.outputTokensPerExec ?? 500}
-- Current price per M input tokens: €${cc.pricePerMInputTokens ?? 2}
-- Current price per M output tokens: €${cc.pricePerMOutputTokens ?? 6}
+CURRENT INPUTS:
+- Annual executions: ${cb.annualReps ?? 0}
+- Input tokens / exec (current): ${cb.inputTokensPerExec ?? 1000}
+- Output tokens / exec (current): ${cb.outputTokensPerExec ?? 500}
 
-Return a JSON object with updated estimates:
+Return a JSON object:
 {
-  "pricePerMInputTokens": 2.5,
-  "pricePerMOutputTokens": 7.5,
   "inputTokensPerExec": 1200,
   "outputTokensPerExec": 600,
-  "avgResponseTimeSec": 3,
-  "rationale": "Brief explanation of the estimates and market context (2-3 sentences)"
+  "rationale": "Brief justification of the volumes (2-3 sentences). Mention how the use case complexity drove the choice."
 }
 
-Base your estimates on real 2024-2025 pricing for models appropriate to the use case AI types. Return ONLY valid JSON.`;
+Return ONLY valid JSON. The rationale string MUST be a single line — no literal newlines.`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 600, temperature: 0.2 });
+    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 400, temperature: 0.2 });
     const estimates = parseLLMJson<any>(text);
-
     return NextResponse.json({ estimates });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

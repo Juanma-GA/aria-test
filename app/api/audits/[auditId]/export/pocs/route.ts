@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { POC, Audit } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 function escapeCsv(val: any): string {
   const s = String(val ?? '');
@@ -15,12 +16,14 @@ function row(cells: any[]): string {
 const fmt = (d: any) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const [audit, pocs] = await Promise.all([
       Audit.findById(auditId).select('name').lean() as any,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process, UseCase } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -35,6 +36,8 @@ export async function GET(
   try {
     await dbConnect();
     const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const [process, ucCount] = await Promise.all([
       Process.findOne({ auditId, _id: procId }).lean(),
@@ -64,6 +67,9 @@ export async function PATCH(
   try {
     await dbConnect();
     const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
 
     const { b1, b2, b3, ...rest } = body;
@@ -114,6 +120,8 @@ export async function DELETE(
   try {
     await dbConnect();
     const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
 
     const process = await Process.findOne({ auditId, _id: procId });
     if (!process) {

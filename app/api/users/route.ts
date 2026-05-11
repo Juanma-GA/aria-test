@@ -3,16 +3,17 @@ import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 
-// GET /api/users — list all users (admin only)
+// GET /api/users — list users.
+// Admin gets full records; everyone else gets a minimal directory (id/name/email/role)
+// so audit owners can search for candidates to add to their team.
 export async function GET(req: NextRequest) {
   const role = req.headers.get('x-user-role');
-  if (role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!role) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     await dbConnect();
-    const users = await User.find({}).select('-passwordHash').sort({ createdAt: -1 }).lean();
+    const projection = role === 'admin' ? '-passwordHash' : '_id name email role';
+    const users = await User.find({}).select(projection).sort({ name: 1 }).lean();
     return NextResponse.json(users);
   } catch (err) {
     console.error("[API]", err);

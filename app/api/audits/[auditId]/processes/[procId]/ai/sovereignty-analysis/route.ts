@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Process } from '@/lib/models';
 import { callMistral } from '@/lib/llm';
 import { calculateSovereigntyIndex } from '@/lib/calculations';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function POST(
   req: NextRequest,
@@ -11,6 +12,9 @@ export async function POST(
   try {
     await dbConnect();
     const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
     const { useCaseDescription, aiTypes } = body;
 

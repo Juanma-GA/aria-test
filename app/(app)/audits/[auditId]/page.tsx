@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Pencil, X, Clock, TrendingUp, Archive, Trash2 } from 'lucide-react';
+import { Plus, Pencil, X, Clock, TrendingUp, Archive, Trash2, Users, Crown, Edit3, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { BlockProgressBar } from '@/components/layout/BlockProgressBar';
+import { TeamEditModal } from '@/components/audit-team/TeamEditModal';
+import { useAuditAccess } from '@/context/AuditAccessContext';
+import type { AuditTeamRole } from '@/lib/models/Audit';
 import type {
   AuditStatus,
   SectorType,
@@ -30,6 +33,7 @@ interface AuditData {
   processCount: number;
   useCaseCount: number;
   pocCount: number;
+  industrializationCount: number;
   processes: ProcessSummary[];
 }
 
@@ -121,6 +125,22 @@ export default function AuditPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', client: '', project: '', sector: 'aerospace' as SectorType, startDate: '', targetEndDate: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Team
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [teamSummary, setTeamSummary] = useState<Array<{ userId: string; role: AuditTeamRole; user: { name: string; email: string } | null }>>([]);
+  const access = useAuditAccess();
+
+  const loadTeam = async () => {
+    try {
+      const r = await fetch(`/api/audits/${auditId}/team`, { credentials: 'include' });
+      if (!r.ok) return;
+      const data = await r.json();
+      setTeamSummary(Array.isArray(data?.team) ? data.team : []);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => { if (auditId) loadTeam(); }, [auditId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const load = async () => {
@@ -303,11 +323,12 @@ export default function AuditPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'Processes', value: audit.processCount ?? audit.processes?.length ?? 0 },
           { label: 'Use Cases', value: audit.useCaseCount ?? 0 },
           { label: 'POCs', value: audit.pocCount ?? 0 },
+          { label: 'Industrializations', value: audit.industrializationCount ?? 0 },
           {
             label: 'People Impacted',
             value: audit.processes?.reduce((s, p) => s + (p.peopleCount ?? 0), 0) ?? 0,
@@ -320,6 +341,41 @@ export default function AuditPage() {
         ))}
       </div>
 
+      {/* Team card */}
+      <div className="bg-white border border-border rounded-sm p-5">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-blue-aria" />
+            <h2 className="font-display font-semibold text-base text-text">Team</h2>
+            <span className="text-xs text-muted">— {teamSummary.length} member{teamSummary.length === 1 ? '' : 's'}</span>
+          </div>
+          <button
+            onClick={() => setTeamModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
+          >
+            {access.canManageTeam ? <Pencil size={12} /> : <Eye size={12} />}
+            {access.canManageTeam ? 'Manage team' : 'View team'}
+          </button>
+        </div>
+        {teamSummary.length === 0 ? (
+          <p className="text-xs text-muted">No team members loaded yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {teamSummary.map(m => {
+              const RoleIcon = m.role === 'owner' ? Crown : m.role === 'editor' ? Edit3 : Eye;
+              const variant: 'green' | 'blue' | 'slate' = m.role === 'owner' ? 'green' : m.role === 'editor' ? 'blue' : 'slate';
+              return (
+                <span key={m.userId} className="inline-flex items-center gap-1.5 px-2 py-1 border border-border rounded-sm text-xs bg-smoke/40">
+                  <RoleIcon size={11} className={m.role === 'owner' ? 'text-green-sov' : m.role === 'editor' ? 'text-blue-aria' : 'text-muted'} />
+                  <span className="font-medium">{m.user?.name ?? '—'}</span>
+                  <Badge variant={variant} className="text-[9px] py-0">{m.role}</Badge>
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Add process button only */}
       <div>
         <Link
@@ -330,6 +386,14 @@ export default function AuditPage() {
           Add Process
         </Link>
       </div>
+
+      {/* Team modal */}
+      <TeamEditModal
+        isOpen={teamModalOpen}
+        onClose={() => setTeamModalOpen(false)}
+        auditId={auditId}
+        onChanged={loadTeam}
+      />
 
       {/* Process grid */}
       <div>

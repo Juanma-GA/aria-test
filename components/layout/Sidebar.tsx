@@ -8,6 +8,7 @@ import {
   Lightbulb,
   Map,
   FlaskConical,
+  Factory,
   Download,
   FileText,
   Settings,
@@ -15,6 +16,8 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
+  BadgeEuro,
+  Cpu,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -91,6 +94,7 @@ export function Sidebar() {
     { href: '/dashboard', label: 'Audits', icon: <LayoutDashboard size={16} /> },
     { href: '/usecases', label: 'Use Cases', icon: <Lightbulb size={16} /> },
     { href: '/pocs', label: 'POCs', icon: <FlaskConical size={16} /> },
+    { href: '/industrializations', label: 'Industrializations', icon: <Factory size={16} /> },
     { href: '/roadmap', label: 'Roadmap', icon: <Map size={16} /> },
   ];
 
@@ -98,6 +102,7 @@ export function Sidebar() {
     ? [
         { href: `/audits/${auditId}/usecases`, label: 'Use Cases', icon: <Lightbulb size={16} /> },
         { href: `/audits/${auditId}/pocs`, label: 'POCs', icon: <FlaskConical size={16} /> },
+        { href: `/audits/${auditId}/industrializations`, label: 'Industrializations', icon: <Factory size={16} /> },
         { href: `/audits/${auditId}/roadmap`, label: 'Roadmap', icon: <Map size={16} /> },
         { href: `/audits/${auditId}/report`, label: 'AI Report', icon: <FileText size={16} /> },
         { href: `/audits/${auditId}/export`, label: 'Export', icon: <Download size={16} /> },
@@ -294,16 +299,38 @@ export function Sidebar() {
       {/* Bottom actions */}
       <div className="px-3 pb-5 border-t border-white/10 pt-3 space-y-0.5">
         {currentUser?.role === 'admin' && (
-          <Link
-            href="/admin/users"
-            className={clsx(
-              'sidebar-item',
-              isActive('/admin/users') ? 'sidebar-item-active' : 'sidebar-item-inactive'
-            )}
-          >
-            <Users size={16} />
-            <span>Users</span>
-          </Link>
+          <>
+            <Link
+              href="/admin/users"
+              className={clsx(
+                'sidebar-item',
+                isActive('/admin/users') ? 'sidebar-item-active' : 'sidebar-item-inactive'
+              )}
+            >
+              <Users size={16} />
+              <span>Users</span>
+            </Link>
+            <Link
+              href="/admin/profiles"
+              className={clsx(
+                'sidebar-item',
+                isActive('/admin/profiles') ? 'sidebar-item-active' : 'sidebar-item-inactive'
+              )}
+            >
+              <BadgeEuro size={16} />
+              <span>Profiles</span>
+            </Link>
+            <Link
+              href="/admin/catalog"
+              className={clsx(
+                'sidebar-item',
+                isActive('/admin/catalog') ? 'sidebar-item-active' : 'sidebar-item-inactive'
+              )}
+            >
+              <Cpu size={16} />
+              <span>Catalog</span>
+            </Link>
+          </>
         )}
         <Link
           href="/settings"

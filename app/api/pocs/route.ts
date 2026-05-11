@@ -1,11 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { POC, Audit, UseCase } from '@/lib/models';
+import { visibilityFilter } from '@/lib/auditAccess';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
-    const pocs = await POC.find({})
+    const visibility = visibilityFilter(req);
+    if (!visibility) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const visibleAudits = await Audit.find(visibility).select('_id').lean();
+    const visibleIds = visibleAudits.map(a => a._id);
+    const pocs = await POC.find({ auditId: { $in: visibleIds } })
       .populate('processId', 'procId name')
       .sort({ createdAt: -1 })
       .lean();
@@ -15,7 +20,7 @@ export async function GET() {
     const ucIds = [...new Set(pocs.map((p) => String(p.useCaseId)))];
 
     const [audits, useCases] = await Promise.all([
-      Audit.find({ _id: { $in: auditIds } }).select('name client').lean(),
+      Audit.find({ _id: { $in: auditIds } }).select('name client startDate targetEndDate').lean(),
       UseCase.find({ _id: { $in: ucIds } }).select('cuId description').lean(),
     ]);
 

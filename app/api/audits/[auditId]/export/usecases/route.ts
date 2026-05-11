@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Process, Audit } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 function scoreTotal(score: any): number {
   if (!score?.dimensions) return 0;
@@ -24,12 +25,14 @@ function row(cells: any[]): string {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const [audit, useCases, processes] = await Promise.all([
       Audit.findById(auditId).select('name client').lean() as any,

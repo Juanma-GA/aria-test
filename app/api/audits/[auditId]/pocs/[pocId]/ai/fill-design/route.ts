@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { POC, UseCase, Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { calculateSovereigntyIndex } from '@/lib/calculations';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function POST(
   req: NextRequest,
@@ -11,6 +12,8 @@ export async function POST(
   try {
     await dbConnect();
     const { auditId, pocId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
 
     const poc = await POC.findOne({ auditId, _id: pocId });
     if (!poc) {

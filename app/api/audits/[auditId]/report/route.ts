@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Audit, Process, UseCase, POC } from '@/lib/models';
+import { Audit, Process, UseCase, POC, Industrialization } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { computeAnnualCompute } from '@/lib/calculations';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +52,41 @@ const AXIS_LABELS: Record<string, string> = {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
-function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[]): string {
+const IND_STATUS_LABELS: Record<string, string> = {
+  pending_customer_validation: 'Pending customer validation',
+  planned: 'Planned',
+  work_in_progress: 'Work in progress',
+  go_for_run: 'Go for run',
+  stand_by: 'Stand by',
+  cancelled: 'Cancelled',
+};
+
+function industrializationOneTime(ind: any): number {
+  const o = ind?.cost?.oneTime ?? {};
+  const sub = (o.developmentEur ?? 0) + (o.integrationEur ?? 0) + (o.infraSetupEur ?? 0)
+    + (o.securityComplianceEur ?? 0) + (o.trainingChangeMgmtEur ?? 0);
+  const contingency = sub * ((o.contingencyPct ?? 0) / 100);
+  return sub + contingency;
+}
+
+function milestoneProgressPct(m: any): number {
+  if (m?.status === 'done') return 100;
+  if (m?.status === 'missed' || m?.status === 'pending') return Math.max(0, Math.min(100, m?.progressPct ?? 0));
+  // work_in_progress (or unknown active state): trust the explicit value, else assume halfway.
+  const explicit = m?.progressPct;
+  return explicit > 0 ? Math.min(100, explicit) : 50;
+}
+
+function industrializationRecurringAnnual(ind: any): number {
+  const r = ind?.cost?.recurringAnnual ?? {};
+  const m = r.maintenance ?? {};
+  return (r.computeEur ?? 0) + (r.licensesEur ?? 0) + (r.monitoringObservabilityEur ?? 0)
+    + (m.correctiveEur ?? 0) + (m.evolutiveEur ?? 0) + (m.modelRetrainingEur ?? 0)
+    + (m.driftMonitoringEur ?? 0) + (m.revalidationEur ?? 0)
+    + (m.l1l2SupportEur ?? 0) + (m.vendorSlaEur ?? 0);
+}
+
+function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[], industrializations: any[]): string {
 
   // ── Global metrics ──────────────────────────────────────────────────────────
   let totalPeople = 0;
@@ -96,19 +132,9 @@ function buildPrompt(audit: any, processes: any[], useCases: any[], pocs: any[])
     }
   }
 
-  // Per-UC compute cost + saving
+  // Per-UC compute cost — derived from the unified `computeBreakdown` calculator.
   function computeAnnualCostForUC(uc: any): number {
-    const cc = (uc as any).computeCost ?? {};
-    const reps = cc.annualReps ?? 0;
-    if (reps === 0) return 0;
-    const model = cc.deploymentModel ?? 'cloud_api';
-    const cloudCost =
-      (cc.inputTokensPerExec ?? 1000) * reps / 1_000_000 * (cc.pricePerMInputTokens ?? 2) +
-      (cc.outputTokensPerExec ?? 500) * reps / 1_000_000 * (cc.pricePerMOutputTokens ?? 6);
-    const subscriptionsCost = ((cc.subscriptions ?? []) as any[])
-      .reduce((s: number, sub: any) => s + (sub.users ?? 0) * (sub.monthlyPerUser ?? 0) * 12, 0);
-    // For simplicity in report: use cloud cost only (most common case)
-    return (model === 'cloud_api' ? cloudCost : cloudCost * 0.7) + subscriptionsCost;
+    return computeAnnualCompute(uc?.computeBreakdown ?? null).totalEur;
   }
 
   const eligibleUCs = useCases.filter(u => u.status === 'eligible');
@@ -242,10 +268,85 @@ ${ucLines || '  (none identified)'}`;
 
   // ── Compute cost table ──────────────────────────────────────────────────────
   const computeTableRows = eligibleUCs.map(uc => {
-    const cc = (uc as any).computeCost ?? {};
+    const cb = (uc as any).computeBreakdown ?? {};
     const cost = computeAnnualCostForUC(uc);
-    return `| ${uc.cuId} | ${cc.deploymentModel ?? 'cloud_api'} | ${(cc.annualReps ?? 0).toLocaleString()} | ${fmtEur(cost)}/yr |`;
+    return `| ${uc.cuId} | ${cb.mode || '—'} | ${(cb.annualReps ?? 0).toLocaleString()} | ${fmtEur(cost)}/yr |`;
   }).join('\n');
+
+  // ── Industrialization metrics & section ─────────────────────────────────────
+  const indByStatus: Record<string, number> = {};
+  let totalIndOneTime = 0;
+  let totalIndRecurring = 0;
+  let totalIndExpectedSaving = 0;
+  let totalIndConfirmedSaving = 0;
+  let indAtRun = 0;
+  let indWip = 0;
+
+  for (const ind of industrializations) {
+    indByStatus[ind.status] = (indByStatus[ind.status] ?? 0) + 1;
+    totalIndOneTime += industrializationOneTime(ind);
+    totalIndRecurring += industrializationRecurringAnnual(ind);
+    totalIndExpectedSaving += ind?.roi?.expected?.annualSavingEur ?? 0;
+    totalIndConfirmedSaving += ind?.roi?.confirmed?.annualSavingEur ?? 0;
+    if (ind.status === 'go_for_run') indAtRun++;
+    if (ind.status === 'work_in_progress') indWip++;
+  }
+
+  const indTableRows = industrializations.map((ind: any) => {
+    const ucRef = ind.useCaseId?.cuId ?? '—';
+    const procRef = ind.processId?.procId ?? '—';
+    const pocRef = ind.pocId?.pocId ?? '—';
+    const target = ind.plan?.targetGoLiveDate ? fmt(ind.plan.targetGoLiveDate) : '—';
+    const owner = ind.plan?.ownerBusiness || ind.plan?.ownerTechnical || '—';
+    const oneTime = industrializationOneTime(ind);
+    const recurring = industrializationRecurringAnnual(ind);
+    const expSaving = ind.roi?.expected?.annualSavingEur ?? 0;
+    const payback = ind.roi?.expected?.paybackMonths ?? 0;
+    const milestones = ind.milestones ?? [];
+    const done = milestones.filter((m: any) => m.status === 'done').length;
+    const aggregatedPct = milestones.length > 0
+      ? Math.round(milestones.reduce((s: number, m: any) => s + milestoneProgressPct(m), 0) / milestones.length)
+      : 0;
+    const progress = ind.status === 'go_for_run' ? '100%'
+      : milestones.length > 0 ? `${aggregatedPct}% (${done}/${milestones.length} done)`
+      : '—';
+    return `| ${ind.industrializationId} | ${(ind.name || '—').slice(0, 40)} | ${pocRef} | ${ucRef} | ${procRef} | ${IND_STATUS_LABELS[ind.status] ?? ind.status} | ${owner} | ${target} | ${fmtEur(oneTime)} | ${fmtEur(recurring)}/yr | ${fmtEur(expSaving)}/yr | ${payback > 0 ? `${payback}m` : '—'} | ${progress} |`;
+  }).join('\n');
+
+  const indDetail = industrializations.map((ind: any) => {
+    const ucRef = ind.useCaseId?.cuId ?? '—';
+    const procRef = ind.processId?.procId ?? '—';
+    const pocRef = ind.pocId?.pocId ?? '—';
+    const milestones = ind.milestones ?? [];
+    const doneM = milestones.filter((m: any) => m.status === 'done').length;
+    const missedM = milestones.filter((m: any) => m.status === 'missed').length;
+    const risks = (ind.risks ?? []).map((r: any) => `${r.severity?.toUpperCase()}: ${r.description}`).join(' | ') || '—';
+    const lines = [
+      `### ${ind.industrializationId} — ${ind.name || '(no name)'}`,
+      `Linked: POC ${pocRef} | UC ${ucRef} | Process ${procRef}`,
+      `Status: ${IND_STATUS_LABELS[ind.status] ?? ind.status}${ind.statusReason ? ` (${ind.statusReason})` : ''}`,
+      `Owners: business=${ind.plan?.ownerBusiness || '—'} | technical=${ind.plan?.ownerTechnical || '—'}`,
+      `Plan: start=${fmt(ind.plan?.startDate)} | target go-live=${fmt(ind.plan?.targetGoLiveDate)} | actual go-live=${fmt(ind.plan?.actualGoLiveDate)}`,
+      ind.plan?.scope ? `Scope: ${ind.plan.scope.slice(0, 240)}` : '',
+      ind.plan?.dependencies ? `Dependencies: ${ind.plan.dependencies.slice(0, 240)}` : '',
+      ind.plan?.sovereigntyConstraints ? `Sovereignty constraints: ${ind.plan.sovereigntyConstraints.slice(0, 240)}` : '',
+      `Milestones: ${milestones.length} total (${doneM} done, ${missedM} missed)`,
+      `Cost — One-time: ${fmtEur(industrializationOneTime(ind))} | Recurring: ${fmtEur(industrializationRecurringAnnual(ind))}/yr (horizon ${ind.cost?.horizonYears ?? 3}y)`,
+      `ROI — Expected: ${fmtEur(ind.roi?.expected?.annualSavingEur ?? 0)}/yr | payback ${ind.roi?.expected?.paybackMonths ?? 0}m | time saving ${ind.roi?.expected?.timeSavingPct ?? 0}%`,
+      (ind.roi?.confirmed?.annualSavingEur ?? 0) > 0
+        ? `ROI — Confirmed: ${fmtEur(ind.roi.confirmed.annualSavingEur)}/yr | net ${fmtEur(ind.roi.confirmed.netAnnualBenefitEur ?? 0)} | actual payback ${ind.roi.confirmed.paybackMonthsActual ?? 0}m`
+        : '',
+      ind.production?.monitoredKpis ? `Monitored KPIs: ${ind.production.monitoredKpis.slice(0, 200)}` : '',
+      ind.production?.incidentsLog ? `Incidents: ${ind.production.incidentsLog.slice(0, 200)}` : '',
+      `Risks: ${risks}`,
+      ind.changeManagement?.trainingPlan ? `Training plan: ${ind.changeManagement.trainingPlan.slice(0, 200)}` : '',
+    ];
+    return lines.filter(Boolean).join('\n');
+  }).join('\n\n');
+
+  const indStatusSummary = Object.entries(IND_STATUS_LABELS)
+    .map(([k, label]) => `${label}: ${indByStatus[k] ?? 0}`)
+    .join(' | ');
 
   // ── POC section ─────────────────────────────────────────────────────────────
   const pocLines = pocs.map((poc: any) => {
@@ -305,6 +406,10 @@ GLOBAL METRICS:
 - Overall payback: ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'}
 - Use cases requiring client IT approval: ${ucRequiresClientIT}
 - POCs: ${pocs.length} total | ${pocActive} active | ${pocClosed} closed | ${pocGo} with GO decision
+- Industrializations: ${industrializations.length} total | ${indWip} work-in-progress | ${indAtRun} go-for-run
+- Industrialization status mix: ${indStatusSummary}
+- Industrialization investment (sum across all): one-time ${fmtEur(totalIndOneTime)} | recurring ${fmtEur(totalIndRecurring)}/yr
+- Industrialization expected annual saving: ${fmtEur(totalIndExpectedSaving)} | confirmed annual saving: ${fmtEur(totalIndConfirmedSaving)}
 
 GLOBAL SOVEREIGNTY:
 Average index: ${avgSovIndex.toFixed(1)}/5 — Level: ${sovLevelLabel}
@@ -342,8 +447,22 @@ POCS
 
 ${pocLines || 'No POCs recorded.'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INDUSTRIALIZATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Summary table:
+
+| IND ID | Name | POC | UC | Process | Status | Owner | Target Go-Live | One-time | Recurring | Expected saving | Payback | Progress |
+|--------|------|-----|----|---------|--------|-------|----------------|----------|-----------|-----------------|---------|----------|
+${indTableRows || '| — | No industrializations | — | — | — | — | — | — | — | — | — | — | — |'}
+
+Detail per industrialization:
+
+${indDetail || 'No industrializations recorded.'}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GENERATE THE REPORT WITH EXACTLY THESE 10 SECTIONS IN THIS ORDER:
+GENERATE THE REPORT WITH EXACTLY THESE 11 SECTIONS IN THIS ORDER:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # AI Audit Report — ${audit.name}
@@ -354,7 +473,7 @@ GENERATE THE REPORT WITH EXACTLY THESE 10 SECTIONS IN THIS ORDER:
 ## 0. Project Fact Sheet
 
 Produce a clean two-column Markdown table with these rows (use the data above):
-Client | Sector | Project | Audit period | Processes audited | People impacted | Total hours in scope | Annual labour cost | Eligible use cases | Total dev investment | Projected net saving/yr | Overall payback | POCs | Sovereignty level
+Client | Sector | Project | Audit period | Processes audited | People impacted | Total hours in scope | Annual labour cost | Eligible use cases | Total dev investment | Projected net saving/yr | Overall payback | POCs | Industrializations (total / WIP / Go-for-run) | Industrialization investment (one-time + recurring/yr) | Sovereignty level
 
 ---
 
@@ -362,7 +481,7 @@ Client | Sector | Project | Audit period | Processes audited | People impacted |
 
 Write exactly 3 paragraphs:
 - P1: Scope and context — what was audited, client, sector, number of processes and people.
-- P2: Key findings — number and quality of use cases identified, sovereignty level, most significant saving/risk.
+- P2: Key findings — number and quality of use cases identified, sovereignty level, POC and industrialization progress (how many POCs reached GO and how many industrializations are in progress / live), and most significant saving/risk.
 - P3: Top recommendation — the single most impactful action the client should take, with urgency.
 
 ---
@@ -439,7 +558,39 @@ For each active POC: state current phase, next milestone, and any blockers.` : `
 
 ---
 
-## 7. Risks & Constraints
+## 7. Industrialization Portfolio
+
+${industrializations.length > 0 ? `7a. Reproduce the industrialization summary table verbatim (already computed above):
+
+| IND ID | Name | POC | UC | Process | Status | Owner | Target Go-Live | One-time | Recurring | Expected saving | Payback | Progress |
+|--------|------|-----|----|---------|--------|-------|----------------|----------|-----------|-----------------|---------|----------|
+${indTableRows}
+
+7b. Status overview — write 1 paragraph interpreting the status mix (${indStatusSummary}). Highlight industrializations at risk (Stand by, Cancelled, or with statusReason explaining a blocker).
+
+7c. For each industrialization in **work_in_progress** or **go_for_run**, write a short subsection:
+### {industrializationId} — {name}
+- **Linkage:** POC → UC → Process
+- **Plan:** owners, scope, target go-live (flag if past target with no actual go-live)
+- **Milestones:** progress (done / total / missed) and the next critical milestone
+- **Cost & ROI:** one-time + recurring/yr, expected saving/yr and payback. If confirmed ROI is available, contrast it with the expected ROI.
+- **Risks & sovereignty constraints:** the most critical 1-2 items
+- **Production status (only if go_for_run):** monitored KPIs, incidents, decommissioning plan
+
+7d. Aggregated industrialization economics:
+| Metric | Value |
+|--------|-------|
+| Total one-time investment | ${fmtEur(totalIndOneTime)} |
+| Total recurring cost / yr | ${fmtEur(totalIndRecurring)} |
+| Expected annual saving (sum) | ${fmtEur(totalIndExpectedSaving)} |
+| Confirmed annual saving (sum) | ${fmtEur(totalIndConfirmedSaving)} |
+| Industrializations at run | ${indAtRun} of ${industrializations.length} |
+
+7e. Recommendation paragraph: which industrializations should be accelerated, paused, or re-scoped, and why — grounded only in the data above.` : `No industrializations have been recorded yet. Identify the 1-3 POCs with GO / GO Conditional decisions that should be promoted to industrialization next, and explain the prerequisites (owner assignment, scope definition, sovereignty constraints carried over from B2/POC) that must be addressed before launch.`}
+
+---
+
+## 8. Risks & Constraints
 
 Produce a normalised risk table with EXACTLY these columns and at least one row per risk category:
 
@@ -456,25 +607,27 @@ Risk categories to cover (add rows only where data supports it):
 
 Severity: High / Medium / Low based on the actual data.
 
+Include any industrialization-specific risks recorded in the data (with severity).
+
 ---
 
-## 8. Implementation Roadmap
+## 9. Implementation Roadmap
 
 Produce a timeline table with EXACTLY these 4 horizons:
 
 | Horizon | Period | Actions |
 |---------|--------|---------|
 
-- Immediate (0–3 months): List specific Quick Win UCs to launch + any POCs to initiate
-- Short-term (3–6 months): Mid-term UCs to prepare, POCs to start
-- Medium-term (6–12 months): Mid-term UCs to implement, POC evaluations
-- Long-term (12+ months): Strategic UCs
+- Immediate (0–3 months): List specific Quick Win UCs to launch + any POCs to initiate + industrializations to push to go-for-run if their target go-live falls in this horizon
+- Short-term (3–6 months): Mid-term UCs to prepare, POCs to start, industrializations whose target go-live falls here
+- Medium-term (6–12 months): Mid-term UCs to implement, POC evaluations, industrialization roll-outs scheduled in this horizon
+- Long-term (12+ months): Strategic UCs and any industrialization whose target go-live is beyond 12 months
 
-Use actual UC IDs and names from the data.
+Use actual UC IDs, POC IDs and Industrialization IDs from the data.
 
 ---
 
-## 9. Recommendations
+## 10. Recommendations
 
 Produce a numbered list of exactly 5–8 prioritised recommendations. For each:
 **#N. [Action in imperative form]**
@@ -482,14 +635,14 @@ Produce a numbered list of exactly 5–8 prioritised recommendations. For each:
 - Urgency: Immediate / 30 days / 90 days
 - Rationale: 1 sentence grounded in the audit data.
 
-Order by urgency descending.
+Order by urgency descending. At least one recommendation must address industrialization governance (promotion of validated POCs, milestone discipline, or maintenance assessment) when industrialization data exists.
 
 ---
 
-## 10. Conclusion
+## 11. Conclusion
 
 Write exactly 1 paragraph (4–6 sentences) assessing:
-- Overall AI maturity level of the audited scope
+- Overall AI maturity level of the audited scope (including how far the portfolio has progressed from use-case identification through POCs to industrialization)
 - Most significant opportunity identified
 - Main barrier to overcome
 - Overall verdict (positive/cautious/negative) with a closing forward-looking statement
@@ -502,11 +655,14 @@ END OF REPORT
 // ─── GET — fetch existing report ─────────────────────────────────────────────
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
   try {
     await dbConnect();
+    const access = await requireAuditAccess(req, params.auditId, 'view');
+    if (!isAccessGranted(access)) return access;
+
     const audit = await Audit.findById(params.auditId).select('report').lean() as any;
     if (!audit) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!audit.report?.markdown) return NextResponse.json({ exists: false });
@@ -520,15 +676,17 @@ export async function GET(
 // ─── POST — generate report ───────────────────────────────────────────────────
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
   const { auditId } = params;
 
   try {
     await dbConnect();
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
 
-    const [audit, processes, useCases, pocs] = await Promise.all([
+    const [audit, processes, useCases, pocs, industrializations] = await Promise.all([
       Audit.findById(auditId).lean(),
       Process.find({ auditId }).lean(),
       UseCase.find({ auditId }).lean(),
@@ -536,11 +694,16 @@ export async function POST(
         .populate('useCaseId', 'cuId description aiTypes')
         .populate('processId', 'procId name')
         .lean(),
+      Industrialization.find({ auditId })
+        .populate('useCaseId', 'cuId description')
+        .populate('processId', 'procId name')
+        .populate('pocId', 'pocId name')
+        .lean(),
     ]);
 
     if (!audit) return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
 
-    const prompt = buildPrompt(audit, processes as any[], useCases as any[], pocs as any[]);
+    const prompt = buildPrompt(audit, processes as any[], useCases as any[], pocs as any[], industrializations as any[]);
 
     if (!process.env.MISTRAL_API_KEY) {
       return NextResponse.json({ error: 'MISTRAL_API_KEY no configurada en .env.local' }, { status: 500 });

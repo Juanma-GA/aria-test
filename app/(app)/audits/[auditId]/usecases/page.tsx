@@ -16,6 +16,7 @@ interface AuditUseCase {
   description: string;
   aiTypes: AIType[];
   status: UseCaseStatus;
+  isArchived?: boolean;
   b2Compatible: B2CompatibilityType;
   estimatedDevCostEur: number;
   estimatedImplWeeks: number;
@@ -73,13 +74,15 @@ export default function AuditUseCasesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | UseCaseStatus>('all');
   const [search, setSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/audits/${auditId}/usecases`, { credentials: 'include' })
+    setLoading(true);
+    fetch(`/api/audits/${auditId}/usecases${showArchived ? '?archived=true' : ''}`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => { setUseCases(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [auditId]);
+  }, [auditId, showArchived]);
 
   const filtered = useCases.filter(uc => {
     if (filter !== 'all' && uc.status !== filter) return false;
@@ -138,6 +141,10 @@ export default function AuditUseCasesPage() {
           onChange={e => setSearch(e.target.value)}
           className="border border-border rounded-sm px-3 py-1.5 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria w-64"
         />
+        <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+          <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="accent-blue-aria" />
+          Show archived
+        </label>
       </div>
 
       {/* Table */}
@@ -169,7 +176,7 @@ export default function AuditUseCasesPage() {
                 return (
                   <tr
                     key={uc._id}
-                    className="border-b border-border/50 hover:bg-slate-50 cursor-pointer"
+                    className={`border-b border-border/50 hover:bg-slate-50 cursor-pointer ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
                     onClick={() => editHref && router.push(editHref)}
                   >
                     <td className="py-3 px-4 font-mono text-xs font-medium whitespace-nowrap" onClick={e => e.stopPropagation()}>

@@ -3,7 +3,8 @@ import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
 import { nextSequence } from '@/lib/models/Counter';
 import { createUseCaseSchema, validationErrorResponse } from '@/lib/validators';
-import { requireRole } from '@/lib/auth';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { computeAnnualCompute } from '@/lib/calculations';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -34,11 +35,16 @@ export async function GET(
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
+
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
+    const showArchived = searchParams.get('archived') === 'true';
 
     const query: Record<string, any> = { auditId };
     if (processId) query.processId = processId;
+    query.isArchived = showArchived ? true : { $ne: true };
 
     const useCases = await UseCase.find(query)
       .populate('processId', 'procId name b1')
@@ -55,11 +61,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
-  const forbidden = requireRole(req, ['admin', 'consultant']);
-  if (forbidden) return forbidden;
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
     const parsed = createUseCaseSchema.safeParse(body);
     if (!parsed.success) {
@@ -131,6 +138,13 @@ export async function POST(
 
     if (blockedReason) useCaseData.blockedReason = blockedReason;
     if (blockedAxis) useCaseData.blockedAxis = blockedAxis;
+
+    // Carry the calculator state from the create payload, recomputing the
+    // annual figure server-side so the persisted snapshot is always coherent.
+    if (body.computeBreakdown && typeof body.computeBreakdown === 'object') {
+      const calc = computeAnnualCompute(body.computeBreakdown);
+      useCaseData.computeBreakdown = { ...body.computeBreakdown, computedAnnualEur: calc.totalEur };
+    }
 
     // Embed D5 auto-fill
     if (body.score) {

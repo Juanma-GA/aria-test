@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
-import { UseCase } from '@/lib/models';
+import { UseCase, POC, Industrialization } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { computeAnnualCompute } from '@/lib/calculations';
 
 /** Recalculate total score and category from dimension values */
 function recalculateScore(dimensions: Record<string, { value: number }>) {
@@ -31,6 +33,8 @@ export async function GET(
   try {
     await dbConnect();
     const { auditId, cuId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const useCase = await UseCase.findOne({ auditId, _id: cuId }).lean();
     if (!useCase) {
@@ -47,8 +51,8 @@ export async function GET(
 const EDITABLE_FIELDS = [
   'description', 'aiTypes', 'targetActivities', 'b2Compatible', 'requiresClientIT',
   'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'estimatedImplWeeks',
-  'status', 'blockedReason', 'blockedAxis', 'unblockCondition', 'reviewDate', 'notes', 'computeCost',
-  'sovereigntyAnalysis',
+  'status', 'blockedReason', 'blockedAxis', 'unblockCondition', 'reviewDate', 'notes',
+  'computeBreakdown', 'sovereigntyAnalysis', 'isArchived',
 ] as const;
 
 export async function PATCH(
@@ -58,6 +62,9 @@ export async function PATCH(
   try {
     await dbConnect();
     const { auditId, cuId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
 
     const existing = await UseCase.findOne({ auditId, _id: cuId }).lean() as any;
@@ -69,6 +76,18 @@ export async function PATCH(
     const $set: Record<string, unknown> = {};
     for (const key of EDITABLE_FIELDS) {
       if (key in body) $set[key] = body[key];
+    }
+    // Stamp archivedAt whenever isArchived flips, so the audit log is implicit.
+    if ('isArchived' in body) {
+      $set.archivedAt = body.isArchived ? new Date() : null;
+    }
+
+    // When computeBreakdown is supplied, recompute its annual euro figure
+    // server-side so the persisted snapshot always matches the calculator.
+    if ($set.computeBreakdown && typeof $set.computeBreakdown === 'object') {
+      const merged = { ...(existing.computeBreakdown ?? {}), ...$set.computeBreakdown };
+      const calc = computeAnnualCompute(merged as any);
+      $set.computeBreakdown = { ...merged, computedAnnualEur: calc.totalEur };
     }
 
     // Handle score: merge dimensions then recalculate
@@ -108,14 +127,39 @@ export async function DELETE(
   try {
     await dbConnect();
     const { auditId, cuId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
 
     const useCase = await UseCase.findOne({ auditId, _id: cuId });
     if (!useCase) {
       return NextResponse.json({ error: 'Use case not found' }, { status: 404 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const cascade = searchParams.get('cascade') === 'true';
+
+    const [pocCount, indCount] = await Promise.all([
+      POC.countDocuments({ useCaseId: cuId }),
+      Industrialization.countDocuments({ useCaseId: cuId }),
+    ]);
+
+    if ((pocCount > 0 || indCount > 0) && !cascade) {
+      return NextResponse.json({
+        error: 'Use case has dependent records',
+        dependents: { pocs: pocCount, industrializations: indCount },
+        hint: 'Archive the use case, or pass ?cascade=true to delete with all dependent POCs and industrializations.',
+      }, { status: 409 });
+    }
+
+    if (cascade) {
+      await Promise.all([
+        Industrialization.deleteMany({ useCaseId: cuId }),
+        POC.deleteMany({ useCaseId: cuId }),
+      ]);
+    }
+
     await useCase.deleteOne();
-    return NextResponse.json({ message: 'Use case deleted successfully' });
+    return NextResponse.json({ message: 'Use case deleted successfully', cascaded: cascade ? { pocs: pocCount, industrializations: indCount } : undefined });
   } catch (err) {
     console.error("[API]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

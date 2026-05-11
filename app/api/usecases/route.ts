@@ -1,11 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Audit, Process } from '@/lib/models';
+import { visibilityFilter } from '@/lib/auditAccess';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
-    const useCases = await UseCase.find({}).sort({ createdAt: -1 }).lean();
+    const visibility = visibilityFilter(req);
+    if (!visibility) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const visibleAudits = await Audit.find(visibility).select('_id').lean();
+    const visibleIds = visibleAudits.map(a => a._id);
+    const useCases = await UseCase.find({ auditId: { $in: visibleIds } }).sort({ createdAt: -1 }).lean();
 
     const auditIds = [...new Set(useCases.map((u) => String((u as any).auditId)))];
     const processIds = [...new Set(useCases.map((u) => String((u as any).processId)))];

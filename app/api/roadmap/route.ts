@@ -1,12 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Roadmap, Audit, UseCase } from '@/lib/models';
+import { visibilityFilter } from '@/lib/auditAccess';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
-    const roadmaps = await Roadmap.find({}).lean();
+    const visibility = visibilityFilter(req);
+    if (!visibility) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const visibleAudits = await Audit.find(visibility).select('_id').lean();
+    const visibleIds = visibleAudits.map(a => a._id);
+    const roadmaps = await Roadmap.find({ auditId: { $in: visibleIds } }).lean();
 
     const auditIds = roadmaps.map((r) => String(r.auditId));
     const audits = await Audit.find({ _id: { $in: auditIds } }).select('name client').lean();

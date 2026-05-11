@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function POST(
   req: NextRequest,
@@ -10,6 +11,9 @@ export async function POST(
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
     const { processId } = body;
 

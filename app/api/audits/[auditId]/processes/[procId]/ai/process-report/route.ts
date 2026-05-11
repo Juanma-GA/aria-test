@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase } from '@/lib/models';
 import { callMistral } from '@/lib/llm';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 const AXIS_NAMES: Record<string, string> = {
   axis1_InfoClassification: 'Information Classification',
@@ -42,6 +43,8 @@ export async function POST(
   try {
     await dbConnect();
     const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
 
     const [audit, process, useCases] = await Promise.all([
       Audit.findById(auditId).populate('leadConsultant', 'name email').lean(),

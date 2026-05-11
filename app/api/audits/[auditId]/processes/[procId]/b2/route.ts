@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function PATCH(
   req: NextRequest,
@@ -9,6 +10,9 @@ export async function PATCH(
   try {
     await dbConnect();
     const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
 
     const process = await Process.findOne({ auditId, _id: procId });

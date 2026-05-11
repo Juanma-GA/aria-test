@@ -3,7 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Process, Audit } from '@/lib/models';
 import { nextSequence } from '@/lib/models/Counter';
 import { createProcessSchema, validationErrorResponse } from '@/lib/validators';
-import { requireRole } from '@/lib/auth';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -23,6 +23,8 @@ export async function GET(
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const processes = await Process.find({ auditId }).sort({ procId: 1 }).lean();
 
@@ -42,11 +44,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { auditId: string } }
 ) {
-  const forbidden = requireRole(req, ['admin', 'consultant']);
-  if (forbidden) return forbidden;
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
     const parsed = createProcessSchema.safeParse(body);
     if (!parsed.success) {

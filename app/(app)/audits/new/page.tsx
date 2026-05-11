@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Check } from 'lucide-react';
 import { TagInput } from '@/components/ui/TagInput';
 import { Spinner } from '@/components/ui/Spinner';
+import { TeamEditor, type UserDir, type TeamMemberRow } from '@/components/audit-team/TeamEditor';
 import type { SectorType, Priority } from '@/lib/types';
+import type { AuditTeamRole } from '@/lib/models/Audit';
 
 interface Step1Data {
   name: string;
@@ -46,9 +48,18 @@ function FieldError({ message }: { message?: string }) {
 
 export default function NewAuditPage() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [users, setUsers] = useState<UserDir[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([]);
+
+  useEffect(() => {
+    fetch('/api/users', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setUsers(Array.isArray(d) ? d : []))
+      .catch(() => setUsers([]));
+  }, []);
 
   const [step1, setStep1] = useState<Step1Data>({
     name: '',
@@ -88,6 +99,17 @@ export default function NewAuditPage() {
     if (validateStep1()) setStep(2);
   };
 
+  const addTeamMember = (userId: string, role: AuditTeamRole) => {
+    const u = users.find(x => x._id === userId);
+    setTeamMembers(prev => [...prev, { userId, role, user: u ?? null }]);
+  };
+  const updateTeamRole = (userId: string, role: AuditTeamRole) => {
+    setTeamMembers(prev => prev.map(m => m.userId === userId ? { ...m, role } : m));
+  };
+  const removeTeamMember = (userId: string) => {
+    setTeamMembers(prev => prev.filter(m => m.userId !== userId));
+  };
+
   const handleSubmit = async () => {
     if (!validateStep2()) return;
     setSubmitting(true);
@@ -111,6 +133,7 @@ export default function NewAuditPage() {
             applicableNorms: step2.applicableNorms,
             priority: step2.priority,
           } : null,
+          team: teamMembers.map(m => ({ userId: m.userId, role: m.role })),
         }),
       });
       if (!res.ok) {
@@ -129,6 +152,7 @@ export default function NewAuditPage() {
   const steps = [
     { num: 1, label: 'Audit Identity' },
     { num: 2, label: 'First Process' },
+    { num: 3, label: 'Team' },
   ];
 
   return (
@@ -376,12 +400,49 @@ export default function NewAuditPage() {
               Back
             </button>
             <button
+              onClick={() => setStep(3)}
+              className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors"
+            >
+              Next
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3 — Team */}
+      {step === 3 && (
+        <div className="bg-white border border-border rounded-sm p-6 space-y-5">
+          <div>
+            <h2 className="font-display font-semibold text-lg text-text">Team <span className="text-muted font-normal text-sm">(optional)</span></h2>
+            <p className="text-sm text-muted mt-1">
+              You'll be the audit owner. Add other people who should access this audit. You can change the team later.
+            </p>
+          </div>
+
+          <TeamEditor
+            members={teamMembers}
+            candidates={users}
+            canManage={true}
+            onAdd={addTeamMember}
+            onUpdateRole={updateTeamRole}
+            onRemove={removeTeamMember}
+          />
+
+          <div className="flex justify-between pt-2">
+            <button
+              onClick={() => setStep(2)}
+              className="px-4 py-2 text-sm font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
+            >
+              Back
+            </button>
+            <button
               onClick={handleSubmit}
               disabled={submitting}
               className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting && <Spinner size="sm" />}
-              {submitting ? 'Creating…' : step2.processName.trim() ? 'Create Audit' : 'Create Audit (no process)'}
+              {submitting ? 'Creating…' : 'Create Audit'}
             </button>
           </div>
         </div>

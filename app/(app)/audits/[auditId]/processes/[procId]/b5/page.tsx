@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Plus, X, Pencil, Trash2, CheckCircle2, ArrowLeft, AlertTriangle, FlaskConical, TrendingUp, Bot, RefreshCw, Sparkles } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, CheckCircle2, ArrowLeft, AlertTriangle, FlaskConical, TrendingUp, Bot, RefreshCw, Sparkles, Archive, ArchiveRestore } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
-import type { UseCase, AIType, ProcessActivity, TimeSavedEntry, ScoreValue, ProfileEntry } from '@/lib/types';
+import type { UseCase, AIType, ProcessActivity, TimeSavedEntry, ScoreValue, ProfileEntry, ComputeBreakdown } from '@/lib/types';
 import { AI_TYPE_LABELS } from '@/lib/types';
-import { calculateSovereigntyIndex, calculateScore } from '@/lib/calculations';
+import { calculateSovereigntyIndex, calculateScore, computeAnnualCompute } from '@/lib/calculations';
+import { ComputeCalculator, DEFAULT_COMPUTE_BREAKDOWN } from '@/components/cost/ComputeCalculator';
 
 const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'> = {
   generative_llm: 'purple', extraction_nlp: 'blue', classification_ml: 'teal',
@@ -20,44 +21,6 @@ const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'gre
 const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
   eligible: 'green', blocked: 'red', pending_review: 'amber',
 };
-
-const GPU_PRESETS: Record<string, { name: string; tdpW: number; priceEur: number; vramGb: number }> = {
-  rtx_4090:  { name: 'RTX 4090',   tdpW: 450, priceEur: 2000,  vramGb: 24 },
-  a100_40gb: { name: 'A100 40GB',  tdpW: 300, priceEur: 10000, vramGb: 40 },
-  a100_80gb: { name: 'A100 80GB',  tdpW: 400, priceEur: 15000, vramGb: 80 },
-  h100:      { name: 'H100 80GB',  tdpW: 700, priceEur: 30000, vramGb: 80 },
-};
-
-// Executions distributed over 215 working days × 8h = 1,720 working hours/year
-const WORKING_HOURS_PER_YEAR = 215 * 8;
-
-function autoRecommendGpu(annualReps: number, concurrentUsers: number, avgSec: number) {
-  const cu = Math.max(1, concurrentUsers);
-  const sec = Math.max(avgSec, 0.1);
-  // Average throughput during working hours
-  const avgRps = annualReps / (WORKING_HOURS_PER_YEAR * 3600);
-  // GPUs needed to sustain average throughput
-  const gpusForThroughput = Math.ceil(avgRps * sec);
-  // GPU class selected by throughput tier only (concurrency handled via batch capacity below)
-  const gpuModel =
-    annualReps < 10_000 ? 'rtx_4090' :
-    annualReps < 100_000 ? 'a100_40gb' :
-    annualReps < 500_000 ? 'a100_80gb' : 'h100';
-  // Realistic continuous-batching capacity per GPU (vLLM/TGI, medium-size model ~7–13B)
-  // Larger VRAM → bigger KV-cache → more sequences in flight simultaneously
-  const concPerGpu: Record<string, number> = { rtx_4090: 8, a100_40gb: 16, a100_80gb: 32, h100: 64 };
-  const gpusForConcurrency = Math.ceil(cu / concPerGpu[gpuModel]);
-  const nGpus = Math.max(gpusForThroughput, gpusForConcurrency, 1);
-  // GPU utilisation: fraction of working time the GPU is actively processing
-  const utilizationPct = Math.min((annualReps * sec) / (WORKING_HOURS_PER_YEAR * 3600), 1);
-  const peakRps = (cu / sec).toFixed(1);
-  const batchCap = concPerGpu[gpuModel];
-  const rationale =
-    `${annualReps.toLocaleString()} exec/yr ÷ ${WORKING_HOURS_PER_YEAR}h = ${avgRps.toFixed(4)} req/s avg · ` +
-    `${cu} concurrent users (${batchCap} batch cap/GPU → ${gpusForConcurrency} GPU${gpusForConcurrency !== 1 ? 's' : ''}) · ` +
-    `GPU load ${(utilizationPct * 100).toFixed(1)}% · ${nGpus}× ${GPU_PRESETS[gpuModel].name}`;
-  return { gpuModel, nGpus, utilizationPct, rationale };
-}
 
 const DIMENSIONS: { key: string; label: string; hint: string; scale: string }[] = [
   { key: 'd1_efficiencyImpact', label: 'D1 Efficiency', hint: 'How much does AI improve speed or reduce manual effort?', scale: '1 = <10% saving · 3 = 20–35% · 5 = >50%' },
@@ -116,41 +79,9 @@ function emptyForm(processId: string): Partial<UseCase> & { aiTypes: AIType[]; t
     devCostExplanation: '',
     estimatedImplWeeks: 0,
     notes: '',
-    computeCost: {
-      deploymentModel: 'cloud_api',
-      annualReps: 0, concurrentUsers: 1, avgResponseTimeSec: 2,
-      inputTokensPerExec: 1000, outputTokensPerExec: 500,
-      pricePerMInputTokens: 2, pricePerMOutputTokens: 6,
-      gpuModel: 'a100_40gb', nGpus: 1, amortizationYears: 4,
-      electricityRateEur: 0.15, onPremPct: 70,
-      subscriptions: [],
-    },
+    computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
     processId,
   };
-}
-
-function computeAnnualCost(cc: Record<string, any>): number {
-  const reps = cc.annualReps ?? 0;
-  if (reps === 0) return 0;
-  const cu = cc.concurrentUsers ?? 1;
-  const avgSec = cc.avgResponseTimeSec ?? 2;
-  const model = cc.deploymentModel ?? 'cloud_api';
-  const cloudCost =
-    (cc.inputTokensPerExec ?? 1000) * reps / 1_000_000 * (cc.pricePerMInputTokens ?? 2) +
-    (cc.outputTokensPerExec ?? 500)  * reps / 1_000_000 * (cc.pricePerMOutputTokens ?? 6);
-  const autoRec = autoRecommendGpu(reps, cu, avgSec);
-  const gpu = GPU_PRESETS[autoRec.gpuModel];
-  const totalGpuCost = gpu.priceEur * autoRec.nGpus;
-  const amortization = totalGpuCost / (cc.amortizationYears ?? 4);
-  // GPU runs all working hours; power scales from 30 % (idle) to 100 % (full load) with utilisation
-  const powerFactor = 0.30 + 0.70 * autoRec.utilizationPct;
-  const electricity = (gpu.tdpW / 1000) * autoRec.nGpus * WORKING_HOURS_PER_YEAR * powerFactor * (cc.electricityRateEur ?? 0.15);
-  const onPremCost = amortization + electricity + 0.08 * totalGpuCost;
-  const subscriptionsCost = ((cc.subscriptions ?? []) as { users: number; monthlyPerUser: number }[])
-    .reduce((s, sub) => s + (sub.users ?? 0) * (sub.monthlyPerUser ?? 0) * 12, 0);
-  const pct = (cc.onPremPct ?? 70) / 100;
-  const infraCost = model === 'on_premise' ? onPremCost : model === 'hybrid' ? onPremCost * pct + cloudCost * (1 - pct) : cloudCost;
-  return infraCost + subscriptionsCost;
 }
 
 function computeRoi(
@@ -218,7 +149,7 @@ function SlideOver({
     }
 
     if (editUC) {
-      const defaultCC = emptyForm(processId).computeCost as Record<string, unknown>;
+      const defaultCB = emptyForm(processId).computeBreakdown as ComputeBreakdown;
       setForm({
         ...editUC,
         aiTypes: editUC.aiTypes?.length ? editUC.aiTypes : [(editUC as any).aiType ?? 'generative_llm'],
@@ -228,7 +159,7 @@ function SlideOver({
           : (editUC as any).targetActivity
           ? [(editUC as any).targetActivity]
           : [],
-        computeCost: { ...defaultCC, ...((editUC as any).computeCost ?? {}) },
+        computeBreakdown: { ...defaultCB, ...((editUC as any).computeBreakdown ?? {}) },
         requiresClientIT: requiresClientITAuto,
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       });
@@ -314,7 +245,7 @@ function SlideOver({
     form.estimatedDevCostEur ?? 0,
     annualReps,
     targetActivityHours,
-    computeAnnualCost((form as any).computeCost ?? {}),
+    computeAnnualCompute((form as any).computeBreakdown ?? null).totalEur,
   );
 
   // Auto-fill D1 from efficiency saving % whenever it changes, unless manually overridden
@@ -484,293 +415,58 @@ function SlideOver({
               value={form.devCostExplanation || ''} onChange={e => set('devCostExplanation', e.target.value)} />
           </div>
 
-          {/* Compute Cost Simulator */}
-          {(() => {
-            const cc = (form as any).computeCost ?? {};
-            const setCC = (field: string, value: unknown) =>
-              setForm(f => ({ ...f, computeCost: { ...((f as any).computeCost ?? {}), [field]: value } }));
-            const model = cc.deploymentModel ?? 'cloud_api';
-            const reps = cc.annualReps ?? 0;
-            const cu = cc.concurrentUsers ?? 1;
-            const avgSec = cc.avgResponseTimeSec ?? 2;
-            const autoRec = autoRecommendGpu(reps, cu, avgSec);
-
-            const cloudCost = reps > 0
-              ? ((cc.inputTokensPerExec ?? 1000) * reps / 1_000_000 * (cc.pricePerMInputTokens ?? 2))
-              + ((cc.outputTokensPerExec ?? 500) * reps / 1_000_000 * (cc.pricePerMOutputTokens ?? 6))
-              : 0;
-
-            const gpu = GPU_PRESETS[autoRec.gpuModel];
-            const nGpus = autoRec.nGpus;
-            const totalGpuCost = gpu.priceEur * nGpus;
-            const amortization = totalGpuCost / (cc.amortizationYears ?? 4);
-            // GPU runs all working hours; power = 30 % idle + 70 % × utilisation (response time drives utilisation)
-            const powerFactor = 0.30 + 0.70 * autoRec.utilizationPct;
-            const electricity = (gpu.tdpW / 1000) * nGpus * WORKING_HOURS_PER_YEAR * powerFactor * (cc.electricityRateEur ?? 0.15);
-            const maintenance = 0.08 * totalGpuCost;
-            const onPremCost = amortization + electricity + maintenance;
-
-            const pct = (cc.onPremPct ?? 70) / 100;
-            const hybridCost = onPremCost * pct + cloudCost * (1 - pct);
-
-            const subs: { tool: string; users: number; monthlyPerUser: number }[] = cc.subscriptions ?? [];
-            const subscriptionsCost = subs.reduce((s, sub) => s + (sub.users ?? 0) * (sub.monthlyPerUser ?? 0) * 12, 0);
-            const setSubs = (next: typeof subs) => setCC('subscriptions', next);
-            const addSub = () => setSubs([...subs, { tool: '', users: 1, monthlyPerUser: 0 }]);
-            const removeSub = (i: number) => setSubs(subs.filter((_, idx) => idx !== i));
-            const updateSub = (i: number, field: string, value: string | number) =>
-              setSubs(subs.map((s, idx) => idx === i ? { ...s, [field]: value } : s));
-
-            const infraCost = model === 'on_premise' ? onPremCost : model === 'hybrid' ? hybridCost : cloudCost;
-            const activeCost = infraCost + subscriptionsCost;
-            const costPerExec = reps > 0 ? activeCost / reps : 0;
-            const savingOverCloud = model === 'on_premise' && cloudCost > 0 ? cloudCost - onPremCost : null;
-            const breakevenMonths = cloudCost > (electricity + maintenance) && cloudCost !== 0
-              ? Math.round(totalGpuCost / ((cloudCost - electricity - maintenance) / 12))
-              : null;
-
-            const fmt = (n: number) => n >= 10000 ? `€${Math.round(n / 1000)}k` : `€${Math.round(n).toLocaleString()}`;
-
-            const handleComputeRefresh = async () => {
-              setRefreshingCompute(true);
-              try {
-                const res = await fetch('/api/ai/refresh-compute-estimates', {
-                  method: 'POST', credentials: 'include',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ computeCost: cc, useCaseDescription: form.description, aiTypes: form.aiTypes }),
-                });
-                const data = await res.json();
-                if (data.estimates) {
-                  const e = data.estimates;
-                  if (e.pricePerMInputTokens != null) setCC('pricePerMInputTokens', e.pricePerMInputTokens);
-                  if (e.pricePerMOutputTokens != null) setCC('pricePerMOutputTokens', e.pricePerMOutputTokens);
-                  if (e.inputTokensPerExec != null) setCC('inputTokensPerExec', e.inputTokensPerExec);
-                  if (e.outputTokensPerExec != null) setCC('outputTokensPerExec', e.outputTokensPerExec);
-                  if (e.avgResponseTimeSec != null) setCC('avgResponseTimeSec', e.avgResponseTimeSec);
-                  if (e.rationale) setComputeRationale(e.rationale);
-                }
-              } catch {}
-              setRefreshingCompute(false);
-            };
-
-            return (
-              <div className="border border-border rounded p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-text">
-                    <span>🖥️</span> Compute Cost Simulator
-                  </div>
-                  <button onClick={handleComputeRefresh} disabled={refreshingCompute}
-                    className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50">
-                    {refreshingCompute ? <Spinner size="sm" /> : <RefreshCw size={11} />}
-                    {refreshingCompute ? 'Updating…' : 'Update with AI'}
-                  </button>
-                </div>
-                {computeRationale && (
-                  <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-                    <Bot size={11} className="mt-0.5 flex-shrink-0" /><span>{computeRationale}</span>
-                  </div>
-                )}
-
-                {/* Deployment tabs */}
-                <div className="flex gap-1 bg-slate-100 rounded p-1">
-                  {(['cloud_api', 'on_premise', 'hybrid'] as const).map((key) => {
-                    const label = key === 'cloud_api' ? '☁️ Cloud API' : key === 'on_premise' ? '🖥️ On-Premise' : '⚡ Hybrid';
-                    return (
-                      <button key={key} onClick={() => setCC('deploymentModel', key)}
-                        className={`flex-1 py-1 rounded text-xs font-medium transition-colors ${model === key ? 'bg-white shadow text-text' : 'text-muted hover:text-text'}`}>
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Common: annual reps + response time + concurrency */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="form-label">Annual Executions</label>
-                    <input type="number" min={0} className="form-input text-xs" value={cc.annualReps ?? 0}
-                      onChange={e => setCC('annualReps', parseInt(e.target.value) || 0)} />
-                  </div>
-                  <div>
-                    <label className="form-label">Avg Response (sec)</label>
-                    <input type="number" min={0} step={0.5} className="form-input text-xs" value={cc.avgResponseTimeSec ?? 2}
-                      onChange={e => setCC('avgResponseTimeSec', parseFloat(e.target.value) || 0)} />
-                  </div>
-                  <div>
-                    <label className="form-label">Concurrent Users</label>
-                    <input type="number" min={1} className="form-input text-xs" value={cc.concurrentUsers ?? 1}
-                      onChange={e => setCC('concurrentUsers', parseInt(e.target.value) || 1)} />
-                  </div>
-                </div>
-
-                {/* Cloud inputs */}
-                {model === 'cloud_api' && (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="form-label">Input tokens/exec</label>
-                        <input type="number" min={0} className="form-input text-xs" value={cc.inputTokensPerExec ?? 1000}
-                          onChange={e => setCC('inputTokensPerExec', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <label className="form-label">Output tokens/exec</label>
-                        <input type="number" min={0} className="form-input text-xs" value={cc.outputTokensPerExec ?? 500}
-                          onChange={e => setCC('outputTokensPerExec', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <label className="form-label">€/M input tokens</label>
-                        <input type="number" min={0} step={0.1} className="form-input text-xs" value={cc.pricePerMInputTokens ?? 2}
-                          onChange={e => setCC('pricePerMInputTokens', parseFloat(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <label className="form-label">€/M output tokens</label>
-                        <input type="number" min={0} step={0.1} className="form-input text-xs" value={cc.pricePerMOutputTokens ?? 6}
-                          onChange={e => setCC('pricePerMOutputTokens', parseFloat(e.target.value) || 0)} />
-                      </div>
-                    </div>
-                    <div className="flex gap-1 flex-wrap">
-                      <span className="text-[10px] text-muted">Presets:</span>
-                      {([['Mistral Med.', 2, 6], ['GPT-4o', 5, 15], ['Claude S.', 3, 15]] as [string, number, number][]).map(([name, inp, out]) => (
-                        <button key={name} onClick={() => { setCC('pricePerMInputTokens', inp); setCC('pricePerMOutputTokens', out); }}
-                          className="text-[10px] px-2 py-0.5 border border-border rounded hover:border-blue-aria hover:text-blue-aria transition-colors">
-                          {name} ({inp}/{out})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* On-premise inputs */}
-                {model === 'on_premise' && (
-                  <div className="space-y-2">
-                    {/* Auto GPU recommendation */}
-                    <div className="bg-blue-50 border border-blue-200 rounded p-2.5 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">Auto GPU Sizing</span>
-                        <span className="text-xs font-bold text-text">{nGpus}× {gpu.name}</span>
-                        <span className="text-[10px] text-muted">{gpu.vramGb}GB VRAM · {gpu.tdpW}W · €{gpu.priceEur.toLocaleString()}/unit</span>
-                      </div>
-                      <p className="text-[10px] text-muted leading-relaxed">{autoRec.rationale}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="form-label">Amortization (yrs)</label>
-                        <input type="number" min={1} max={10} className="form-input text-xs" value={cc.amortizationYears ?? 4}
-                          onChange={e => setCC('amortizationYears', parseInt(e.target.value) || 4)} />
-                      </div>
-                      <div>
-                        <label className="form-label">Electricity €/kWh</label>
-                        <input type="number" min={0} step={0.01} className="form-input text-xs" value={cc.electricityRateEur ?? 0.15}
-                          onChange={e => setCC('electricityRateEur', parseFloat(e.target.value) || 0)} />
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 rounded p-2 text-[10px] text-muted space-y-1">
-                      <div className="flex gap-4 flex-wrap">
-                        <span>Amortization: {fmt(amortization)}/yr</span>
-                        <span>Electricity: {fmt(electricity)}/yr</span>
-                        <span>Maintenance: {fmt(maintenance)}/yr</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>GPU load:</span>
-                        <div className="flex-1 bg-slate-200 rounded-full h-1.5 max-w-[120px]">
-                          <div className="h-1.5 rounded-full bg-blue-aria transition-all"
-                            style={{ width: `${Math.min(autoRec.utilizationPct * 100, 100).toFixed(1)}%` }} />
-                        </div>
-                        <span className="font-medium text-text">{(autoRec.utilizationPct * 100).toFixed(1)}%</span>
-                        <span className="text-[9px]">(power factor {(powerFactor * 100).toFixed(0)}%)</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Hybrid inputs */}
-                {model === 'hybrid' && (
-                  <div className="space-y-2">
-                    <label className="form-label">On-premise base load: {cc.onPremPct ?? 70}%</label>
-                    <input type="range" min={0} max={100} step={5} className="w-full accent-blue-aria"
-                      value={cc.onPremPct ?? 70} onChange={e => setCC('onPremPct', parseInt(e.target.value))} />
-                    <div className="flex justify-between text-[10px] text-muted">
-                      <span>0% (all cloud)</span><span>100% (all on-prem)</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Commercial licences / subscriptions */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-text uppercase tracking-wide">Commercial Licences / Subscriptions</span>
-                    <button onClick={addSub}
-                      className="text-[10px] text-blue-aria border border-blue-aria rounded px-2 py-0.5 hover:bg-blue-50 transition-colors flex items-center gap-1">
-                      <Plus size={10} /> Add
-                    </button>
-                  </div>
-                  {subs.length > 0 && (
-                    <div className="space-y-1.5">
-                      <div className="grid grid-cols-[1fr_64px_72px_64px_20px] gap-1 text-[9px] text-muted uppercase tracking-wide px-1">
-                        <span>Tool / Licence</span><span className="text-right">Users</span><span className="text-right">€/user/mo</span><span className="text-right">Annual</span><span />
-                      </div>
-                      {subs.map((sub, i) => (
-                        <div key={i} className="grid grid-cols-[1fr_64px_72px_64px_20px] gap-1 items-center">
-                          <input className="form-input text-xs py-1" placeholder="e.g. Microsoft Copilot"
-                            value={sub.tool} onChange={e => updateSub(i, 'tool', e.target.value)} />
-                          <input type="number" min={1} className="form-input text-xs py-1 text-right"
-                            value={sub.users} onChange={e => updateSub(i, 'users', parseInt(e.target.value) || 1)} />
-                          <input type="number" min={0} step={0.5} className="form-input text-xs py-1 text-right"
-                            value={sub.monthlyPerUser} onChange={e => updateSub(i, 'monthlyPerUser', parseFloat(e.target.value) || 0)} />
-                          <span className="text-[10px] text-muted text-right font-medium">{fmt(sub.users * sub.monthlyPerUser * 12)}</span>
-                          <button onClick={() => removeSub(i)} className="text-muted hover:text-red-500 transition-colors">
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
-                      <div className="flex justify-end text-xs font-semibold text-text pt-1 border-t border-border/50">
-                        Total licences: {fmt(subscriptionsCost)}/yr
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Results */}
-                {(reps > 0 || subscriptionsCost > 0) && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-3 space-y-2">
-                    <div className="text-xs font-semibold text-blue-aria">Estimated Annual Costs</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className={`rounded p-2 ${model === 'cloud_api' ? 'bg-blue-aria text-white' : 'bg-white border border-border'}`}>
-                        <div className="text-[10px] opacity-70 uppercase">Cloud API/yr</div>
-                        <div className="font-bold">{fmt(cloudCost)}</div>
-                      </div>
-                      <div className={`rounded p-2 ${model === 'on_premise' ? 'bg-blue-aria text-white' : 'bg-white border border-border'}`}>
-                        <div className="text-[10px] opacity-70 uppercase">On-Premise/yr</div>
-                        <div className="font-bold">{fmt(onPremCost)}</div>
-                      </div>
-                    </div>
-                    {subscriptionsCost > 0 && (
-                      <div className="flex justify-between text-xs border-t border-blue-200 pt-2">
-                        <span className="text-muted">+ Licences/yr</span>
-                        <span className="font-semibold">{fmt(subscriptionsCost)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-xs font-bold border-t border-blue-200 pt-1">
-                      <span>Total/yr</span>
-                      <span className="text-blue-aria">{fmt(activeCost)}</span>
-                    </div>
-                    <div className="text-xs text-blue-aria font-medium">
-                      {fmt(costPerExec)} / execution
-                      {breakevenMonths && model !== 'cloud_api' && breakevenMonths > 0 && (
-                        <span className="ml-2 text-muted font-normal">· On-prem break-even: {breakevenMonths} months</span>
-                      )}
-                    </div>
-                    {savingOverCloud !== null && savingOverCloud > 0 && (
-                      <div className="text-[10px] text-green-700">On-prem saves {fmt(savingOverCloud)}/yr vs. cloud</div>
-                    )}
-                    {savingOverCloud !== null && savingOverCloud < 0 && (
-                      <div className="text-[10px] text-amber-700">Cloud is cheaper by {fmt(-savingOverCloud)}/yr at this volume</div>
-                    )}
-                  </div>
-                )}
+          {/* Compute Cost Simulator — unified calculator (shared with POC + Industrialization) */}
+          <div className="border border-border rounded p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                <span>🖥️</span> Compute cost calculator
               </div>
-            );
-          })()}
+              <button
+                onClick={async () => {
+                  setRefreshingCompute(true);
+                  try {
+                    const res = await fetch('/api/ai/refresh-compute-estimates', {
+                      method: 'POST', credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        computeBreakdown: (form as any).computeBreakdown ?? {},
+                        useCaseDescription: form.description,
+                        aiTypes: form.aiTypes,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.estimates) {
+                      const e = data.estimates;
+                      const cb = ((form as any).computeBreakdown ?? DEFAULT_COMPUTE_BREAKDOWN) as ComputeBreakdown;
+                      const next: ComputeBreakdown = {
+                        ...cb,
+                        ...(e.inputTokensPerExec != null ? { inputTokensPerExec: e.inputTokensPerExec } : {}),
+                        ...(e.outputTokensPerExec != null ? { outputTokensPerExec: e.outputTokensPerExec } : {}),
+                      };
+                      setForm(f => ({ ...f, computeBreakdown: next }));
+                      if (e.rationale) setComputeRationale(e.rationale);
+                    }
+                  } catch {}
+                  setRefreshingCompute(false);
+                }}
+                disabled={refreshingCompute}
+                className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
+              >
+                {refreshingCompute ? <Spinner size="sm" /> : <RefreshCw size={11} />}
+                {refreshingCompute ? 'Updating…' : 'Suggest token volumes (AI)'}
+              </button>
+            </div>
+            {computeRationale && (
+              <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+                <Bot size={11} className="mt-0.5 flex-shrink-0" /><span>{computeRationale}</span>
+              </div>
+            )}
+            <ComputeCalculator
+              breakdown={(form as any).computeBreakdown}
+              onChange={(next) => setForm(f => ({ ...f, computeBreakdown: next }))}
+              defaultOpen
+            />
+          </div>
 
           {/* ROI estimate */}
           {roi && (
@@ -942,7 +638,7 @@ function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: UseCase; b1Prof
   const targetHours = activities
     .filter(a => (uc.targetActivities ?? []).includes(a.id))
     .reduce((s, a) => s + (a.estimatedTimeHours ?? 0), 0);
-  const ccPerYear = computeAnnualCost((uc as any).computeCost ?? {});
+  const ccPerYear = computeAnnualCompute((uc as any).computeBreakdown ?? null).totalEur;
   const roi = computeRoi(uc.timeSavedPerProfile ?? [], b1Profiles, uc.estimatedDevCostEur ?? 0, annualReps, targetHours, ccPerYear);
   if (!roi) return <span className="text-xs text-muted">—</span>;
   return (
@@ -980,7 +676,8 @@ export default function B5Page() {
   const [slideOver, setSlideOver] = useState(false);
   const [editUC, setEditUC] = useState<UseCase | null>(null);
   const [initialDesc, setInitialDesc] = useState('');
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; uc: UseCase | null }>({ open: false, uc: null });
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; uc: UseCase | null; cascade: boolean; pocs: number; industrializations: number; error?: string }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+  const [showArchived, setShowArchived] = useState(false);
   const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [generateModal, setGenerateModal] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -993,7 +690,7 @@ export default function B5Page() {
   const load = useCallback(async () => {
     const [procRes, ucRes] = await Promise.all([
       fetch(`/api/audits/${auditId}/processes/${procId}`, { credentials: 'include' }),
-      fetch(`/api/audits/${auditId}/usecases?processId=${procId}`, { credentials: 'include' }),
+      fetch(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`, { credentials: 'include' }),
     ]);
     const proc = await procRes.json();
     const ucs = await ucRes.json();
@@ -1005,7 +702,7 @@ export default function B5Page() {
     setB2Axes(proc.b2?.axes ?? {});
     setUseCases(Array.isArray(ucs) ? ucs : []);
     setLoading(false);
-  }, [auditId, procId]);
+  }, [auditId, procId, showArchived]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1048,9 +745,38 @@ export default function B5Page() {
 
   const handleDelete = async () => {
     if (!deleteModal.uc) return;
-    await fetch(`/api/audits/${auditId}/usecases/${deleteModal.uc._id}`, { method: 'DELETE', credentials: 'include' });
-    setUseCases(prev => prev.filter(u => u._id !== deleteModal.uc!._id));
-    setDeleteModal({ open: false, uc: null });
+    const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
+    const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+    if (res.ok) {
+      const id = deleteModal.uc._id;
+      setUseCases(prev => prev.filter(u => u._id !== id));
+      setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 409 && data?.dependents) {
+      setDeleteModal(s => ({ ...s, cascade: true, pocs: data.dependents.pocs ?? 0, industrializations: data.dependents.industrializations ?? 0, error: data.error }));
+    } else {
+      setDeleteModal(s => ({ ...s, error: data?.error || 'Delete failed' }));
+    }
+  };
+
+  const toggleArchive = async (uc: UseCase) => {
+    const next = !uc.isArchived;
+    const res = await fetch(`/api/audits/${auditId}/usecases/${uc._id}`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isArchived: next }),
+    });
+    if (!res.ok) return;
+    const updated = await res.json();
+    setUseCases(prev => {
+      // When the archived toggle is off, archived items should disappear; when on, active ones disappear.
+      if (showArchived ? !updated.isArchived : updated.isArchived) {
+        return prev.filter(u => u._id !== uc._id);
+      }
+      return prev.map(u => u._id === uc._id ? updated : u);
+    });
   };
 
   const createPOC = (uc: UseCase) => {
@@ -1097,13 +823,19 @@ export default function B5Page() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1 mb-4 bg-white rounded-md border border-border p-1 w-fit">
-        {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}>
-            {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex gap-1 bg-white rounded-md border border-border p-1 w-fit">
+          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}>
+              {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+          <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="accent-blue-aria" />
+          Show archived
+        </label>
       </div>
 
       {/* Use case table */}
@@ -1130,7 +862,7 @@ export default function B5Page() {
               {filtered.map(uc => {
                 const aiTypes: AIType[] = uc.aiTypes?.length ? uc.aiTypes : [(uc as any).aiType].filter(Boolean);
                 return (
-                  <tr key={uc._id} className={`hover:bg-slate-50 transition-colors ${uc.status === 'blocked' ? 'opacity-70' : ''}`}>
+                  <tr key={uc._id} className={`hover:bg-slate-50 transition-colors ${uc.status === 'blocked' ? 'opacity-70' : ''} ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}>
                     <td className="px-3 py-3">
                       <button
                         onClick={() => { setEditUC(uc); setInitialDesc(''); setSlideOver(true); }}
@@ -1189,7 +921,12 @@ export default function B5Page() {
                         )}
                         <button onClick={() => { setEditUC(uc); setInitialDesc(''); setSlideOver(true); }}
                           className="text-muted hover:text-blue-aria p-1"><Pencil size={13} /></button>
-                        <button onClick={() => setDeleteModal({ open: true, uc })}
+                        <button onClick={() => toggleArchive(uc)}
+                          title={uc.isArchived ? 'Unarchive' : 'Archive'}
+                          className="text-muted hover:text-blue-aria p-1">
+                          {uc.isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                        </button>
+                        <button onClick={() => setDeleteModal({ open: true, uc, cascade: false, pocs: 0, industrializations: 0 })}
                           className="text-muted hover:text-red-sov p-1"><Trash2 size={13} /></button>
                       </div>
                     </td>
@@ -1352,9 +1089,16 @@ export default function B5Page() {
         </div>
       )}
 
-      <ConfirmModal isOpen={deleteModal.open} title="Delete use case?"
-        message={`Are you sure you want to delete "${deleteModal.uc?.cuId}"? This cannot be undone.`}
-        confirmLabel="Delete" onConfirm={handleDelete} onClose={() => setDeleteModal({ open: false, uc: null })} />
+      <ConfirmModal isOpen={deleteModal.open}
+        title={deleteModal.cascade ? 'Delete use case and dependents?' : 'Delete use case?'}
+        message={
+          deleteModal.cascade
+            ? `"${deleteModal.uc?.cuId}" has ${deleteModal.pocs} POC(s) and ${deleteModal.industrializations} industrialization(s). Deleting will remove them too. This cannot be undone.`
+            : `Are you sure you want to delete "${deleteModal.uc?.cuId}"? Consider archiving instead if you might need it later.`
+        }
+        confirmLabel={deleteModal.cascade ? 'Delete all' : 'Delete'}
+        onConfirm={handleDelete}
+        onClose={() => setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 })} />
     </div>
   );
 }

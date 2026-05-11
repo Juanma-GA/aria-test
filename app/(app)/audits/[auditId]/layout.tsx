@@ -2,7 +2,9 @@
 
 import { useEffect } from 'react';
 import { useParams, usePathname } from 'next/navigation';
+import { Lock } from 'lucide-react';
 import { useBreadcrumb } from '@/context/BreadcrumbContext';
+import { AuditAccessProvider, useAuditAccess } from '@/context/AuditAccessContext';
 
 const AUDIT_SUB_LABELS: Record<string, string> = {
   scoring: 'Scoring',
@@ -12,6 +14,19 @@ const AUDIT_SUB_LABELS: Record<string, string> = {
   report: 'AI Report',
   export: 'Export',
 };
+
+function ReadOnlyBanner() {
+  const { canEdit, effectiveRole, loading } = useAuditAccess();
+  if (loading || canEdit) return null;
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-sov-light border border-amber-sov/30 text-amber-sov text-xs rounded-sm mb-3">
+      <Lock size={12} />
+      <span>
+        Read-only mode {effectiveRole ? <span className="text-muted">— your role: {effectiveRole}</span> : null}
+      </span>
+    </div>
+  );
+}
 
 export default function AuditLayout({ children }: { children: React.ReactNode }) {
   const { auditId } = useParams<{ auditId: string }>();
@@ -48,5 +63,10 @@ export default function AuditLayout({ children }: { children: React.ReactNode })
     };
   }, [auditId, pathname, setItems]);
 
-  return <>{children}</>;
+  return (
+    <AuditAccessProvider auditId={auditId as string}>
+      <ReadOnlyBanner />
+      {children}
+    </AuditAccessProvider>
+  );
 }

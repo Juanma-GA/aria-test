@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC, Roadmap } from '@/lib/models';
+import { Industrialization } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -21,6 +23,9 @@ export async function GET(
     await dbConnect();
     const { auditId } = params;
 
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
+
     const audit = await Audit.findById(auditId)
       .populate('leadConsultant', 'name')
       .lean();
@@ -29,12 +34,14 @@ export async function GET(
       return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
     }
 
-    const [processCount, useCaseCount, pocCount, processes, allUseCases] = await Promise.all([
+    const notArchived = { isArchived: { $ne: true } };
+    const [processCount, useCaseCount, pocCount, industrializationCount, processes, allUseCases] = await Promise.all([
       Process.countDocuments({ auditId }),
-      UseCase.countDocuments({ auditId }),
-      POC.countDocuments({ auditId }),
+      UseCase.countDocuments({ auditId, ...notArchived }),
+      POC.countDocuments({ auditId, ...notArchived }),
+      Industrialization.countDocuments({ auditId, ...notArchived }),
       Process.find({ auditId }).lean(),
-      UseCase.find({ auditId, status: 'eligible' }).lean(),
+      UseCase.find({ auditId, status: 'eligible', ...notArchived }).lean(),
     ]);
 
     const ucByProcess: Record<string, any[]> = {};
@@ -110,6 +117,7 @@ export async function GET(
       processCount,
       useCaseCount,
       pocCount,
+      industrializationCount,
       processes: processesWithMetrics,
     });
   } catch (err) {
@@ -125,6 +133,10 @@ export async function PATCH(
   try {
     await dbConnect();
     const { auditId } = params;
+
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
     const { name, client, project, sector, classification, status, startDate, targetEndDate, isArchived } = body;
 
@@ -159,21 +171,16 @@ export async function DELETE(
   try {
     await dbConnect();
     const { auditId } = params;
-    const userRole = req.headers.get('x-user-role');
 
-    if (userRole !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: admin only' }, { status: 403 });
-    }
-
-    const audit = await Audit.findById(auditId);
-    if (!audit) {
-      return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
-    }
+    // Delete still requires admin OR audit owner
+    const access = await requireAuditAccess(req, auditId, 'manage');
+    if (!isAccessGranted(access)) return access;
 
     await Promise.all([
       Process.deleteMany({ auditId }),
       UseCase.deleteMany({ auditId }),
       POC.deleteMany({ auditId }),
+      Industrialization.deleteMany({ auditId }),
       Roadmap.deleteOne({ auditId }),
     ]);
     await Audit.findByIdAndDelete(auditId);

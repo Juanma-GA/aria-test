@@ -14,6 +14,8 @@ const DECISION_LABELS = { go: 'GO', go_conditional: 'GO Conditional', no_go_rede
 type EnrichedPOC = POC & {
   cuId?: string;
   processData?: { procId: string; name: string };
+  /** Server-resolved user name for design.responsibleUserId (when it stored an ObjectId). */
+  responsibleName?: string;
 };
 
 export default function POCsPage() {
@@ -21,13 +23,15 @@ export default function POCsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [pocs, setPocs] = useState<EnrichedPOC[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/audits/${auditId}/pocs`, { credentials: 'include' })
+    setLoading(true);
+    fetch(`/api/audits/${auditId}/pocs${showArchived ? '?archived=true' : ''}`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => { setPocs(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [auditId]);
+  }, [auditId, showArchived]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
@@ -40,7 +44,11 @@ export default function POCsPage() {
           <h1 className="text-xl font-display font-bold text-text">POC Tracker</h1>
           <span className="text-muted text-sm">— {pocs.length} POCs</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+            <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="accent-blue-aria" />
+            Show archived
+          </label>
           <a
             href={`/api/audits/${auditId}/export/pocs`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
@@ -75,12 +83,18 @@ export default function POCsPage() {
                   ? `${pd.procId} · ${pd.name}`
                   : pd?.procId ?? '—';
                 return (
-                  <tr key={poc._id} className="border-b border-border/50 hover:bg-smoke/30 cursor-pointer" onClick={() => router.push(`/audits/${auditId}/pocs/${poc._id}`)}>
+                  <tr key={poc._id} className={`border-b border-border/50 hover:bg-smoke/30 cursor-pointer ${(poc as any).isArchived ? 'opacity-60 bg-smoke/40' : ''}`} onClick={() => router.push(`/audits/${auditId}/pocs/${poc._id}`)}>
                     <td className="py-3 px-3 font-mono text-xs text-teal-poc font-medium">{poc.pocId}</td>
                     <td className="py-3 px-3 text-xs text-text font-medium">{poc.name || <span className="text-muted">—</span>}</td>
                     <td className="py-3 px-3 text-muted text-xs">{poc.cuId || (poc as any).useCaseId?.cuId || poc.useCaseId?.toString().slice(-6)}</td>
                     <td className="py-3 px-3 text-xs text-muted">{procLabel}</td>
-                    <td className="py-3 px-3 text-xs">{poc.design?.responsibleUserId || '—'}</td>
+                    <td className="py-3 px-3 text-xs">
+                      {poc.responsibleName
+                        || (poc.design?.responsibleUserId && !/^[a-f0-9]{24}$/i.test(poc.design.responsibleUserId)
+                          ? poc.design.responsibleUserId
+                          : null)
+                        || '—'}
+                    </td>
                     <td className="py-3 px-3 text-xs text-muted">{poc.design?.startDate ? new Date(poc.design.startDate).toLocaleDateString() : '—'}</td>
                     <td className="py-3 px-3 text-xs text-muted">{poc.design?.deadlineDate ? new Date(poc.design.deadlineDate).toLocaleDateString() : '—'}</td>
                     <td className="py-3 px-3"><Badge variant={PHASE_COLORS[poc.phase]}>{poc.phase}</Badge></td>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Roadmap } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function GET(
   req: NextRequest,
@@ -9,6 +10,8 @@ export async function GET(
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const roadmap = await Roadmap.findOne({ auditId }).lean();
 
@@ -39,6 +42,9 @@ export async function PUT(
   try {
     await dbConnect();
     const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
 
     const roadmap = await Roadmap.findOneAndUpdate(
