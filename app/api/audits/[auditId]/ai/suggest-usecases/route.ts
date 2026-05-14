@@ -2,22 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> },
+  { params }: { params: { auditId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId } = await params;
+    const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
     const { processId } = body;
 
     if (!processId) {
-      return NextResponse.json(
-        { error: 'processId is required' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'processId is required' }, { status: 400 });
     }
 
     const process = await Process.findOne({ auditId, _id: processId });
@@ -29,27 +30,17 @@ export async function POST(
     const b2 = (process as any).b2 ?? {};
     const b3 = (process as any).b3 ?? {};
 
-    const profilesSummary =
-      (b1.profiles ?? [])
-        .map((p: any) => `${p.count}× ${p.role} (€${p.hourlyRateEur}/h)`)
-        .join(', ') || 'Not specified';
+    const profilesSummary = (b1.profiles ?? [])
+      .map((p: any) => `${p.count}× ${p.role} (€${p.hourlyRateEur}/h)`)
+      .join(', ') || 'Not specified';
 
-    const activitiesSummary =
-      (b3.activities ?? [])
-        .map(
-          (a: any, i: number) =>
-            `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`,
-        )
-        .join('\n') || 'Not specified';
+    const activitiesSummary = (b3.activities ?? [])
+      .map((a: any, i: number) => `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`)
+      .join('\n') || 'Not specified';
 
-    const axesSummary =
-      Object.entries(b2.axes ?? {})
-        .filter(([_, v]) => v && typeof v === 'object')
-        .map(
-          ([k, v]: [string, any]) =>
-            `${k}: ${v.status ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`,
-        )
-        .join(', ') || 'Not assessed';
+    const axesSummary = Object.entries(b2.axes ?? {})
+      .map(([k, v]: [string, any]) => `${k}: ${v.compliance ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`)
+      .join(', ') || 'Not assessed';
 
     const prompt = `You are an AI consultant specializing in enterprise AI strategy. Analyze the following business process and suggest concrete AI use cases.
 
@@ -83,20 +74,12 @@ Return a JSON array of 3-5 AI use case objects. Each object must have exactly th
 
 Return ONLY valid JSON array, no explanation.`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], {
-      maxTokens: 3000,
-      temperature: 0.4,
-    });
+    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 3000, temperature: 0.4 });
     const suggestions = parseLLMJson<any[]>(text);
 
-    return NextResponse.json({
-      suggestions: Array.isArray(suggestions) ? suggestions : [],
-    });
+    return NextResponse.json({ suggestions: Array.isArray(suggestions) ? suggestions : [] });
   } catch (err) {
-    console.error('[API]', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

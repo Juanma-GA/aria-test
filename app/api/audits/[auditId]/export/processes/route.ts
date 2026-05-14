@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process, Audit } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 function escapeCsv(val: any): string {
   const s = String(val ?? '');
-  if (s.includes(',') || s.includes('"') || s.includes('\n'))
-    return `"${s.replace(/"/g, '""')}"`;
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 
@@ -14,12 +14,14 @@ function row(cells: any[]): string {
 }
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> },
+  req: NextRequest,
+  { params }: { params: { auditId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId } = await params;
+    const { auditId } = params;
+    const access = await requireAuditAccess(req, auditId, 'view');
+    if (!isAccessGranted(access)) return access;
 
     const [audit, processes] = await Promise.all([
       Audit.findById(auditId).select('name').lean() as any,
@@ -27,19 +29,9 @@ export async function GET(
     ]);
 
     const headers = [
-      'Process ID',
-      'Process Name',
-      'Department',
-      'Responsible',
-      'Activity',
-      'Tools',
-      'Inputs',
-      'Outputs',
-      'Hours/Run',
-      'Step Reps',
-      'Annual Reps',
-      'Total Hours/Year',
-      'Profiles',
+      'Process ID', 'Process Name', 'Department', 'Responsible',
+      'Activity', 'Tools', 'Inputs', 'Outputs',
+      'Hours/Run', 'Step Reps', 'Annual Reps', 'Total Hours/Year', 'Profiles',
     ];
 
     const rows: string[] = [row(headers)];
@@ -48,49 +40,29 @@ export async function GET(
       const activities: any[] = proc.b3?.activities ?? [];
       const annualReps: number = proc.b3?.annualRepetitions ?? 0;
       const profiles: any[] = proc.b1?.profiles ?? [];
-      const profilesStr = profiles
-        .map((p: any) => `${p.role} ×${p.count} @€${p.hourlyRateEur}/h`)
-        .join('; ');
+      const profilesStr = profiles.map((p: any) => `${p.role} ×${p.count} @€${p.hourlyRateEur}/h`).join('; ');
 
       if (activities.length === 0) {
-        rows.push(
-          row([
-            proc.procId,
-            proc.name,
-            proc.department ?? '',
-            proc.responsible ?? '',
-            '—',
-            '',
-            '',
-            '',
-            '',
-            '',
-            annualReps,
-            '',
-            profilesStr,
-          ]),
-        );
+        rows.push(row([proc.procId, proc.name, proc.department ?? '', proc.responsible ?? '', '—', '', '', '', '', '', annualReps, '', profilesStr]));
       } else {
         activities.forEach((act: any, idx: number) => {
           const stepReps = act.stepRepetitions ?? 1;
           const hrsRun = act.estimatedTimeHours ?? 0;
-          rows.push(
-            row([
-              idx === 0 ? proc.procId : '',
-              idx === 0 ? proc.name : '',
-              idx === 0 ? (proc.department ?? '') : '',
-              idx === 0 ? (proc.responsible ?? '') : '',
-              act.name ?? '',
-              (act.tools ?? []).join('; '),
-              (act.inputs ?? []).join('; '),
-              (act.outputs ?? []).join('; '),
-              hrsRun,
-              stepReps,
-              annualReps,
-              Math.round(hrsRun * stepReps * annualReps * 10) / 10,
-              idx === 0 ? profilesStr : '',
-            ]),
-          );
+          rows.push(row([
+            idx === 0 ? proc.procId : '',
+            idx === 0 ? proc.name : '',
+            idx === 0 ? (proc.department ?? '') : '',
+            idx === 0 ? (proc.responsible ?? '') : '',
+            act.name ?? '',
+            (act.tools ?? []).join('; '),
+            (act.inputs ?? []).join('; '),
+            (act.outputs ?? []).join('; '),
+            hrsRun,
+            stepReps,
+            annualReps,
+            Math.round(hrsRun * stepReps * annualReps * 10) / 10,
+            idx === 0 ? profilesStr : '',
+          ]));
         });
       }
     }
@@ -106,10 +78,7 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error('[API]', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

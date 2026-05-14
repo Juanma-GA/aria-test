@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { SaveIndicator } from '@/components/ui/SaveIndicator';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import { calculateSovereigntyIndex } from '@/lib/calculations';
 import { apiUrl } from '@/lib/utils';
 import type {
@@ -366,6 +367,8 @@ export default function B2Page() {
     newStatus: SovereigntyStatus;
   }>({ open: false, axisKey: '', newStatus: 'red' });
   const saveRef = useRef(axes);
+
+  useBeforeUnload(saveStatus !== 'saved');
 
   useEffect(() => {
     fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {

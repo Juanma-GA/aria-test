@@ -21,7 +21,7 @@ async function verifyToken(token: string) {
   }
 }
 
-const PUBLIC_PATHS = ['/auth/login', '/api/auth/login', '/api/health'];
+const PUBLIC_PATHS = ['/auth/login', '/api/auth/login', '/api/health', '/api/cron/'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

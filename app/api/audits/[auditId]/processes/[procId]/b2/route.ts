@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Process } from '@/lib/models';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string; procId: string }> },
+  { params }: { params: { auditId: string; procId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = await params;
+    const { auditId, procId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
     const body = await req.json();
 
     const process = await Process.findOne({ auditId, _id: procId });
@@ -30,10 +34,7 @@ export async function PATCH(
 
     return NextResponse.json({ process: process.toObject() });
   } catch (err) {
-    console.error('[API]', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

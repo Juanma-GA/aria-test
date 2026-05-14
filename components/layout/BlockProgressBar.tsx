@@ -34,7 +34,7 @@ function buildBlocks(auditId?: string, procId?: string): BlockConfig[] {
     { key: 'b1', label: 'B1', displayLabel: 'B1', activeClass: 'bg-slate-500', href: `${base}/b1` },
     { key: 'b2', label: 'B2', displayLabel: 'B2', activeClass: 'bg-red-sov', href: `${base}/b2` },
     { key: 'b3', label: 'B3', displayLabel: 'B3', activeClass: 'bg-purple-aria', href: `${base}/b3` },
-    { key: 'b5', label: 'B4', displayLabel: 'B4', activeClass: 'bg-blue-aria', href: `${base}/b5` },
+    { key: 'b5', label: 'B5', displayLabel: 'B5', activeClass: 'bg-blue-aria', href: `${base}/b5` },
   ];
 }
 

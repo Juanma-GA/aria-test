@@ -24,6 +24,8 @@ export default {
         "teal-poc-light": "#CCFBF1",
         "purple-aria": "#5B21B6",
         "purple-aria-light": "#EDE9FE",
+        "indu": "#C2410C",
+        "indu-light": "#FFEDD5",
         smoke: "#F1F5F9",
         muted: "#64748B",
         border: "#CBD5E1",

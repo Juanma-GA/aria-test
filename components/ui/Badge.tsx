@@ -1,7 +1,7 @@
 'use client';
 import { clsx } from 'clsx';
 
-type Variant = 'default' | 'green' | 'amber' | 'red' | 'blue' | 'purple' | 'teal' | 'slate';
+type Variant = 'default' | 'green' | 'amber' | 'red' | 'blue' | 'purple' | 'teal' | 'slate' | 'indu';
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -18,6 +18,7 @@ const VARIANTS: Record<Variant, string> = {
   purple: 'bg-purple-aria-light text-purple-aria border border-purple-aria/20',
   teal: 'bg-teal-poc-light text-teal-poc border border-teal-poc/20',
   slate: 'bg-slate-100 text-slate-600 border border-slate-200',
+  indu: 'bg-indu-light text-indu border border-indu/20',
 };
 
 export function Badge({ children, variant = 'default', className }: BadgeProps) {

@@ -3,21 +3,26 @@ import dbConnect from '@/lib/mongodb';
 import { POC, UseCase, Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { calculateSovereigntyIndex } from '@/lib/calculations';
+import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string; pocId: string }> },
+  { params }: { params: { auditId: string; pocId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = await params;
+    const { auditId, pocId } = params;
+    const access = await requireAuditAccess(req, auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
 
     const poc = await POC.findOne({ auditId, _id: pocId });
     if (!poc) {
       return NextResponse.json({ error: 'POC not found' }, { status: 404 });
     }
 
-    const uc = poc.useCaseId ? await UseCase.findById(poc.useCaseId) : null;
+    const uc = poc.useCaseId
+      ? await UseCase.findById(poc.useCaseId)
+      : null;
 
     const process = poc.processId
       ? await Process.findById(poc.processId)
@@ -25,8 +30,9 @@ export async function POST(
 
     const b2 = (process as any)?.b2 ?? {};
     const axes = b2.axes ?? {};
-    const sovereigntyResult =
-      Object.keys(axes).length > 0 ? calculateSovereigntyIndex(axes) : null;
+    const sovereigntyResult = Object.keys(axes).length > 0
+      ? calculateSovereigntyIndex(axes)
+      : null;
 
     const LEVEL_LABELS: Record<string, string> = {
       full_autonomy: 'Full Autonomy',
@@ -37,12 +43,7 @@ export async function POST(
     };
 
     const b2Summary = sovereigntyResult
-      ? `Sovereignty level: ${LEVEL_LABELS[sovereigntyResult.level] ?? sovereigntyResult.level} (index ${sovereigntyResult.index.toFixed(2)}/5)${sovereigntyResult.hasCritical ? ' — CRITICAL constraints present' : ''}. Active axes: ${Object.entries(
-          axes,
-        )
-          .filter(([_, v]) => v && typeof v === 'object')
-          .map(([k, v]: [string, any]) => `${k}:${v.status ?? 'N/A'}`)
-          .join(', ')}`
+      ? `Sovereignty level: ${LEVEL_LABELS[sovereigntyResult.level] ?? sovereigntyResult.level} (index ${sovereigntyResult.index.toFixed(2)}/5)${sovereigntyResult.hasCritical ? ' — CRITICAL constraints present' : ''}. Active axes: ${Object.entries(axes).map(([k, v]: [string, any]) => `${k}:${v.compliance ?? 'N/A'}`).join(', ')}`
       : 'No sovereignty assessment available';
 
     const prompt = `You are an AI project manager. Fill in the design fields for a Proof of Concept (POC) for the following AI use case.
@@ -60,37 +61,18 @@ Return a JSON object with exactly these two fields:
 
 Return ONLY valid JSON.`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], {
-      maxTokens: 600,
-      temperature: 0.3,
-    });
-    const fields = parseLLMJson<{
-      measurableObjective: string;
-      activeB2Restrictions: string;
-    }>(text);
+    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 600, temperature: 0.3 });
+    const fields = parseLLMJson<{ measurableObjective: string; activeB2Restrictions: string }>(text);
 
-    // Patch the POC with the AI-generated fields in the design object
-    if (!poc.design) {
-      (poc as any).design = {};
-    }
-    (poc as any).design.measurableObjective = fields.measurableObjective;
-    (poc as any).design.activeB2Restrictions = fields.activeB2Restrictions;
-    (poc as any).aiGeneratedFields = [
-      'measurableObjective',
-      'activeB2Restrictions',
-    ];
-
-    // Mark nested object as modified for Mongoose
-    poc.markModified('design');
-    poc.markModified('aiGeneratedFields');
+    // Patch the POC with the AI-generated fields
+    (poc as any).measurableObjective = fields.measurableObjective;
+    (poc as any).activeB2Restrictions = fields.activeB2Restrictions;
+    (poc as any).aiGeneratedFields = ['measurableObjective', 'activeB2Restrictions'];
     await poc.save();
 
     return NextResponse.json({ poc: poc.toObject(), fields });
   } catch (err) {
-    console.error('[API]', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    console.error("[API]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

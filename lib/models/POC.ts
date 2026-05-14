@@ -13,7 +13,9 @@ const MilestoneSchema = new Schema({
   id: { type: String, required: true },
   name: { type: String, default: '' },
   dueDate: { type: Date },
-  status: { type: String, enum: ['pending', 'done', 'missed'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'work_in_progress', 'done', 'missed'], default: 'pending' },
+  progressPct: { type: Number, default: 0, min: 0, max: 100 },
+  effortHours: { type: Number, default: 0, min: 0 },
   notes: { type: String, default: '' },
 }, { _id: false });
 
@@ -59,8 +61,34 @@ export interface IPOC extends Document {
     decidedBy: string;
     decidedAt?: Date;
   };
-  computeCost?: any;
+  /**
+   * Catalog-driven compute calculator state. Mirrors the industrialization
+   * shape so the breakdown can be carried across when promoting POC →
+   * industrialization. Snapshots model/GPU specs at the moment they were picked.
+   */
+  computeBreakdown?: {
+    mode?: '' | 'cloud_api' | 'on_premise' | 'hybrid';
+    modelId?: mongoose.Types.ObjectId;
+    modelNameSnapshot?: string;
+    modelPriceInSnapshot?: number;
+    modelPriceOutSnapshot?: number;
+    gpuId?: mongoose.Types.ObjectId;
+    gpuNameSnapshot?: string;
+    gpuPriceSnapshot?: number;
+    gpuTdpSnapshot?: number;
+    annualReps?: number;
+    inputTokensPerExec?: number;
+    outputTokensPerExec?: number;
+    nGpus?: number;
+    amortizationYears?: number;
+    electricityRateEur?: number;
+    onPremPct?: number;
+    /** Server-derived: Σ cloud + on-prem amortisation + electricity (EUR/yr). */
+    computedAnnualEur?: number;
+  };
   aiGeneratedFields?: string[];
+  isArchived?: boolean;
+  archivedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -107,30 +135,38 @@ const POCSchema = new Schema<IPOC>({
     decidedBy: { type: String, default: '' },
     decidedAt: { type: Date },
   },
-  computeCost: {
-    deploymentModel: { type: String, enum: ['cloud_api', 'on_premise', 'hybrid'], default: 'cloud_api' },
-    annualReps: { type: Number, default: 0 },
-    concurrentUsers: { type: Number, default: 1 },
-    avgResponseTimeSec: { type: Number, default: 2 },
-    // Cloud API
-    inputTokensPerExec: { type: Number, default: 1000 },
-    outputTokensPerExec: { type: Number, default: 500 },
-    pricePerMInputTokens: { type: Number, default: 2 },
-    pricePerMOutputTokens: { type: Number, default: 6 },
-    // On-premise
-    gpuModel: { type: String, enum: ['rtx_4090', 'a100_40gb', 'a100_80gb', 'h100'], default: 'a100_40gb' },
-    nGpus: { type: Number, default: 1 },
-    amortizationYears: { type: Number, default: 4 },
-    electricityRateEur: { type: Number, default: 0.15 },
-    // Hybrid
-    onPremPct: { type: Number, default: 70 },
-    subscriptions: [{
-      tool: { type: String, default: '' },
-      users: { type: Number, default: 1 },
-      monthlyPerUser: { type: Number, default: 0 },
-    }],
+  computeBreakdown: {
+    // '' means dormant (no calculator-driven projection). Otherwise the
+    // server-side recompute fills computedAnnualEur from the inputs.
+    mode: { type: String, enum: ['', 'cloud_api', 'on_premise', 'hybrid'], default: '' },
+    modelId: { type: Schema.Types.ObjectId, ref: 'Catalog' },
+    modelNameSnapshot: { type: String, default: '' },
+    modelPriceInSnapshot: { type: Number, default: 0 },
+    modelPriceOutSnapshot: { type: Number, default: 0 },
+    gpuId: { type: Schema.Types.ObjectId, ref: 'Catalog' },
+    gpuNameSnapshot: { type: String, default: '' },
+    gpuPriceSnapshot: { type: Number, default: 0 },
+    gpuTdpSnapshot: { type: Number, default: 0 },
+    concurrentUsersPerGpuSnapshot: { type: Number, default: 0, min: 0 },
+    annualReps: { type: Number, default: 0, min: 0 },
+    inputTokensPerExec: { type: Number, default: 1000, min: 0 },
+    outputTokensPerExec: { type: Number, default: 500, min: 0 },
+    nGpus: { type: Number, default: 1, min: 0 },
+    amortizationYears: { type: Number, default: 4, min: 1 },
+    electricityRateEur: { type: Number, default: 0.15, min: 0 },
+    onPremPct: { type: Number, default: 100, min: 0, max: 100 },
+    workingHoursPerDay: { type: Number, default: 10, min: 0, max: 24 },
+    workingDaysPerWeek: { type: Number, default: 5, min: 0, max: 7 },
+    workingWeeksPerYear: { type: Number, default: 48, min: 0, max: 53 },
+    maxConcurrentUsersSupported: { type: Number, default: 0, min: 0 },
+    peakConcurrentUsers: { type: Number, default: 0, min: 0 },
+    peakUsageFractionOfWindow: { type: Number, default: 25, min: 0, max: 100 },
+    hwPreexisting: { type: Boolean, default: false },
+    computedAnnualEur: { type: Number, default: 0, min: 0 },
   },
   aiGeneratedFields: [{ type: String }],
+  isArchived: { type: Boolean, default: false, index: true },
+  archivedAt: { type: Date },
 }, { timestamps: true });
 
 const POC: Model<IPOC> = mongoose.models.POC || mongoose.model<IPOC>('POC', POCSchema);

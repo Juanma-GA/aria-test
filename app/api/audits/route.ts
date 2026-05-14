@@ -5,6 +5,7 @@ import { calculateScore } from '@/lib/calculations';
 import { nextSequence } from '@/lib/models/Counter';
 import { createAuditSchema, validationErrorResponse } from '@/lib/validators';
 import { requireRole } from '@/lib/auth';
+import { visibilityFilter } from '@/lib/auditAccess';
 
 export async function GET(_req: NextRequest) {
   try {
@@ -12,7 +13,12 @@ export async function GET(_req: NextRequest) {
 
     const { searchParams } = new URL(_req.url);
     const showArchived = searchParams.get('archived') === 'true';
-    const auditFilter = showArchived ? { isArchived: true } : { isArchived: { $ne: true } };
+    const visibility = visibilityFilter(_req);
+    if (!visibility) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auditFilter = {
+      ...visibility,
+      ...(showArchived ? { isArchived: true } : { isArchived: { $ne: true } }),
+    };
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
     const limitRaw = parseInt(searchParams.get('limit') ?? '0', 10);
     const limit = limitRaw > 0 && limitRaw <= 100 ? limitRaw : 0;
@@ -25,10 +31,11 @@ export async function GET(_req: NextRequest) {
     const audits = await auditQuery.lean();
 
     const auditIds = audits.map((a) => a._id);
+    const notArchived = { isArchived: { $ne: true } };
     const [allPocs, allProcesses, allUseCases] = await Promise.all([
-      POC.find({ auditId: { $in: auditIds } }).select('auditId phase').lean(),
+      POC.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId phase').lean(),
       Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
-      UseCase.find({ auditId: { $in: auditIds } }).select('auditId processId score status timeSavedPerProfile').lean(),
+      UseCase.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId processId score status timeSavedPerProfile').lean(),
     ]);
 
     // Group POCs by audit → phase counts
@@ -147,10 +154,24 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
     }
-    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess } = parsed.data;
+    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess, team: extraTeam } = parsed.data;
 
     const auditSeq = await nextSequence('audit');
     const auditCode = `AUD-${String(auditSeq).padStart(3, '0')}`;
+
+    // Always include the creator as owner; merge extra members from the form (deduped by userId).
+    const now = new Date();
+    const seen = new Set<string>();
+    const team: { userId: string; role: 'owner' | 'editor' | 'viewer'; addedAt: Date; addedBy?: string }[] = [];
+    if (userId) {
+      team.push({ userId, role: 'owner', addedAt: now, addedBy: userId });
+      seen.add(userId);
+    }
+    for (const m of extraTeam ?? []) {
+      if (seen.has(m.userId)) continue;
+      team.push({ userId: m.userId, role: m.role, addedAt: now, addedBy: userId ?? undefined });
+      seen.add(m.userId);
+    }
 
     const audit = await Audit.create({
       name,
@@ -159,6 +180,7 @@ export async function POST(req: NextRequest) {
       sector,
       classification,
       leadConsultant: userId,
+      team,
       startDate: startDate ? new Date(startDate) : undefined,
       targetEndDate: targetEndDate ? new Date(targetEndDate) : undefined,
       status: 'active',

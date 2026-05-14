@@ -22,6 +22,13 @@ export const createAuditSchema = z.object({
     })
     .nullable()
     .optional(),
+  team: z
+    .array(z.object({
+      userId: z.string().min(1),
+      role: z.enum(['owner', 'editor', 'viewer']),
+    }))
+    .optional()
+    .default([]),
 });
 
 export const createProcessSchema = z.object({
@@ -53,9 +60,37 @@ export const createUseCaseSchema = z.object({
   score: z.any().optional(),
 });
 
+export const INDUSTRIALIZATION_STATUSES = [
+  'pending_customer_validation',
+  'planned',
+  'work_in_progress',
+  'go_for_run',
+  'stand_by',
+  'cancelled',
+] as const;
+
+export const createIndustrializationSchema = z.object({
+  pocId: z.string().min(1, 'pocId is required'),
+  name: z.string().optional(),
+  status: z.enum(INDUSTRIALIZATION_STATUSES).optional().default('planned'),
+  statusReason: z.string().optional(),
+  plan: z
+    .object({
+      ownerBusiness: z.string().optional(),
+      ownerTechnical: z.string().optional(),
+      startDate: z.string().optional(),
+      targetGoLiveDate: z.string().optional(),
+      scope: z.string().optional(),
+      dependencies: z.string().optional(),
+      sovereigntyConstraints: z.string().optional(),
+    })
+    .optional(),
+});
+
 export type CreateAuditInput = z.infer<typeof createAuditSchema>;
 export type CreateProcessInput = z.infer<typeof createProcessSchema>;
 export type CreateUseCaseInput = z.infer<typeof createUseCaseSchema>;
+export type CreateIndustrializationInput = z.infer<typeof createIndustrializationSchema>;
 
 export function validationErrorResponse(error: z.ZodError) {
   return {

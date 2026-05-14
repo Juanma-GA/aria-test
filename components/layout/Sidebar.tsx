@@ -8,6 +8,7 @@ import {
   Lightbulb,
   Map,
   FlaskConical,
+  Factory,
   Download,
   FileText,
   Settings,
@@ -15,10 +16,11 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
+  BadgeEuro,
+  Cpu,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/lib/store/authStore';
-import { apiUrl } from '@/lib/utils';
 
 interface NavItem {
   href: string;
@@ -42,7 +44,7 @@ const BLOCKS = [
   { key: 'b1', label: 'B1 Context' },
   { key: 'b2', label: 'B2 Sovereignty' },
   { key: 'b3', label: 'B3 Process Map' },
-  { key: 'b5', label: 'B4 Use Cases' },
+  { key: 'b5', label: 'B5 Use Cases' },
 ];
 
 export function Sidebar() {
@@ -56,24 +58,15 @@ export function Sidebar() {
   const procId = params?.procId as string | undefined;
 
   const [processes, setProcesses] = useState<ProcessStub[]>([]);
-  const [expandedProc, setExpandedProc] = useState<string | null>(
-    procId ?? null,
-  );
+  const [expandedProc, setExpandedProc] = useState<string | null>(procId ?? null);
   const [ucsByProc, setUcsByProc] = useState<Record<string, UCStub[]>>({});
   const [expandedUCs, setExpandedUCs] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!auditId) {
-      setProcesses([]);
-      return;
-    }
-    fetch(apiUrl(`/api/audits/${auditId}/processes`))
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: any[]) =>
-        setProcesses(
-          data.map((p) => ({ _id: p._id, procId: p.procId, name: p.name })),
-        ),
-      )
+    if (!auditId) { setProcesses([]); return; }
+    fetch(`/api/audits/${auditId}/processes`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: any[]) => setProcesses(data.map((p) => ({ _id: p._id, procId: p.procId, name: p.name }))))
       .catch(() => {});
   }, [auditId]);
 
@@ -88,65 +81,37 @@ export function Sidebar() {
   // Fetch use cases when a process is expanded (re-fetch on b5 navigation to pick up new UCs)
   useEffect(() => {
     if (!auditId || !expandedProc) return;
-    fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${expandedProc}`))
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: any[]) =>
-        setUcsByProc((prev) => ({
-          ...prev,
-          [expandedProc]: data.map((u) => ({
-            _id: u._id,
-            cuId: u.cuId,
-            description: u.description,
-          })),
-        })),
-      )
+    fetch(`/api/audits/${auditId}/usecases?processId=${expandedProc}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: any[]) => setUcsByProc(prev => ({
+        ...prev,
+        [expandedProc]: data.map((u) => ({ _id: u._id, cuId: u.cuId, description: u.description })),
+      })))
       .catch(() => {});
   }, [auditId, expandedProc, pathname]);
 
   const mainNav: NavItem[] = [
-    {
-      href: '/dashboard',
-      label: 'Audits',
-      icon: <LayoutDashboard size={16} />,
-    },
+    { href: '/dashboard', label: 'Audits', icon: <LayoutDashboard size={16} /> },
     { href: '/usecases', label: 'Use Cases', icon: <Lightbulb size={16} /> },
     { href: '/pocs', label: 'POCs', icon: <FlaskConical size={16} /> },
+    { href: '/industrializations', label: 'Industrializations', icon: <Factory size={16} /> },
     { href: '/roadmap', label: 'Roadmap', icon: <Map size={16} /> },
   ];
 
   const auditNav: NavItem[] = auditId
     ? [
-        {
-          href: `/audits/${auditId}/usecases`,
-          label: 'Use Cases',
-          icon: <Lightbulb size={16} />,
-        },
-        {
-          href: `/audits/${auditId}/pocs`,
-          label: 'POCs',
-          icon: <FlaskConical size={16} />,
-        },
-        {
-          href: `/audits/${auditId}/roadmap`,
-          label: 'Roadmap',
-          icon: <Map size={16} />,
-        },
-        {
-          href: `/audits/${auditId}/report`,
-          label: 'AI Report',
-          icon: <FileText size={16} />,
-        },
-        {
-          href: `/audits/${auditId}/export`,
-          label: 'Export',
-          icon: <Download size={16} />,
-        },
+        { href: `/audits/${auditId}/usecases`, label: 'Use Cases', icon: <Lightbulb size={16} /> },
+        { href: `/audits/${auditId}/pocs`, label: 'POCs', icon: <FlaskConical size={16} /> },
+        { href: `/audits/${auditId}/industrializations`, label: 'Industrializations', icon: <Factory size={16} /> },
+        { href: `/audits/${auditId}/roadmap`, label: 'Roadmap', icon: <Map size={16} /> },
+        { href: `/audits/${auditId}/report`, label: 'AI Report', icon: <FileText size={16} /> },
+        { href: `/audits/${auditId}/export`, label: 'Export', icon: <Download size={16} /> },
       ]
     : [];
 
   const handleLogout = async () => {
     try {
-      await fetch(apiUrl('/api/auth/logout'), { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // ignore errors
     }
@@ -154,15 +119,14 @@ export function Sidebar() {
     router.push('/auth/login');
   };
 
-  const isActive = (href: string) =>
-    pathname === href || pathname?.startsWith(href + '/');
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/');
 
   const NavLink = ({ item }: { item: NavItem }) => (
     <Link
       href={item.href}
       className={clsx(
         'sidebar-item',
-        isActive(item.href) ? 'sidebar-item-active' : 'sidebar-item-inactive',
+        isActive(item.href) ? 'sidebar-item-active' : 'sidebar-item-inactive'
       )}
     >
       {item.icon}
@@ -181,9 +145,7 @@ export function Sidebar() {
           <span className="font-display text-2xl font-bold text-blue-light tracking-tight leading-none">
             ARIA
           </span>
-          <span className="block text-xs text-slate-400 mt-0.5 font-sans">
-            by Atexis
-          </span>
+          <span className="block text-xs text-slate-400 mt-0.5 font-sans">by Atexis</span>
         </Link>
       </div>
 
@@ -208,9 +170,7 @@ export function Sidebar() {
               href={`/audits/${auditId}`}
               className={clsx(
                 'sidebar-item',
-                pathname === `/audits/${auditId}`
-                  ? 'sidebar-item-active'
-                  : 'sidebar-item-inactive',
+                pathname === `/audits/${auditId}` ? 'sidebar-item-active' : 'sidebar-item-inactive'
               )}
             >
               <LayoutDashboard size={16} />
@@ -230,14 +190,10 @@ export function Sidebar() {
 
               return (
                 <div key={proc._id}>
-                  <div
-                    className={clsx(
-                      'flex items-center rounded-sm transition-colors',
-                      isThisProc
-                        ? 'text-blue-light bg-white/10'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
-                    )}
-                  >
+                  <div className={clsx(
+                    'flex items-center rounded-sm transition-colors',
+                    isThisProc ? 'text-blue-light bg-white/10' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  )}>
                     <Link
                       href={procBase}
                       className="flex-1 px-3 py-1.5 text-xs truncate"
@@ -245,17 +201,11 @@ export function Sidebar() {
                       {proc.procId} – {proc.name}
                     </Link>
                     <button
-                      onClick={() =>
-                        setExpandedProc(isExpanded ? null : proc._id)
-                      }
+                      onClick={() => setExpandedProc(isExpanded ? null : proc._id)}
                       className="px-2 py-1.5 shrink-0"
                       aria-label={isExpanded ? 'Collapse' : 'Expand'}
                     >
-                      {isExpanded ? (
-                        <ChevronDown size={11} />
-                      ) : (
-                        <ChevronRight size={11} />
-                      )}
+                      {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                     </button>
                   </div>
 
@@ -263,22 +213,17 @@ export function Sidebar() {
                     <div className="ml-5 pl-2 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
                       {BLOCKS.map((block) => {
                         const href = `${procBase}/${block.key}`;
-                        const active =
-                          pathname === href || pathname?.startsWith(href);
+                        const active = pathname === href || pathname?.startsWith(href);
 
                         if (block.key === 'b5') {
                           const ucs = ucsByProc[proc._id] ?? [];
                           const ucExpanded = expandedUCs === proc._id;
                           return (
                             <div key="b5">
-                              <div
-                                className={clsx(
-                                  'flex items-center rounded-sm transition-colors',
-                                  active
-                                    ? 'text-blue-light bg-white/10'
-                                    : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
-                                )}
-                              >
+                              <div className={clsx(
+                                'flex items-center rounded-sm transition-colors',
+                                active ? 'text-blue-light bg-white/10' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
+                              )}>
                                 <Link
                                   href={href}
                                   className="flex-1 px-2 py-1 text-xs"
@@ -287,23 +232,11 @@ export function Sidebar() {
                                 </Link>
                                 {ucs.length > 0 && (
                                   <button
-                                    onClick={() =>
-                                      setExpandedUCs(
-                                        ucExpanded ? null : proc._id,
-                                      )
-                                    }
+                                    onClick={() => setExpandedUCs(ucExpanded ? null : proc._id)}
                                     className="px-1.5 py-1 shrink-0"
-                                    aria-label={
-                                      ucExpanded
-                                        ? 'Collapse use cases'
-                                        : 'Expand use cases'
-                                    }
+                                    aria-label={ucExpanded ? 'Collapse use cases' : 'Expand use cases'}
                                   >
-                                    {ucExpanded ? (
-                                      <ChevronDown size={10} />
-                                    ) : (
-                                      <ChevronRight size={10} />
-                                    )}
+                                    {ucExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                                   </button>
                                 )}
                               </div>
@@ -311,9 +244,7 @@ export function Sidebar() {
                                 <div className="ml-3 pl-2 border-l border-white/10 space-y-0.5 mt-0.5">
                                   {ucs.map((uc) => {
                                     const ucHref = `${procBase}/b5?edit=${uc._id}`;
-                                    const ucActive =
-                                      pathname?.includes('/b5') &&
-                                      pathname?.includes(uc._id);
+                                    const ucActive = pathname?.includes('/b5') && pathname?.includes(uc._id);
                                     return (
                                       <Link
                                         key={uc._id}
@@ -322,16 +253,12 @@ export function Sidebar() {
                                           'flex items-center gap-1.5 px-2 py-1 rounded-sm transition-colors text-[11px]',
                                           ucActive
                                             ? 'text-blue-light bg-white/10 font-medium'
-                                            : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
+                                            : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
                                         )}
                                         title={uc.description}
                                       >
-                                        <span className="font-mono shrink-0">
-                                          {uc.cuId}
-                                        </span>
-                                        <span className="truncate text-slate-600">
-                                          {uc.description}
-                                        </span>
+                                        <span className="font-mono shrink-0">{uc.cuId}</span>
+                                        <span className="truncate text-slate-600">{uc.description}</span>
                                       </Link>
                                     );
                                   })}
@@ -349,7 +276,7 @@ export function Sidebar() {
                               'block px-2 py-1 text-xs rounded-sm transition-colors',
                               active
                                 ? 'text-blue-light bg-white/10 font-medium'
-                                : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
+                                : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
                             )}
                           >
                             {block.label}
@@ -372,26 +299,44 @@ export function Sidebar() {
       {/* Bottom actions */}
       <div className="px-3 pb-5 border-t border-white/10 pt-3 space-y-0.5">
         {currentUser?.role === 'admin' && (
-          <Link
-            href="/admin/users"
-            className={clsx(
-              'sidebar-item',
-              isActive('/admin/users')
-                ? 'sidebar-item-active'
-                : 'sidebar-item-inactive',
-            )}
-          >
-            <Users size={16} />
-            <span>Users</span>
-          </Link>
+          <>
+            <Link
+              href="/admin/users"
+              className={clsx(
+                'sidebar-item',
+                isActive('/admin/users') ? 'sidebar-item-active' : 'sidebar-item-inactive'
+              )}
+            >
+              <Users size={16} />
+              <span>Users</span>
+            </Link>
+            <Link
+              href="/admin/profiles"
+              className={clsx(
+                'sidebar-item',
+                isActive('/admin/profiles') ? 'sidebar-item-active' : 'sidebar-item-inactive'
+              )}
+            >
+              <BadgeEuro size={16} />
+              <span>Profiles</span>
+            </Link>
+            <Link
+              href="/admin/catalog"
+              className={clsx(
+                'sidebar-item',
+                isActive('/admin/catalog') ? 'sidebar-item-active' : 'sidebar-item-inactive'
+              )}
+            >
+              <Cpu size={16} />
+              <span>Catalog</span>
+            </Link>
+          </>
         )}
         <Link
           href="/settings"
           className={clsx(
             'sidebar-item',
-            isActive('/settings')
-              ? 'sidebar-item-active'
-              : 'sidebar-item-inactive',
+            isActive('/settings') ? 'sidebar-item-active' : 'sidebar-item-inactive'
           )}
         >
           <Settings size={16} />

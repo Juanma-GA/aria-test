@@ -166,35 +166,6 @@ export interface TimeSavedEntry {
   hoursPerExecution: number;
 }
 
-export type DeploymentModel = 'cloud_api' | 'on_premise' | 'hybrid';
-export type GpuModel = 'rtx_4090' | 'a100_40gb' | 'a100_80gb' | 'h100';
-
-export interface ComputeSubscription {
-  tool: string;
-  users: number;
-  monthlyPerUser: number;
-}
-
-export interface ComputeCostConfig {
-  deploymentModel: DeploymentModel;
-  annualReps: number;
-  concurrentUsers: number;
-  avgResponseTimeSec: number;
-  // Cloud API
-  inputTokensPerExec: number;
-  outputTokensPerExec: number;
-  pricePerMInputTokens: number;
-  pricePerMOutputTokens: number;
-  // On-premise
-  gpuModel: GpuModel;
-  nGpus: number;
-  amortizationYears: number;
-  electricityRateEur: number;
-  // Hybrid
-  onPremPct: number;
-  subscriptions: ComputeSubscription[];
-}
-
 export interface UseCase {
   _id: string;
   auditId: string;
@@ -217,7 +188,9 @@ export interface UseCase {
   reviewDate?: Date;
   notes: string;
   sovereigntyAnalysis?: string;
-  computeCost?: Partial<ComputeCostConfig>;
+  computeBreakdown?: ComputeBreakdown & { computedAnnualEur?: number };
+  isArchived?: boolean;
+  archivedAt?: Date;
   createdAt: Date;
   // B6 score embedded in the use case document
   score?: {
@@ -331,7 +304,9 @@ export interface POCMilestone {
   id: string;
   name: string;
   dueDate: Date;
-  status: 'pending' | 'done' | 'missed';
+  status: 'pending' | 'work_in_progress' | 'done' | 'missed';
+  progressPct: number;
+  effortHours: number;
   notes: string;
 }
 
@@ -374,10 +349,325 @@ export interface POC {
   execution: POC_Execution;
   evaluation: POC_Evaluation;
   decision: POC_Decision;
-  computeCost?: Partial<ComputeCostConfig>;
+  computeBreakdown?: ComputeBreakdown & { computedAnnualEur?: number };
+  isArchived?: boolean;
+  archivedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
+
+// ── ADMIN MODEL & HARDWARE CATALOG ─────────────────────────────────────────────
+export type CatalogKind = 'ai_model' | 'gpu';
+export type AIModelDeploymentMode = 'cloud_api' | 'on_premise' | 'hybrid';
+
+export interface CatalogEntry {
+  _id: string;
+  kind: CatalogKind;
+  name: string;
+  isActive: boolean;
+  notes?: string;
+  // ai_model
+  vendor?: string;
+  contextWindow?: number;
+  pricePerMInputTokens?: number;
+  pricePerMOutputTokens?: number;
+  deploymentMode?: AIModelDeploymentMode;
+  paramCountB?: number;
+  // gpu
+  tdpW?: number;
+  vramGb?: number;
+  priceEur?: number;
+  /** Concurrent-user serving capacity for this GPU when paired with a
+   *  representative model (from vendor benchmarks or measured). Used by the
+   *  compute calculator to default `maxConcurrentUsersSupported`. */
+  concurrentUsersPerGpu?: number;
+  // AI refresh provenance
+  aiUpdatedAt?: Date;
+  aiRationale?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Persistent state of the compute calculator on an industrialization.
+ *  Empty mode means the calculator is dormant — `computeEur` becomes a free
+ *  manual entry again until the user picks a mode. */
+export interface ComputeBreakdown {
+  mode?: AIModelDeploymentMode | '';
+  // AI model snapshot
+  modelId?: string;
+  modelNameSnapshot?: string;
+  modelPriceInSnapshot?: number;
+  modelPriceOutSnapshot?: number;
+  // GPU snapshot (on_premise / hybrid)
+  gpuId?: string;
+  gpuNameSnapshot?: string;
+  gpuPriceSnapshot?: number;
+  gpuTdpSnapshot?: number;
+  /** Snapshot from the model catalog: how many concurrent users 1 GPU can
+   *  serve when running this model at acceptable SLA. Used to size the HW
+   *  capacity (`maxConcurrentUsersSupported = nGpus × this`). */
+  concurrentUsersPerGpuSnapshot?: number;
+  // Calculator inputs
+  annualReps: number;
+  inputTokensPerExec: number;
+  outputTokensPerExec: number;
+  nGpus: number;
+  amortizationYears: number;
+  electricityRateEur: number;
+  /** Hybrid only: % of executions handled on-prem (0–100). */
+  onPremPct: number;
+
+  // ── Operating window (on_premise / hybrid only) ────────────────────────────
+  /** Hours per working day the HW is available (e.g. 10 for a 7–17 window). */
+  workingHoursPerDay?: number;
+  /** Working days per week (e.g. 5 = L–V). */
+  workingDaysPerWeek?: number;
+  /** Working weeks per year (e.g. 48 = 52 minus holidays). */
+  workingWeeksPerYear?: number;
+
+  // ── Concurrency capacity (on_premise / hybrid only) ────────────────────────
+  /** Total concurrent users this HW config supports at peak. Default
+   *  derivation: `nGpus × concurrentUsersPerGpuSnapshot`. User-editable. */
+  maxConcurrentUsersSupported?: number;
+
+  // ── Case occupancy of the HW (on_premise / hybrid only) ────────────────────
+  /** Concurrency expected at this case's peak hour. */
+  peakConcurrentUsers?: number;
+  /** % of the operating window during which the case operates near its peak
+   *  (0–100). Multiplies the concurrency share to yield occupancy. */
+  peakUsageFractionOfWindow?: number;
+  /** When TRUE, treat the HW as already paid for and only impute the case's
+   *  share of the running electricity (no CAPEX amortisation). */
+  hwPreexisting?: boolean;
+}
+
+// ── ADMIN PROFILE CATALOG ──────────────────────────────────────────────────────
+export interface ProfileCatalogEntry {
+  _id: string;
+  name: string;
+  role: string;
+  hourlyRateEur: number;
+  isActive: boolean;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Per-cost-line breakdown: which profiles, how many hours each. Stored on
+ *  Industrialization.cost.oneTime[field].profileHours (extension to scalar Eur).
+ */
+export interface ProfileHoursEntry {
+  profileId: string;
+  hours: number;
+}
+
+// ── INDUSTRIALIZATION ──────────────────────────────────────────────────────────
+export type IndustrializationStatus =
+  | 'pending_customer_validation'
+  | 'planned'
+  | 'work_in_progress'
+  | 'go_for_run'
+  | 'stand_by'
+  | 'cancelled';
+
+export type TriState = boolean | null;
+
+export interface IndustrializationMilestone {
+  id: string;
+  name: string;
+  dueDate?: Date;
+  status: 'pending' | 'work_in_progress' | 'done' | 'missed';
+  progressPct: number;
+  effortHours: number;
+  notes: string;
+}
+
+export interface IndustrializationRisk {
+  id: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  mitigation: string;
+}
+
+export interface MaintenanceAssessment {
+  hasCorrectiveWarranty: TriState;
+  hasFunctionalRoadmap: TriState;
+  hasFineTuningOrDynamicRag: TriState;
+  requiresDriftMonitoring: TriState;
+  isRegulatedRevalidation: TriState;
+  hasInternalSupport: TriState;
+  hasVendorSla: TriState;
+  completedAt?: Date;
+  completedBy?: string;
+}
+
+/** Per-category drivers that derive the annual maintenance EUR.
+ *  When a driver block is present, it OVERRIDES the matching scalar
+ *  (`correctiveEur`, `evolutiveEur`, …) on `maintenance`. When absent,
+ *  the scalar acts as a free-form manual entry. */
+export interface MaintenanceDrivers {
+  /** Corrective = pctOfDevelopment % × one-time development EUR. */
+  corrective?: { pctOfDevelopment: number };
+  /** Evolutive = featuresPerYear × hoursPerFeature × hourlyRateEur. */
+  evolutive?: {
+    featuresPerYear: number;
+    hoursPerFeature: number;
+    hourlyRateEur: number;
+  };
+  /** Model retraining = cyclesPerYear × (hoursPerCycle × hourlyRateEur + cloudComputePerCycleEur). */
+  modelRetraining?: {
+    cyclesPerYear: number;
+    hoursPerCycle: number;
+    hourlyRateEur: number;
+    cloudComputePerCycleEur: number;
+  };
+  /** Drift monitoring = checksPerYear × hoursPerCheck × hourlyRateEur + toolingEurPerYear. */
+  driftMonitoring?: {
+    checksPerYear: number;
+    hoursPerCheck: number;
+    hourlyRateEur: number;
+    toolingEurPerYear: number;
+  };
+  /** Re-validation = cyclesPerYear × (hoursPerCycle × hourlyRateEur + externalAuditEurPerCycle). */
+  revalidation?: {
+    cyclesPerYear: number;
+    hoursPerCycle: number;
+    hourlyRateEur: number;
+    externalAuditEurPerCycle: number;
+  };
+  /** L1/L2 support = ticketsPerMonth × 12 × hoursPerTicket × hourlyRateEur. */
+  l1l2Support?: {
+    ticketsPerMonth: number;
+    hoursPerTicket: number;
+    hourlyRateEur: number;
+  };
+  /** Vendor SLA = monthlyFeeEur × 12. */
+  vendorSla?: { monthlyFeeEur: number };
+}
+
+/** Stored per profile-hour line. Snapshots freeze rate/name at entry time. */
+export interface ProfileHoursLine {
+  profileId?: string;
+  profileNameSnapshot?: string;
+  profileRateSnapshot?: number;
+  hours: number;
+}
+
+export type OneTimeFieldKey =
+  | 'development' | 'integration' | 'infraSetup' | 'securityCompliance' | 'trainingChangeMgmt';
+
+export interface IndustrializationCost {
+  currency: string;
+  horizonYears: number;
+  oneTime: {
+    developmentEur: number;
+    integrationEur: number;
+    infraSetupEur: number;
+    securityComplianceEur: number;
+    trainingChangeMgmtEur: number;
+    contingencyPct: number;
+    profileHours?: Partial<Record<OneTimeFieldKey, ProfileHoursLine[]>>;
+  };
+  recurringAnnual: {
+    computeEur: number;
+    licensesEur: number;
+    monitoringObservabilityEur: number;
+    computeBreakdown?: ComputeBreakdown;
+    maintenance: {
+      assessment: MaintenanceAssessment;
+      /** Optional structured drivers — when present for a category, they
+       *  drive the EUR figure and override the scalar field below. */
+      drivers?: MaintenanceDrivers;
+      correctiveEur?: number;
+      evolutiveEur?: number;
+      modelRetrainingEur?: number;
+      driftMonitoringEur?: number;
+      revalidationEur?: number;
+      l1l2SupportEur?: number;
+      vendorSlaEur?: number;
+    };
+  };
+  actual: {
+    oneTimeEur: number;
+    recurringAnnualEur: number;
+    notes: string;
+  };
+}
+
+export interface IndustrializationROI {
+  baseline: {
+    annualHoursManual: number;
+    avgHourlyCostEur: number;
+    annualErrorRate: number;
+    qualityCostEur: number;
+  };
+  expected: {
+    timeSavingPct: number;
+    errorReductionPct: number;
+    annualSavingEur: number;
+    paybackMonths: number;
+  };
+  confirmed: {
+    measuredFrom?: Date;
+    measuredTo?: Date;
+    annualHoursSaved: number;
+    annualSavingEur: number;
+    errorReductionPctMeasured: number;
+    qualityCostAvoidedEur: number;
+    netAnnualBenefitEur: number;
+    paybackMonthsActual: number;
+    notes: string;
+  };
+}
+
+export interface Industrialization {
+  _id: string;
+  auditId: string;
+  useCaseId: string;
+  processId: string;
+  pocId: string;
+  industrializationId: string;
+  name?: string;
+  status: IndustrializationStatus;
+  statusReason?: string;
+  milestones: IndustrializationMilestone[];
+  plan: {
+    ownerBusiness: string;
+    ownerTechnical: string;
+    startDate?: Date;
+    targetGoLiveDate?: Date;
+    actualGoLiveDate?: Date;
+    scope: string;
+    dependencies: string;
+    sovereigntyConstraints: string;
+  };
+  cost: IndustrializationCost;
+  roi: IndustrializationROI;
+  production: {
+    monitoredKpis: string;
+    incidentsLog: string;
+    decommissioningPlan: string;
+  };
+  risks: IndustrializationRisk[];
+  changeManagement: {
+    trainingPlan: string;
+    communicationPlan: string;
+  };
+  aiGeneratedFields?: string[];
+  isArchived?: boolean;
+  archivedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const INDUSTRIALIZATION_STATUS_LABELS: Record<IndustrializationStatus, string> = {
+  pending_customer_validation: 'Pending customer validation',
+  planned: 'Planned',
+  work_in_progress: 'Work in progress',
+  go_for_run: 'Go for run',
+  stand_by: 'Stand by',
+  cancelled: 'Cancelled',
+};
 
 // ── DERIVED / COMPUTED ─────────────────────────────────────────────────────────
 export interface SovereigntyIndexResult {
