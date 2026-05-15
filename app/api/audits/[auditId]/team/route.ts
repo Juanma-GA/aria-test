@@ -9,19 +9,22 @@ const VALID_ROLES: AuditTeamRole[] = ['owner', 'editor', 'viewer'];
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const access = await requireAuditAccess(req, params.auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
     const team = (access.audit.team ?? []) as any[];
-    const userIds = team.map(m => m.userId);
-    const users = await User.find({ _id: { $in: userIds } }).select('_id name email role').lean();
-    const userMap = Object.fromEntries(users.map(u => [String(u._id), u]));
+    const userIds = team.map((m) => m.userId);
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('_id name email role')
+      .lean();
+    const userMap = Object.fromEntries(users.map((u) => [String(u._id), u]));
 
-    const enriched = team.map(m => ({
+    const enriched = team.map((m) => ({
       userId: String(m.userId),
       role: m.role,
       addedAt: m.addedAt,
@@ -32,31 +35,44 @@ export async function GET(
     return NextResponse.json({ team: enriched });
   } catch (err) {
     console.error('[API]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const access = await requireAuditAccess(req, params.auditId, 'manage');
     if (!isAccessGranted(access)) return access;
 
     const body = await req.json();
     const { userId, role } = body as { userId?: string; role?: AuditTeamRole };
     if (!userId || !role || !VALID_ROLES.includes(role)) {
-      return NextResponse.json({ error: 'userId and role (owner|editor|viewer) are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'userId and role (owner|editor|viewer) are required' },
+        { status: 400 },
+      );
     }
 
     const user = await User.findById(userId).lean();
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user)
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const existing = (access.audit.team ?? []).find((m: any) => String(m.userId) === userId);
+    const existing = (access.audit.team ?? []).find(
+      (m: any) => String(m.userId) === userId,
+    );
     if (existing) {
-      return NextResponse.json({ error: 'User is already a team member' }, { status: 409 });
+      return NextResponse.json(
+        { error: 'User is already a team member' },
+        { status: 409 },
+      );
     }
 
     access.audit.team = [
@@ -68,6 +84,9 @@ export async function POST(
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     console.error('[API]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

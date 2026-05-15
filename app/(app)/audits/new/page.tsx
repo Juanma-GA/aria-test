@@ -5,8 +5,13 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, Check } from 'lucide-react';
 import { TagInput } from '@/components/ui/TagInput';
 import { Spinner } from '@/components/ui/Spinner';
-import { TeamEditor, type UserDir, type TeamMemberRow } from '@/components/audit-team/TeamEditor';
+import {
+  TeamEditor,
+  type UserDir,
+  type TeamMemberRow,
+} from '@/components/audit-team/TeamEditor';
 import type { SectorType, Priority } from '@/lib/types';
+import { apiUrl } from '@/lib/utils';
 import type { AuditTeamRole } from '@/lib/models/Audit';
 
 interface Step1Data {
@@ -55,9 +60,9 @@ export default function NewAuditPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([]);
 
   useEffect(() => {
-    fetch('/api/users', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setUsers(Array.isArray(d) ? d : []))
+    fetch(apiUrl('/api/users'), { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setUsers(Array.isArray(d) ? d : []))
       .catch(() => setUsers([]));
   }, []);
 
@@ -78,8 +83,12 @@ export default function NewAuditPage() {
     priority: 'medium',
   });
 
-  const [step1Errors, setStep1Errors] = useState<Partial<Record<keyof Step1Data, string>>>({});
-  const [step2Errors, setStep2Errors] = useState<Partial<Record<keyof Step2Data, string>>>({});
+  const [step1Errors, setStep1Errors] = useState<
+    Partial<Record<keyof Step1Data, string>>
+  >({});
+  const [step2Errors, setStep2Errors] = useState<
+    Partial<Record<keyof Step2Data, string>>
+  >({});
 
   const validateStep1 = (): boolean => {
     const errors: Partial<Record<keyof Step1Data, string>> = {};
@@ -100,14 +109,16 @@ export default function NewAuditPage() {
   };
 
   const addTeamMember = (userId: string, role: AuditTeamRole) => {
-    const u = users.find(x => x._id === userId);
-    setTeamMembers(prev => [...prev, { userId, role, user: u ?? null }]);
+    const u = users.find((x) => x._id === userId);
+    setTeamMembers((prev) => [...prev, { userId, role, user: u ?? null }]);
   };
   const updateTeamRole = (userId: string, role: AuditTeamRole) => {
-    setTeamMembers(prev => prev.map(m => m.userId === userId ? { ...m, role } : m));
+    setTeamMembers((prev) =>
+      prev.map((m) => (m.userId === userId ? { ...m, role } : m)),
+    );
   };
   const removeTeamMember = (userId: string) => {
-    setTeamMembers(prev => prev.filter(m => m.userId !== userId));
+    setTeamMembers((prev) => prev.filter((m) => m.userId !== userId));
   };
 
   const handleSubmit = async () => {
@@ -116,7 +127,7 @@ export default function NewAuditPage() {
     setServerError(null);
     try {
       const hasProcess = !!step2.processName.trim();
-      const res = await fetch('/api/audits', {
+      const res = await fetch(apiUrl('/api/audits'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,14 +137,16 @@ export default function NewAuditPage() {
           sector: step1.sector,
           startDate: step1.startDate || new Date().toISOString(),
           targetEndDate: step1.targetEndDate || new Date().toISOString(),
-          firstProcess: hasProcess ? {
-            name: step2.processName,
-            department: step2.department,
-            responsible: step2.responsible,
-            applicableNorms: step2.applicableNorms,
-            priority: step2.priority,
-          } : null,
-          team: teamMembers.map(m => ({ userId: m.userId, role: m.role })),
+          firstProcess: hasProcess
+            ? {
+                name: step2.processName,
+                department: step2.department,
+                responsible: step2.responsible,
+                applicableNorms: step2.applicableNorms,
+                priority: step2.priority,
+              }
+            : null,
+          team: teamMembers.map((m) => ({ userId: m.userId, role: m.role })),
         }),
       });
       if (!res.ok) {
@@ -160,7 +173,9 @@ export default function NewAuditPage() {
       {/* Page header */}
       <div>
         <h1 className="font-display text-2xl font-bold text-text">New Audit</h1>
-        <p className="text-sm text-muted mt-0.5">Create a new AI readiness audit</p>
+        <p className="text-sm text-muted mt-0.5">
+          Create a new AI readiness audit
+        </p>
       </div>
 
       {/* Stepper */}
@@ -174,8 +189,8 @@ export default function NewAuditPage() {
                     step > s.num
                       ? 'bg-green-sov text-white'
                       : step === s.num
-                      ? 'bg-blue-aria text-white'
-                      : 'bg-slate-100 text-muted'
+                        ? 'bg-blue-aria text-white'
+                        : 'bg-slate-100 text-muted'
                   }`}
                 >
                   {step > s.num ? <Check size={13} /> : s.num}
@@ -217,7 +232,9 @@ export default function NewAuditPage() {
       {/* Step 1 */}
       {step === 1 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
-          <h2 className="font-display font-semibold text-lg text-text">Audit Identity</h2>
+          <h2 className="font-display font-semibold text-lg text-text">
+            Audit Identity
+          </h2>
 
           <div className="grid grid-cols-1 gap-4">
             {/* Name */}
@@ -258,7 +275,9 @@ export default function NewAuditPage() {
               <input
                 type="text"
                 value={step1.project}
-                onChange={(e) => setStep1({ ...step1, project: e.target.value })}
+                onChange={(e) =>
+                  setStep1({ ...step1, project: e.target.value })
+                }
                 placeholder="e.g. NGAD Programme Phase 2"
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               />
@@ -267,10 +286,14 @@ export default function NewAuditPage() {
 
             {/* Sector */}
             <div>
-              <label className="block text-sm font-medium text-text mb-1">Sector</label>
+              <label className="block text-sm font-medium text-text mb-1">
+                Sector
+              </label>
               <select
                 value={step1.sector}
-                onChange={(e) => setStep1({ ...step1, sector: e.target.value as SectorType })}
+                onChange={(e) =>
+                  setStep1({ ...step1, sector: e.target.value as SectorType })
+                }
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               >
                 {SECTORS.map((s) => (
@@ -284,20 +307,28 @@ export default function NewAuditPage() {
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Start Date</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Start Date
+                </label>
                 <input
                   type="date"
                   value={step1.startDate}
-                  onChange={(e) => setStep1({ ...step1, startDate: e.target.value })}
+                  onChange={(e) =>
+                    setStep1({ ...step1, startDate: e.target.value })
+                  }
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Target End Date</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Target End Date
+                </label>
                 <input
                   type="date"
                   value={step1.targetEndDate}
-                  onChange={(e) => setStep1({ ...step1, targetEndDate: e.target.value })}
+                  onChange={(e) =>
+                    setStep1({ ...step1, targetEndDate: e.target.value })
+                  }
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
               </div>
@@ -319,9 +350,13 @@ export default function NewAuditPage() {
       {/* Step 2 */}
       {step === 2 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
-          <h2 className="font-display font-semibold text-lg text-text">First Process <span className="text-muted font-normal text-sm">(optional)</span></h2>
+          <h2 className="font-display font-semibold text-lg text-text">
+            First Process{' '}
+            <span className="text-muted font-normal text-sm">(optional)</span>
+          </h2>
           <p className="text-sm text-muted">
-            Optionally define the first process now, or skip and add processes later.
+            Optionally define the first process now, or skip and add processes
+            later.
           </p>
 
           <div className="grid grid-cols-1 gap-4">
@@ -333,7 +368,9 @@ export default function NewAuditPage() {
               <input
                 type="text"
                 value={step2.processName}
-                onChange={(e) => setStep2({ ...step2, processName: e.target.value })}
+                onChange={(e) =>
+                  setStep2({ ...step2, processName: e.target.value })
+                }
                 placeholder="e.g. Technical Documentation Review"
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               />
@@ -343,21 +380,29 @@ export default function NewAuditPage() {
             {/* Department + Responsible */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Department</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Department
+                </label>
                 <input
                   type="text"
                   value={step2.department}
-                  onChange={(e) => setStep2({ ...step2, department: e.target.value })}
+                  onChange={(e) =>
+                    setStep2({ ...step2, department: e.target.value })
+                  }
                   placeholder="e.g. Engineering"
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text mb-1">Responsible</label>
+                <label className="block text-sm font-medium text-text mb-1">
+                  Responsible
+                </label>
                 <input
                   type="text"
                   value={step2.responsible}
-                  onChange={(e) => setStep2({ ...step2, responsible: e.target.value })}
+                  onChange={(e) =>
+                    setStep2({ ...step2, responsible: e.target.value })
+                  }
                   placeholder="e.g. Jean Dupont"
                   className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
                 />
@@ -366,21 +411,31 @@ export default function NewAuditPage() {
 
             {/* Applicable norms */}
             <div>
-              <label className="block text-sm font-medium text-text mb-1">Applicable Norms</label>
+              <label className="block text-sm font-medium text-text mb-1">
+                Applicable Norms
+              </label>
               <TagInput
                 value={step2.applicableNorms}
-                onChange={(tags) => setStep2({ ...step2, applicableNorms: tags })}
+                onChange={(tags) =>
+                  setStep2({ ...step2, applicableNorms: tags })
+                }
                 placeholder="Add norm and press Enter…"
               />
-              <p className="text-[11px] text-muted mt-1">Press Enter or comma to add a norm</p>
+              <p className="text-[11px] text-muted mt-1">
+                Press Enter or comma to add a norm
+              </p>
             </div>
 
             {/* Priority */}
             <div>
-              <label className="block text-sm font-medium text-text mb-1">Priority</label>
+              <label className="block text-sm font-medium text-text mb-1">
+                Priority
+              </label>
               <select
                 value={step2.priority}
-                onChange={(e) => setStep2({ ...step2, priority: e.target.value as Priority })}
+                onChange={(e) =>
+                  setStep2({ ...step2, priority: e.target.value as Priority })
+                }
                 className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
               >
                 {PRIORITIES.map((p) => (
@@ -414,9 +469,13 @@ export default function NewAuditPage() {
       {step === 3 && (
         <div className="bg-white border border-border rounded-sm p-6 space-y-5">
           <div>
-            <h2 className="font-display font-semibold text-lg text-text">Team <span className="text-muted font-normal text-sm">(optional)</span></h2>
+            <h2 className="font-display font-semibold text-lg text-text">
+              Team{' '}
+              <span className="text-muted font-normal text-sm">(optional)</span>
+            </h2>
             <p className="text-sm text-muted mt-1">
-              You'll be the audit owner. Add other people who should access this audit. You can change the team later.
+              You'll be the audit owner. Add other people who should access this
+              audit. You can change the team later.
             </p>
           </div>
 
