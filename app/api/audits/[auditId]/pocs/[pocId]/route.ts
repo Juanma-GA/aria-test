@@ -6,10 +6,15 @@ import { computeAnnualCompute } from '@/lib/calculations';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  context: {
+    params:
+      | Promise<{ auditId: string; pocId: string }>
+      | { auditId: string; pocId: string };
+  },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId, pocId } = params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
@@ -24,17 +29,25 @@ export async function GET(
 
     return NextResponse.json(poc);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  context: {
+    params:
+      | Promise<{ auditId: string; pocId: string }>
+      | { auditId: string; pocId: string };
+  },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId, pocId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
@@ -47,7 +60,12 @@ export async function PATCH(
     }
 
     // Deep merge nested objects (design, execution, evaluation, decision)
-    const nestedFields = ['design', 'execution', 'evaluation', 'decision'] as const;
+    const nestedFields = [
+      'design',
+      'execution',
+      'evaluation',
+      'decision',
+    ] as const;
     for (const field of nestedFields) {
       if (body[field] !== undefined) {
         const existing = (poc[field] as any)?.toObject?.() ?? poc[field] ?? {};
@@ -59,10 +77,15 @@ export async function PATCH(
     // Compute calculator: server-side recompute of computedAnnualEur from the
     // breakdown inputs, so the persisted euro figure always matches the inputs.
     if (body.computeBreakdown !== undefined) {
-      const existing = ((poc as any).computeBreakdown?.toObject?.() ?? (poc as any).computeBreakdown ?? {}) as Record<string, unknown>;
+      const existing = ((poc as any).computeBreakdown?.toObject?.() ??
+        (poc as any).computeBreakdown ??
+        {}) as Record<string, unknown>;
       const merged = { ...existing, ...body.computeBreakdown };
       const calc = computeAnnualCompute(merged as any);
-      (poc as any).computeBreakdown = { ...merged, computedAnnualEur: calc.totalEur };
+      (poc as any).computeBreakdown = {
+        ...merged,
+        computedAnnualEur: calc.totalEur,
+      };
       delete body.computeBreakdown;
     }
 
@@ -87,17 +110,25 @@ export async function PATCH(
 
     return NextResponse.json(poc.toObject());
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  context: {
+    params:
+      | Promise<{ auditId: string; pocId: string }>
+      | { auditId: string; pocId: string };
+  },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId, pocId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
@@ -112,11 +143,14 @@ export async function DELETE(
 
     const indCount = await Industrialization.countDocuments({ pocId });
     if (indCount > 0 && !cascade) {
-      return NextResponse.json({
-        error: 'POC has a dependent industrialization',
-        dependents: { industrializations: indCount },
-        hint: 'Archive the POC, or pass ?cascade=true to delete the linked industrialization too.',
-      }, { status: 409 });
+      return NextResponse.json(
+        {
+          error: 'POC has a dependent industrialization',
+          dependents: { industrializations: indCount },
+          hint: 'Archive the POC, or pass ?cascade=true to delete the linked industrialization too.',
+        },
+        { status: 409 },
+      );
     }
 
     if (cascade) {
@@ -124,9 +158,15 @@ export async function DELETE(
     }
 
     await poc.deleteOne();
-    return NextResponse.json({ message: 'POC deleted successfully', cascaded: cascade ? { industrializations: indCount } : undefined });
+    return NextResponse.json({
+      message: 'POC deleted successfully',
+      cascaded: cascade ? { industrializations: indCount } : undefined,
+    });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

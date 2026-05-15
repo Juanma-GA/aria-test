@@ -5,10 +5,15 @@ import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; procId: string } }
+  context: {
+    params:
+      | Promise<{ auditId: string; procId: string }>
+      | { auditId: string; procId: string };
+  },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId, procId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
@@ -34,7 +39,10 @@ export async function PATCH(
 
     return NextResponse.json({ process: process.toObject() });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

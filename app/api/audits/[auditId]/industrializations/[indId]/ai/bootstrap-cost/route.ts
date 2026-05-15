@@ -24,16 +24,25 @@ interface BootstrapResult {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string; indId: string } }
+  context: {
+    params:
+      | Promise<{ auditId: string; indId: string }>
+      | { auditId: string; indId: string };
+  },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId, indId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
     const ind = await Industrialization.findOne({ auditId, _id: indId });
-    if (!ind) return NextResponse.json({ error: 'Industrialization not found' }, { status: 404 });
+    if (!ind)
+      return NextResponse.json(
+        { error: 'Industrialization not found' },
+        { status: 404 },
+      );
 
     const [poc, useCase, audit] = await Promise.all([
       POC.findById(ind.pocId).lean(),
@@ -46,7 +55,10 @@ export async function POST(
     const pocBreakdown = (poc as any)?.computeBreakdown ?? null;
     const pocAnnualCompute = computeAnnualCompute(pocBreakdown);
     const pocDeploymentMode = pocBreakdown?.mode || 'unknown';
-    const pocDevCost = (poc as any)?.evaluation?.actualCostEur ?? (poc as any)?.design?.estimatedDevCostEur ?? 0;
+    const pocDevCost =
+      (poc as any)?.evaluation?.actualCostEur ??
+      (poc as any)?.design?.estimatedDevCostEur ??
+      0;
 
     const prompt = `You are an AI industrialization cost estimator. Given the POC data and context, propose a baseline cost structure for the production industrialization. The user will review and adjust.
 
@@ -91,19 +103,28 @@ Return ONLY a JSON object with this exact shape (all numbers in EUR, integers):
 
 The rationale string MUST be a single line — do not use literal newlines, tabs or carriage returns inside any string value. Use spaces instead.`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 700, temperature: 0.3 });
+    const text = await callMistral([{ role: 'user', content: prompt }], {
+      maxTokens: 700,
+      temperature: 0.3,
+    });
     const result = parseLLMJson<BootstrapResult>(text);
 
     // Convert the existing cost subdoc to a plain object so we can rebuild it cleanly.
-    const existing = (ind.cost as any)?.toObject?.() ?? (ind.cost ?? {}) as any;
+    const existing =
+      (ind.cost as any)?.toObject?.() ?? ((ind.cost ?? {}) as any);
     const existingOneTime: Record<string, unknown> = existing.oneTime ?? {};
-    const existingRecurring: Record<string, unknown> = existing.recurringAnnual ?? {};
+    const existingRecurring: Record<string, unknown> =
+      existing.recurringAnnual ?? {};
     const aiOneTime: Record<string, unknown> = result.oneTime ?? {};
     const aiRecurring: Record<string, unknown> = result.recurringAnnual ?? {};
 
     // Preserve any existing user-entered values; only fill empty/zero fields with the AI suggestion.
-    const isEmpty = (v: unknown) => v === undefined || v === null || v === 0 || v === '';
-    const fillIfEmpty = (target: Record<string, unknown>, source: Record<string, unknown>) => {
+    const isEmpty = (v: unknown) =>
+      v === undefined || v === null || v === 0 || v === '';
+    const fillIfEmpty = (
+      target: Record<string, unknown>,
+      source: Record<string, unknown>,
+    ) => {
       const out = { ...target };
       for (const [k, v] of Object.entries(source)) {
         if (isEmpty(out[k])) out[k] = v;
@@ -121,14 +142,22 @@ The rationale string MUST be a single line — do not use literal newlines, tabs
     };
 
     (ind as any).cost = merged;
-    const ai = new Set([...(ind.aiGeneratedFields ?? []), 'cost.oneTime', 'cost.recurringAnnual']);
+    const ai = new Set([
+      ...(ind.aiGeneratedFields ?? []),
+      'cost.oneTime',
+      'cost.recurringAnnual',
+    ]);
     ind.aiGeneratedFields = [...ai];
     await ind.save();
 
-    return NextResponse.json({ industrialization: ind.toObject(), rationale: result.rationale });
+    return NextResponse.json({
+      industrialization: ind.toObject(),
+      rationale: result.rationale,
+    });
   } catch (err) {
     console.error('[API] bootstrap-cost', err);
-    const message = err instanceof Error ? err.message : 'Bootstrap-cost failed';
+    const message =
+      err instanceof Error ? err.message : 'Bootstrap-cost failed';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

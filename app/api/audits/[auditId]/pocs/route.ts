@@ -9,10 +9,11 @@ const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId } = params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
@@ -36,15 +37,21 @@ export async function GET(
     const idsToResolve = new Set<string>();
     for (const p of pocs as any[]) {
       const v = p?.design?.responsibleUserId;
-      if (typeof v === 'string' && OBJECT_ID_RE.test(v) && mongoose.isValidObjectId(v)) {
+      if (
+        typeof v === 'string' &&
+        OBJECT_ID_RE.test(v) &&
+        mongoose.isValidObjectId(v)
+      ) {
         idsToResolve.add(v);
       }
     }
     if (idsToResolve.size > 0) {
-      const users = await User.find({ _id: { $in: [...idsToResolve] } })
+      const users = (await User.find({ _id: { $in: [...idsToResolve] } })
         .select('name email')
-        .lean() as any[];
-      const nameById = new Map(users.map(u => [String(u._id), u.name || u.email || '']));
+        .lean()) as any[];
+      const nameById = new Map(
+        users.map((u) => [String(u._id), u.name || u.email || '']),
+      );
       for (const p of pocs as any[]) {
         const v = p?.design?.responsibleUserId;
         if (typeof v === 'string' && nameById.has(v)) {
@@ -56,17 +63,21 @@ export async function GET(
 
     return NextResponse.json(pocs);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
+    const params = await Promise.resolve(context.params);
     const { auditId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
@@ -78,7 +89,7 @@ export async function POST(
     if (!useCaseId || !processId || !cuId) {
       return NextResponse.json(
         { error: 'useCaseId, processId, and cuId are required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -92,7 +103,9 @@ export async function POST(
     // POC starts from the same hypothesis the use case captured. The user can
     // still edit any field afterwards.
     if (!rest.computeBreakdown || !rest.computeBreakdown.mode) {
-      const uc = await UseCase.findById(useCaseId).select('computeBreakdown').lean() as any;
+      const uc = (await UseCase.findById(useCaseId)
+        .select('computeBreakdown')
+        .lean()) as any;
       const sourceBreakdown = uc?.computeBreakdown;
       if (sourceBreakdown && sourceBreakdown.mode) {
         rest.computeBreakdown = {
@@ -120,7 +133,10 @@ export async function POST(
     // persisted snapshot stays coherent regardless of what the client posts.
     if (rest.computeBreakdown && typeof rest.computeBreakdown === 'object') {
       const calc = computeAnnualCompute(rest.computeBreakdown);
-      rest.computeBreakdown = { ...rest.computeBreakdown, computedAnnualEur: calc.totalEur };
+      rest.computeBreakdown = {
+        ...rest.computeBreakdown,
+        computedAnnualEur: calc.totalEur,
+      };
     }
 
     const poc = await POC.create({
@@ -133,7 +149,10 @@ export async function POST(
 
     return NextResponse.json(poc, { status: 201 });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
