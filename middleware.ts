@@ -34,6 +34,13 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('access_token')?.value;
   const payload = token ? await verifyToken(token) : null;
 
+  // TEMPORARY DEBUG LOGGING
+  console.log('[MIDDLEWARE-DEBUG]', {
+    pathname,
+    hasToken: !!token,
+    payload,
+  });
+
   if (!payload) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,6 +58,14 @@ export async function middleware(req: NextRequest) {
   requestHeaders.set('x-user-role', payload.role);
   requestHeaders.set('x-user-email', payload.email);
   requestHeaders.set('x-user-name', payload.name);
+
+  // TEMPORARY DEBUG LOGGING
+  console.log('[MIDDLEWARE-DEBUG] Headers set:', {
+    'x-user-id': payload.userId,
+    'x-user-role': payload.role,
+    'x-user-email': payload.email,
+    'x-user-name': payload.name,
+  });
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
