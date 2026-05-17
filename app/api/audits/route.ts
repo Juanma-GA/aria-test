@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC } from '@/lib/models';
 import { calculateScore } from '@/lib/calculations';
@@ -162,14 +163,14 @@ export async function POST(req: NextRequest) {
     // Always include the creator as owner; merge extra members from the form (deduped by userId).
     const now = new Date();
     const seen = new Set<string>();
-    const team: { userId: string; role: 'owner' | 'editor' | 'viewer'; addedAt: Date; addedBy?: string }[] = [];
+    const team: { userId: mongoose.Types.ObjectId; role: 'owner' | 'editor' | 'viewer'; addedAt: Date; addedBy?: mongoose.Types.ObjectId }[] = [];
     if (userId) {
-      team.push({ userId, role: 'owner', addedAt: now, addedBy: userId });
+      team.push({ userId: new mongoose.Types.ObjectId(userId), role: 'owner', addedAt: now, addedBy: new mongoose.Types.ObjectId(userId) });
       seen.add(userId);
     }
     for (const m of extraTeam ?? []) {
       if (seen.has(m.userId)) continue;
-      team.push({ userId: m.userId, role: m.role, addedAt: now, addedBy: userId ?? undefined });
+      team.push({ userId: new mongoose.Types.ObjectId(m.userId), role: m.role, addedAt: now, addedBy: userId ? new mongoose.Types.ObjectId(userId) : undefined });
       seen.add(m.userId);
     }
 

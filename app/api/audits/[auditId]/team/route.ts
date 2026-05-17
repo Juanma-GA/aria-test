@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
 import { Audit } from '@/lib/models';
 import User from '@/lib/models/User';
@@ -61,7 +62,7 @@ export async function POST(
 
     access.audit.team = [
       ...(access.audit.team ?? []),
-      { userId, role, addedAt: new Date(), addedBy: access.user.id },
+      { userId: new mongoose.Types.ObjectId(userId), role, addedAt: new Date(), addedBy: new mongoose.Types.ObjectId(access.user.id) },
     ] as any;
     await access.audit.save();
 
