@@ -16,11 +16,11 @@ interface SuggestedMilestone {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string; indId: string } }
+  { params }: { params: Promise<{ auditId: string; indId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, indId } = params;
+    const { auditId, indId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

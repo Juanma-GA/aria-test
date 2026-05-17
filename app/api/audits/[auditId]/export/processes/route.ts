@@ -15,11 +15,11 @@ function row(cells: any[]): string {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 

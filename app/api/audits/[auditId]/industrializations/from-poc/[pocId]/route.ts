@@ -7,11 +7,11 @@ import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

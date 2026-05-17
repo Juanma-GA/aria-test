@@ -5,11 +5,11 @@ import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -37,11 +37,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId } = params;
+    const { auditId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

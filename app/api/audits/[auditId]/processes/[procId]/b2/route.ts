@@ -5,11 +5,11 @@ import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; procId: string } }
+  { params }: { params: Promise<{ auditId: string; procId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = params;
+    const { auditId, procId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

@@ -7,11 +7,12 @@ const VALID_ROLES: AuditTeamRole[] = ['owner', 'editor', 'viewer'];
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; userId: string } }
+  { params }: { params: Promise<{ auditId: string; userId: string }> }
 ) {
   try {
     await dbConnect();
-    const access = await requireAuditAccess(req, params.auditId, 'manage');
+    const { auditId, userId } = await params;
+    const access = await requireAuditAccess(req, auditId, 'manage');
     if (!isAccessGranted(access)) return access;
 
     const body = await req.json();
@@ -21,7 +22,7 @@ export async function PATCH(
     }
 
     const team = access.audit.team ?? [];
-    const idx = team.findIndex((m: any) => String(m.userId) === params.userId);
+    const idx = team.findIndex((m: any) => String(m.userId) === userId);
     if (idx === -1) return NextResponse.json({ error: 'Member not found' }, { status: 404 });
 
     // Prevent demoting the last owner
@@ -46,15 +47,16 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; userId: string } }
+  { params }: { params: Promise<{ auditId: string; userId: string }> }
 ) {
   try {
     await dbConnect();
-    const access = await requireAuditAccess(req, params.auditId, 'manage');
+    const { auditId, userId } = await params;
+    const access = await requireAuditAccess(req, auditId, 'manage');
     if (!isAccessGranted(access)) return access;
 
     const team = access.audit.team ?? [];
-    const target = team.find((m: any) => String(m.userId) === params.userId);
+    const target = team.find((m: any) => String(m.userId) === userId);
     if (!target) return NextResponse.json({ error: 'Member not found' }, { status: 404 });
 
     // Prevent removing the last owner
@@ -65,7 +67,7 @@ export async function DELETE(
       }
     }
 
-    access.audit.team = team.filter((m: any) => String(m.userId) !== params.userId);
+    access.audit.team = team.filter((m: any) => String(m.userId) !== userId);
     await access.audit.save();
 
     return NextResponse.json({ ok: true });

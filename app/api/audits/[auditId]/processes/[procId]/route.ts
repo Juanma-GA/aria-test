@@ -31,11 +31,11 @@ function getCompletion(process: any, ucCount: number) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string; procId: string } }
+  { params }: { params: Promise<{ auditId: string; procId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = params;
+    const { auditId, procId } = await params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -62,11 +62,11 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; procId: string } }
+  { params }: { params: Promise<{ auditId: string; procId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = params;
+    const { auditId, procId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -115,11 +115,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; procId: string } }
+  { params }: { params: Promise<{ auditId: string; procId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = params;
+    const { auditId, procId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

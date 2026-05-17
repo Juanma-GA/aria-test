@@ -10,11 +10,12 @@ const VALID_ROLES: AuditTeamRole[] = ['owner', 'editor', 'viewer'];
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     await dbConnect();
-    const access = await requireAuditAccess(req, params.auditId, 'view');
+    const { auditId } = await params;
+    const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
     const team = (access.audit.team ?? []) as any[];
@@ -39,11 +40,12 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     await dbConnect();
-    const access = await requireAuditAccess(req, params.auditId, 'manage');
+    const { auditId } = await params;
+    const access = await requireAuditAccess(req, auditId, 'manage');
     if (!isAccessGranted(access)) return access;
 
     const body = await req.json();

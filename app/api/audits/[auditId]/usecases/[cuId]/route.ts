@@ -28,11 +28,11 @@ function recalculateScore(dimensions: Record<string, { value: number }>) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string; cuId: string } }
+  { params }: { params: Promise<{ auditId: string; cuId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, cuId } = params;
+    const { auditId, cuId } = await params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -57,11 +57,11 @@ const EDITABLE_FIELDS = [
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; cuId: string } }
+  { params }: { params: Promise<{ auditId: string; cuId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, cuId } = params;
+    const { auditId, cuId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -122,11 +122,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; cuId: string } }
+  { params }: { params: Promise<{ auditId: string; cuId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, cuId } = params;
+    const { auditId, cuId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

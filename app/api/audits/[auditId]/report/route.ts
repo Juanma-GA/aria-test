@@ -656,14 +656,15 @@ END OF REPORT
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
   try {
     await dbConnect();
-    const access = await requireAuditAccess(req, params.auditId, 'view');
+    const { auditId } = await params;
+    const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
-    const audit = await Audit.findById(params.auditId).select('report').lean() as any;
+    const audit = await Audit.findById(auditId).select('report').lean() as any;
     if (!audit) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!audit.report?.markdown) return NextResponse.json({ exists: false });
     return NextResponse.json({ exists: true, report: audit.report });
@@ -677,9 +678,9 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { auditId: string } }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
-  const { auditId } = params;
+  const { auditId } = await params;
 
   try {
     await dbConnect();

@@ -6,11 +6,11 @@ import { computeAnnualCompute } from '@/lib/calculations';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -31,11 +31,11 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -94,11 +94,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; pocId: string } }
+  { params }: { params: Promise<{ auditId: string; pocId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = params;
+    const { auditId, pocId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 

@@ -10,11 +10,11 @@ const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { auditId: string; indId: string } }
+  { params }: { params: Promise<{ auditId: string; indId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, indId } = params;
+    const { auditId, indId } = await params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -50,11 +50,11 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { auditId: string; indId: string } }
+  { params }: { params: Promise<{ auditId: string; indId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, indId } = params;
+    const { auditId, indId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -202,11 +202,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { auditId: string; indId: string } }
+  { params }: { params: Promise<{ auditId: string; indId: string }> }
 ) {
   try {
     await dbConnect();
-    const { auditId, indId } = params;
+    const { auditId, indId } = await params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
