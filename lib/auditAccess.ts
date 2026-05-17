@@ -49,18 +49,7 @@ export async function requireAuditAccess(
   auditId: string,
   level: AccessLevel,
 ): Promise<AccessResult> {
-  // TEMPORARY DEBUG LOGGING
-  const headerUserId = req.headers.get('x-user-id');
-  const headerUserRole = req.headers.get('x-user-role');
   const caller = getCaller(req);
-  console.log('[AUDIT-ACCESS-DEBUG]', {
-    auditId,
-    level,
-    'x-user-id header': headerUserId,
-    'x-user-role header': headerUserRole,
-    caller,
-  });
-
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const audit = await Audit.findById(auditId);
@@ -68,7 +57,6 @@ export async function requireAuditAccess(
 
   // Global admin: full access
   if (caller.role === 'admin') {
-    console.log('[AUDIT-ACCESS-DEBUG] Admin access granted');
     return { user: caller, audit, effectiveRole: 'admin' };
   }
 
