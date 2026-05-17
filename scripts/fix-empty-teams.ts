@@ -1,21 +1,43 @@
 /**
  * Migration script: fix audits with empty team[] arrays
  *
- * Problem: Before this fix, audits created without the leadConsultant in team[]
- * would have empty team arrays, making them inaccessible to the creator.
+ * Problem: Before the ObjectId fix, audits created without team[] members
+ * would have empty team arrays, making them inaccessible to their creators.
  *
  * Solution: Find all audits with empty team[] and add leadConsultant as 'owner'
  *
  * Safe to run multiple times (idempotent): only updates if team[] is empty
+ *
+ * Usage: npm run ts-node scripts/fix-empty-teams.ts
  */
 
 import mongoose from 'mongoose';
-import dbConnect from '@/lib/mongodb';
-import { Audit } from '@/lib/models';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aria-audit';
+
+// Minimal inline schemas - no Next.js dependencies
+const AuditSchema = new mongoose.Schema({
+  name: String,
+  auditCode: String,
+  leadConsultant: mongoose.Schema.Types.ObjectId,
+  team: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    role: String,
+    addedAt: Date,
+    addedBy: mongoose.Schema.Types.ObjectId,
+  }],
+  isArchived: Boolean,
+});
+
+const Audit = mongoose.model('Audit', AuditSchema);
 
 async function fixEmptyTeams() {
+  let connection: typeof mongoose | null = null;
   try {
-    await dbConnect();
+    console.log('🔗 Connecting to MongoDB...');
+    connection = await mongoose.connect(MONGODB_URI);
+    console.log('✅ Connected\n');
+
     console.log('🔍 Scanning for audits with empty team[] arrays...\n');
 
     // Find all audits where team is empty or missing
@@ -30,7 +52,6 @@ async function fixEmptyTeams() {
 
     if (auditsToFix.length === 0) {
       console.log('✅ No audits to fix. All audits have team members.');
-      await mongoose.connection.close();
       return;
     }
 
@@ -42,7 +63,7 @@ async function fixEmptyTeams() {
         continue;
       }
 
-      // Convert leadConsultant to ObjectId if needed
+      // Ensure leadConsultant is ObjectId
       const leadId = audit.leadConsultant instanceof mongoose.Types.ObjectId
         ? audit.leadConsultant
         : new mongoose.Types.ObjectId(String(audit.leadConsultant));
@@ -50,31 +71,38 @@ async function fixEmptyTeams() {
       console.log(`📝 Fixing: ${audit.auditCode} - "${audit.name}"`);
       console.log(`   Adding leadConsultant (${leadId}) as 'owner' in team[]`);
 
-      audit.team = [
+      // Update the audit with leadConsultant in team[]
+      await Audit.updateOne(
+        { _id: audit._id },
         {
-          userId: leadId,
-          role: 'owner',
-          addedAt: new Date(),
-          addedBy: undefined,
-        },
-      ] as any;
+          $set: {
+            team: [
+              {
+                userId: leadId,
+                role: 'owner',
+                addedAt: new Date(),
+                addedBy: undefined,
+              },
+            ],
+          },
+        }
+      );
 
-      await audit.save();
       fixed++;
       console.log(`   ✅ Fixed\n`);
     }
 
     console.log(`\n🎉 Migration complete: ${fixed}/${auditsToFix.length} audit(s) fixed`);
-    await mongoose.connection.close();
   } catch (err) {
-    console.error('❌ Migration failed:', err);
+    console.error('❌ Error:', err instanceof Error ? err.message : String(err));
     process.exit(1);
+  } finally {
+    if (connection) {
+      await mongoose.disconnect();
+      console.log('🔌 Disconnected from MongoDB');
+    }
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  fixEmptyTeams();
-}
+fixEmptyTeams();
 
-export { fixEmptyTeams };
