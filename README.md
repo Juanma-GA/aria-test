@@ -76,6 +76,37 @@ Esta migración es segura para ejecutar múltiples veces (idempotente).
 
 ---
 
+## After pulling today's changes
+
+Run these migration scripts once to fix existing audit data:
+
+### 1. Fix empty team arrays (fixes 404 errors when accessing audits)
+```bash
+npx ts-node scripts/fix-empty-teams.ts
+```
+
+This script:
+- Finds all audits with empty `team[]` arrays
+- Adds the lead consultant as 'owner' in the team array
+- Makes audits accessible to their creators
+- Safe to run multiple times (idempotent)
+
+### 2. (Optional) Assign projectType to existing audits
+```bash
+npx ts-node scripts/fix-project-types.ts
+```
+
+This script:
+- Finds audits created before today (missing `projectType` field)
+- Sets `projectType: 'techpubs'` as default
+- Enables TechPubs reference injection for AI features
+- New audits automatically default to 'techpubs' - no manual action needed
+- Safe to run multiple times (idempotent)
+
+**Both scripts are safe to run multiple times and won't duplicate data.**
+
+---
+
 ## Autenticación & Usuarios
 
 ### Cómo funciona:
