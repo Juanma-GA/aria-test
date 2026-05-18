@@ -155,7 +155,19 @@ ${ucInstruction}`;
       // (which is designed for objects and finds the first '{' instead of the outer '[')
       if (stripped.startsWith('[')) {
         console.log('[DIAG] Detected array response, parsing directly');
-        parsed = JSON.parse(stripped);
+        try {
+          parsed = JSON.parse(stripped);
+        } catch (arrayParseErr) {
+          console.log('[DIAG] Array parse failed, sanitizing control characters');
+          // Clean unescaped control characters in string values
+          const cleanStripped = stripped.replace(/[\x00-\x1F\x7F]/g, (ch) => {
+            if (ch === '\n') return '\\n';
+            if (ch === '\r') return '\\r';
+            if (ch === '\t') return '\\t';
+            return '';
+          });
+          parsed = JSON.parse(cleanStripped);
+        }
       } else {
         // Use parseLLMJson for object responses (handles control chars, repairs, etc)
         parsed = parseLLMJson<any>(stripped);
