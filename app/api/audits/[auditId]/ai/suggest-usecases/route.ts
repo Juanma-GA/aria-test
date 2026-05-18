@@ -137,12 +137,13 @@ ${ucInstruction}`;
 
     let suggestions: any[] = [];
     try {
-      const parsed = parseLLMJson<any>(text);
+      // Manually strip markdown code fences and parse
+      const stripped = text
+        .replace(/^[\s\S]*?```(?:json)?\s*/i, '')
+        .replace(/\s*```[\s\S]*$/, '')
+        .trim();
 
-      console.log('[DIAG] typeof parsed:', typeof parsed);
-      console.log('[DIAG] isArray:', Array.isArray(parsed));
-      console.log('[DIAG] parsed keys:', parsed ? Object.keys(parsed) : 'null');
-      console.log('[DIAG] parsed value:', JSON.stringify(parsed)?.slice(0, 300));
+      const parsed = JSON.parse(stripped);
 
       // Ensure we have an array: if Mistral returns an object, extract the array
       if (Array.isArray(parsed)) {
