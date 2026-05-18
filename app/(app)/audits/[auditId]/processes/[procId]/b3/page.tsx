@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 import { TagInput } from '@/components/ui/TagInput';
 import { Modal } from '@/components/ui/Modal';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
@@ -124,6 +125,16 @@ export default function B3Page() {
   const [notes, setNotes] = useState('');
   const [annualRepetitions, setAnnualRepetitions] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // ── AI Process Report ────────────────────────────────────────────────────────
+
+  const PROCESS_REPORT_STEPS = [
+    { text: "Analyzing process context...", startPercent: 0, endPercent: 20 },
+    { text: "Evaluating sovereignty constraints...", startPercent: 20, endPercent: 40 },
+    { text: "Generating AI use case proposals...", startPercent: 40, endPercent: 75 },
+    { text: "Applying TechPubs context...", startPercent: 75, endPercent: 90 },
+    { text: "Finalizing report...", startPercent: 90, endPercent: 100 },
+  ];
 
   // AI Report
   const [reportOpen, setReportOpen] = useState(false);
@@ -730,8 +741,7 @@ ${body}
       >
         {reportLoading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <Spinner size="lg" />
-            <p className="text-sm text-muted">Generating report with Mistral AI… this may take a moment.</p>
+            <ProgressIndicator steps={PROCESS_REPORT_STEPS} completionTimeMs={45000} showBar={true} />
           </div>
         ) : reportMarkdown ? (
           <div>
