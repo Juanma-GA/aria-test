@@ -139,6 +139,11 @@ ${ucInstruction}`;
     try {
       const parsed = parseLLMJson<any>(text);
 
+      console.log('[DIAG] typeof parsed:', typeof parsed);
+      console.log('[DIAG] isArray:', Array.isArray(parsed));
+      console.log('[DIAG] parsed keys:', parsed ? Object.keys(parsed) : 'null');
+      console.log('[DIAG] parsed value:', JSON.stringify(parsed)?.slice(0, 300));
+
       // Ensure we have an array: if Mistral returns an object, extract the array
       if (Array.isArray(parsed)) {
         suggestions = parsed;
