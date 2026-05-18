@@ -47,9 +47,9 @@ export async function POST(
       .map(([k, v]: [string, any]) => `${k}: ${v.compliance ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`)
       .join(', ') || 'Not assessed';
 
-    const isTechpubs = (audit as any)?.projectType === 'techpubs';
+    const isTechpubs = ((audit as any)?.projectType || 'techpubs') === 'techpubs';
     console.log('[SUGGEST-USECASES-DEBUG] audit.projectType:', (audit as any)?.projectType);
-    console.log('[SUGGEST-USECASES-DEBUG] isTechpubs:', isTechpubs);
+    console.log('[SUGGEST-USECASES-DEBUG] isTechpubs (with fallback to techpubs):', isTechpubs);
 
     let estadoDelArte = '';
     if (isTechpubs) {
