@@ -203,7 +203,46 @@ For EACH step in the process map, provide a structured analysis including:
 If a step is a decision point, flag it clearly and analyse decision logic.
 Include an overall process efficiency summary at the end.
 
-## Section 4 — AI Use Case Proposals
+${isTechpubs ? `## Section 4 — AI Use Case Proposals (TechPubs - Phase-Based)
+
+You MUST propose a MINIMUM of 5 concrete AI use cases for this technical publications process. The first 5 use cases MUST cover the TechPubs production phases in this exact order:
+
+1. UC-01: Analysis and Source Data Preparation — [specific AI opportunity for analyzing/extracting source data]
+2. UC-02: Authoring — [specific AI opportunity for technical writing/content generation]
+3. UC-03: Illustration — [specific AI opportunity for illustration/visual content]
+4. UC-04: Validation — [specific AI opportunity for QA/compliance checking]
+5. UC-05: Publication & Dispatching — [specific AI opportunity for publishing/distribution]
+
+If the process map has additional distinct steps or the analysis reveals additional high-value opportunities covering multiple phases simultaneously, propose additional use cases starting at UC-06.
+
+TITLE FORMAT (mandatory): "UC-0X: [Phase Name] — [Specific Use Case Title]"
+Example: "UC-01: Analysis and Source Data Preparation — Automated Schema Extraction from CAD Files and PLM Systems"
+
+For EACH use case (all 5+), provide ALL of the following fields in structured format:
+
+**[UC-0X: Phase Name — Title]**
+- Description: (clear description of what the AI does in this phase)
+- Target Steps: (which B3 steps this applies to)
+- AI Types: (from: generative_llm, extraction_nlp, classification_ml, rag, validation, prediction, intelligent_automation, agentic_ai)
+- B2 Compatibility: (yes / no / partial — justify based on sovereignty axes)
+- Requires Client IT: (yes/no — justify)
+- Estimated Time Saved per Execution:
+  - (Profile role): X hours/execution
+- Estimated Dev Cost (€): (realistic range with explanation)
+- Estimated Implementation (weeks): (realistic)
+- Scoring:
+  - D1 Efficiency Impact (1-5): value — justification (rubric: 1=<10% saving, 2=10-20%, 3=20-35%, 4=35-50%, 5=>50%)
+  - D2 Quality Impact (1-5): value — justification
+  - D3 Tech Maturity (1-5): value — justification (rubric: 1=experimental, 2=prototype, 3=pilot, 4=mature, 5=market standard)
+  - D4 Data Readiness (1-5): value — justification (rubric: 1=data doesn't exist, 2=unstructured, 3=available with effort, 4=structured, 5=structured+clean+voluminous)
+  - D5 Sovereignty (auto from B2 index ${sovIdx !== null ? sovIdx.toFixed(1) : 'N/A'}/5): ${sovIdx !== null ? Math.max(1, Math.min(5, Math.round(sovIdx))) : 'N/A'}
+  - Total Score: (sum D1-D5) — Category: (Quick Win ≥18 / Mid-term 11-17 / Strategic <11)
+- Status: (eligible / blocked / pending_review)
+- If blocked: reason and unblock condition
+- Implementation notes and risks
+- Recommended tools/platforms: (from the TechPubs knowledge base: Oxygen XML, S1000D tools, ATEXIS solutions, etc.)
+
+Be specific, technically precise, and grounded in the actual process data. Reference the TechPubs knowledge base for tool recommendations.` : `## Section 4 — AI Use Case Proposals
 Propose 3 to 5 concrete AI use cases for this process. For EACH use case, provide ALL of the following fields in structured format:
 
 **[UC-N] Title**
@@ -227,7 +266,8 @@ Propose 3 to 5 concrete AI use cases for this process. For EACH use case, provid
 - If blocked: reason and unblock condition
 - Implementation notes and risks
 
-Be specific, technically precise, and grounded in the actual process data provided. Avoid generic statements.`;
+Be specific, technically precise, and grounded in the actual process data provided. Avoid generic statements.`}
+
 
     const markdown = await callMistral(
       [{ role: 'user', content: prompt }],
