@@ -135,24 +135,30 @@ ${ucInstruction}`;
 
     const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 4000 : 3000, temperature: 0.4 });
 
-    console.log('[SUGGEST-USECASES-DIAG] isTechpubs:', isTechpubs);
-    console.log('[SUGGEST-USECASES-DIAG] Mistral raw response length:', text.length);
-    console.log('[SUGGEST-USECASES-DIAG] Mistral raw response (first 500 chars):', text.slice(0, 500));
-    console.log('[SUGGEST-USECASES-DIAG] Mistral raw response (last 200 chars):', text.slice(-200));
-
     let suggestions: any[] = [];
     try {
-      suggestions = parseLLMJson<any[]>(text);
-      console.log('[SUGGEST-USECASES-DIAG] Successfully parsed JSON, count:', Array.isArray(suggestions) ? suggestions.length : 'not array');
-      if (Array.isArray(suggestions) && suggestions.length > 0) {
-        console.log('[SUGGEST-USECASES-DIAG] First suggestion:', JSON.stringify(suggestions[0], null, 2).slice(0, 300));
+      const parsed = parseLLMJson<any>(text);
+
+      // Ensure we have an array: if Mistral returns an object, extract the array
+      if (Array.isArray(parsed)) {
+        suggestions = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        // Try common property names for arrays
+        if (Array.isArray(parsed.suggestions)) {
+          suggestions = parsed.suggestions;
+        } else if (Array.isArray(parsed.usecases)) {
+          suggestions = parsed.usecases;
+        } else if (Array.isArray(parsed.cases)) {
+          suggestions = parsed.cases;
+        } else if (Array.isArray(parsed.data)) {
+          suggestions = parsed.data;
+        }
       }
     } catch (parseErr) {
-      console.log('[SUGGEST-USECASES-DIAG] JSON parse error:', parseErr instanceof Error ? parseErr.message : String(parseErr));
-      console.log('[SUGGEST-USECASES-DIAG] Could not parse response as JSON');
+      // Silent fail - return empty array
     }
 
-    return NextResponse.json({ suggestions: Array.isArray(suggestions) ? suggestions : [] });
+    return NextResponse.json({ suggestions });
   } catch (err) {
     console.error("[API]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
