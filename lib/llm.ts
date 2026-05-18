@@ -101,6 +101,13 @@ export function parseLLMJson<T>(text: string): T {
     .replace(/\s*```[\s\S]*$/, '')
     .trim();
 
+  // If response starts with '[', parse array directly
+  if (stripped.startsWith('[')) {
+    try {
+      return JSON.parse(stripped) as T;
+    } catch {}
+  }
+
   const candidates = [
     stripped.length ? stripped : null,
     extractBalancedJson(text),
@@ -212,27 +219,50 @@ function stripCommentsOutsideStrings(s: string): string {
 }
 
 function extractBalancedJson(text: string): string | null {
+  // Find the outermost opening bracket: look for '[' first (arrays), then '{'
+  let startIndex = -1;
+  let outerBracket: '[' | '{' | null = null;
+
+  // Search for '[' first (prioritize arrays)
   for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch !== '{' && ch !== '[') continue;
-    const open = ch;
-    const close = ch === '{' ? '}' : ']';
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-    for (let j = i; j < text.length; j++) {
-      const c = text[j];
-      if (escape) { escape = false; continue; }
-      if (c === '\\') { escape = true; continue; }
-      if (c === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (c === open) depth++;
-      else if (c === close) {
-        depth--;
-        if (depth === 0) return text.slice(i, j + 1);
+    if (text[i] === '[') {
+      startIndex = i;
+      outerBracket = '[';
+      break;
+    }
+  }
+
+  // If no '[' found, search for '{'
+  if (startIndex === -1) {
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '{') {
+        startIndex = i;
+        outerBracket = '{';
+        break;
       }
     }
   }
+
+  if (startIndex === -1 || !outerBracket) return null;
+
+  const close = outerBracket === '[' ? ']' : '}';
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let j = startIndex; j < text.length; j++) {
+    const c = text[j];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === outerBracket) depth++;
+    else if (c === close) {
+      depth--;
+      if (depth === 0) return text.slice(startIndex, j + 1);
+    }
+  }
+
   return null;
 }
 
