@@ -135,6 +135,9 @@ ${ucInstruction}`;
 
     const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 4000 : 3000, temperature: 0.4 });
 
+    console.log('[DIAG] raw text first 200:', text.slice(0, 200));
+    console.log('[DIAG] raw text last 200:', text.slice(-200));
+
     let suggestions: any[] = [];
     try {
       // Manually strip markdown code fences and parse
@@ -143,7 +146,15 @@ ${ucInstruction}`;
         .replace(/\s*```[\s\S]*$/, '')
         .trim();
 
+      console.log('[DIAG] stripped first 200:', stripped.slice(0, 200));
+
       const parsed = JSON.parse(stripped);
+
+      console.log('[DIAG] typeof parsed:', typeof parsed);
+      console.log('[DIAG] isArray:', Array.isArray(parsed));
+      if (!Array.isArray(parsed) && parsed) {
+        console.log('[DIAG] parsed keys:', Object.keys(parsed));
+      }
 
       // Ensure we have an array: if Mistral returns an object, extract the array
       if (Array.isArray(parsed)) {
@@ -161,7 +172,8 @@ ${ucInstruction}`;
         }
       }
     } catch (parseErr) {
-      // Silent fail - return empty array
+      console.log('[DIAG] JSON.parse error:', parseErr);
+      console.log('[DIAG] stripped that failed:', stripped?.slice(0, 500));
     }
 
     return NextResponse.json({ suggestions });
