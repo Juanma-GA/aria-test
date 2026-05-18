@@ -48,14 +48,10 @@ export async function POST(
       .join(', ') || 'Not assessed';
 
     const isTechpubs = ((audit as any)?.projectType || 'techpubs') === 'techpubs';
-    console.log('[SUGGEST-USECASES-DEBUG] audit.projectType:', (audit as any)?.projectType);
-    console.log('[SUGGEST-USECASES-DEBUG] isTechpubs (with fallback to techpubs):', isTechpubs);
 
     let estadoDelArte = '';
     if (isTechpubs) {
       estadoDelArte = await getEstadoDelArte();
-      console.log('[SUGGEST-USECASES-DEBUG] estadoDelArte length:', estadoDelArte.length);
-      console.log('[SUGGEST-USECASES-DEBUG] estadoDelArte first 200 chars:', estadoDelArte.slice(0, 200));
     }
 
     const techpubsSection = isTechpubs ? `
@@ -66,9 +62,6 @@ ${estadoDelArte}
 ---
 
 ` : '';
-
-    console.log('[SUGGEST-USECASES-DEBUG] techpubsSection length:', techpubsSection.length);
-    console.log('[SUGGEST-USECASES-DEBUG] techpubsSection empty?', techpubsSection.trim().length === 0);
 
     const prompt = `You are an AI consultant specializing in enterprise AI strategy. Analyze the following business process and suggest concrete AI use cases.
 ${techpubsSection}
@@ -101,9 +94,6 @@ Return a JSON array of 3-5 AI use case objects. Each object must have exactly th
 }
 
 Return ONLY valid JSON array, no explanation.`;
-
-    console.log('[SUGGEST-USECASES-DEBUG] prompt length:', prompt.length);
-    console.log('[SUGGEST-USECASES-DEBUG] prompt first 500 chars:', prompt.slice(0, 500));
 
     const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 4000 : 3000, temperature: 0.4 });
     const suggestions = parseLLMJson<any[]>(text);
