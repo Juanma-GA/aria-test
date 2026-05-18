@@ -133,7 +133,7 @@ SOVEREIGNTY CONSTRAINTS: ${axesSummary}
 
 ${ucInstruction}`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 4000 : 3000, temperature: 0.4 });
+    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 10000 : 3000, temperature: 0.4 });
 
     console.log('[DIAG] raw text first 200:', text.slice(0, 200));
     console.log('[DIAG] raw text last 200:', text.slice(-200));
