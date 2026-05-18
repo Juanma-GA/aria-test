@@ -11,6 +11,7 @@ import type { UseCase, AIType, ProcessActivity, TimeSavedEntry, ScoreValue, Prof
 import { AI_TYPE_LABELS } from '@/lib/types';
 import { calculateSovereigntyIndex, calculateScore, computeAnnualCompute } from '@/lib/calculations';
 import { ComputeCalculator, DEFAULT_COMPUTE_BREAKDOWN } from '@/components/cost/ComputeCalculator';
+import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 
 const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'> = {
   generative_llm: 'purple', extraction_nlp: 'blue', classification_ml: 'teal',
@@ -29,6 +30,14 @@ const DIMENSIONS: { key: string; label: string; hint: string; scale: string }[] 
   { key: 'd4_dataReadiness', label: 'D4 Data Readiness', hint: 'Is the data available, clean, and accessible?', scale: "1 = Doesn't exist · 3 = Available with effort · 5 = Structured & clean" },
   { key: 'd5_sovereigntyIndex', label: 'D5 Sovereignty', hint: 'Compliance with sovereignty constraints (auto-filled from B2)', scale: '1 = Critical · 2 = Restricted · 3 = Conditioned · 4 = Managed · 5 = Full Autonomy' },
 ];
+
+const SUGGEST_USECASES_STEPS = [
+  { text: 'Analyzing process context...', startPercent: 0, endPercent: 20 },
+  { text: 'Loading knowledge base...', startPercent: 20, endPercent: 40 },
+  { text: 'Generating use case proposals...', startPercent: 40, endPercent: 90 },
+  { text: 'Finalizing suggestions...', startPercent: 90, endPercent: 100 },
+];
+
 
 function emptyScore() {
   const dim = { value: 3 as ScoreValue, justification: '' };
@@ -995,7 +1004,7 @@ export default function B5Page() {
                 className="btn-primary flex items-center gap-2"
               >
                 {generating ? <Spinner size="sm" /> : <Bot size={14} />}
-                {generating ? 'Analyzing process…' : 'Analyze & Suggest'}
+                {generating ? <ProgressIndicator steps={SUGGEST_USECASES_STEPS} completionTimeMs={30000} /> : 'Analyze & Suggest'}
               </button>
 
               {suggestions.length > 0 && (
