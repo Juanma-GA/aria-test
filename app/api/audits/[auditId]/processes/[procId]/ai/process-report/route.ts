@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase } from '@/lib/models';
 import { callMistral } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { getEstadoDelArte, getCasosDeUso } from '@/lib/references';
 
 const AXIS_NAMES: Record<string, string> = {
   axis1_InfoClassification: 'Information Classification',
@@ -141,9 +142,27 @@ EXISTING USE CASES (for reference)
 ${useCases.map((uc: any) => `- ${uc.cuId}: ${uc.description} [${uc.status}]`).join('\n')}
 ` : '';
 
+    // ── TechPubs reference section ────────────────────────────────────────────
+
+    const isTechpubs = (audit as any)?.projectType === 'techpubs';
+    const techpubsKnowledgeBase = isTechpubs ? `
+## TECHPUBS KNOWLEDGE BASE
+==========================
+
+### Estado del Arte Tecnológico
+${await getEstadoDelArte()}
+
+### Casos de Uso para Publicaciones Técnicas
+${await getCasosDeUso()}
+
+---
+
+` : '';
+
     // ── Build prompt ──────────────────────────────────────────────────────────
 
     const prompt = `You are an expert AI consultant at Atexis, specializing in AI adoption assessment for regulated industrial sectors (defence, aerospace, naval, railway). Generate a comprehensive, professional process analysis report in Markdown. Write in the same language as the process data provided (use English if mixed).
+${techpubsKnowledgeBase}
 
 ${auditContext}
 
@@ -212,7 +231,7 @@ Be specific, technically precise, and grounded in the actual process data provid
 
     const markdown = await callMistral(
       [{ role: 'user', content: prompt }],
-      { maxTokens: 8000, temperature: 0.2 }
+      { maxTokens: isTechpubs ? 10000 : 8000, temperature: 0.2 }
     );
 
     return NextResponse.json({ markdown });

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Process } from '@/lib/models';
+import { Audit, Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { getEstadoDelArte } from '@/lib/references';
 
 export async function POST(
   req: NextRequest,
@@ -21,7 +22,11 @@ export async function POST(
       return NextResponse.json({ error: 'processId is required' }, { status: 400 });
     }
 
-    const process = await Process.findOne({ auditId, _id: processId });
+    const [audit, process] = await Promise.all([
+      Audit.findById(auditId).lean(),
+      Process.findOne({ auditId, _id: processId }).lean(),
+    ]);
+
     if (!process) {
       return NextResponse.json({ error: 'Process not found' }, { status: 404 });
     }
@@ -42,8 +47,18 @@ export async function POST(
       .map(([k, v]: [string, any]) => `${k}: ${v.compliance ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`)
       .join(', ') || 'Not assessed';
 
-    const prompt = `You are an AI consultant specializing in enterprise AI strategy. Analyze the following business process and suggest concrete AI use cases.
+    const isTechpubs = (audit as any)?.projectType === 'techpubs';
+    const techpubsSection = isTechpubs ? `
+## TECHPUBS KNOWLEDGE BASE
+==========================
+${await getEstadoDelArte()}
 
+---
+
+` : '';
+
+    const prompt = `You are an AI consultant specializing in enterprise AI strategy. Analyze the following business process and suggest concrete AI use cases.
+${techpubsSection}
 PROCESS: ${process.name || 'Unnamed'}
 DESCRIPTION: ${b1.description || 'Not provided'}
 CLIENT DEPARTMENT: ${b1.clientDepartment || 'Not specified'}
@@ -74,7 +89,7 @@ Return a JSON array of 3-5 AI use case objects. Each object must have exactly th
 
 Return ONLY valid JSON array, no explanation.`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 3000, temperature: 0.4 });
+    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 4000 : 3000, temperature: 0.4 });
     const suggestions = parseLLMJson<any[]>(text);
 
     return NextResponse.json({ suggestions: Array.isArray(suggestions) ? suggestions : [] });
