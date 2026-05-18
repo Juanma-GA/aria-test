@@ -132,7 +132,7 @@ export default function B3Page() {
     { text: "Analyzing process context...", startPercent: 0, endPercent: 20 },
     { text: "Evaluating sovereignty constraints...", startPercent: 20, endPercent: 40 },
     { text: "Generating AI use case proposals...", startPercent: 40, endPercent: 75 },
-    { text: "Applying TechPubs context...", startPercent: 75, endPercent: 90 },
+    { text: "Applying context...", startPercent: 75, endPercent: 90 },
     { text: "Finalizing report...", startPercent: 90, endPercent: 100 },
   ];
 
