@@ -46,7 +46,7 @@ const AuditSchema = new Schema<IAudit>({
   client: { type: String, required: true },
   project: { type: String, default: '' },
   sector: { type: String, enum: ['defence', 'aerospace', 'naval', 'railway', 'internal', 'other'], required: true },
-  projectType: { type: String, enum: ['techpubs', 'training', 'iss', 'lsa', 'digital', 'simulation', 'ils', 'supplychain', 'other'], default: 'other' },
+  projectType: { type: String, enum: ['techpubs', 'training', 'iss', 'lsa', 'digital', 'simulation', 'ils', 'supplychain', 'other'], default: 'techpubs' },
   leadConsultant: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   collaborators: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   team: { type: [TeamMemberSchema], default: [] },

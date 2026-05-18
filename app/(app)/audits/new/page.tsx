@@ -79,7 +79,7 @@ export default function NewAuditPage() {
     client: '',
     project: '',
     sector: 'aerospace',
-    projectType: 'other',
+    projectType: 'techpubs',
     startDate: '',
     targetEndDate: '',
   });
