@@ -139,16 +139,18 @@ ${ucInstruction}`;
     console.log('[DIAG] raw text last 200:', text.slice(-200));
 
     let suggestions: any[] = [];
+    let stripped = '';
     try {
-      // Manually strip markdown code fences and parse
-      const stripped = text
+      // Strip markdown code fences
+      stripped = text
         .replace(/^[\s\S]*?```(?:json)?\s*/i, '')
         .replace(/\s*```[\s\S]*$/, '')
         .trim();
 
       console.log('[DIAG] stripped first 200:', stripped.slice(0, 200));
 
-      const parsed = JSON.parse(stripped);
+      // Use robust parseLLMJson which handles control characters and JSON repair
+      const parsed = parseLLMJson<any>(stripped);
 
       console.log('[DIAG] typeof parsed:', typeof parsed);
       console.log('[DIAG] isArray:', Array.isArray(parsed));
@@ -171,9 +173,9 @@ ${ucInstruction}`;
           suggestions = parsed.data;
         }
       }
-    } catch (parseErr) {
-      console.log('[DIAG] JSON.parse error:', parseErr);
-      console.log('[DIAG] stripped that failed:', stripped?.slice(0, 500));
+    } catch (err) {
+      console.log('[DIAG] parse failed:', err);
+      console.log('[DIAG] stripped that failed:', stripped.slice(0, 200));
     }
 
     return NextResponse.json({ suggestions });
