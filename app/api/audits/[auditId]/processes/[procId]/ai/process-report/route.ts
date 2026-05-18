@@ -203,7 +203,10 @@ For EACH step in the process map, provide a structured analysis including:
 If a step is a decision point, flag it clearly and analyse decision logic.
 Include an overall process efficiency summary at the end.
 
-${isTechpubs ? `## Section 4 — AI Use Case Proposals (TechPubs - Phase-Based)
+`;
+
+    // Build UC section based on projectType
+    const ucSection = isTechpubs ? `## Section 4 — AI Use Case Proposals (TechPubs - Phase-Based)
 
 You MUST propose a MINIMUM of 5 concrete AI use cases for this technical publications process. The first 5 use cases MUST cover the TechPubs production phases in this exact order:
 
@@ -266,8 +269,41 @@ Propose 3 to 5 concrete AI use cases for this process. For EACH use case, provid
 - If blocked: reason and unblock condition
 - Implementation notes and risks
 
-Be specific, technically precise, and grounded in the actual process data provided. Avoid generic statements.`}
+Be specific, technically precise, and grounded in the actual process data provided. Avoid generic statements.`;
 
+    const prompt = `You are an expert AI consultant at Atexis, specializing in AI adoption assessment for regulated industrial sectors (defence, aerospace, naval, railway). Generate a comprehensive, professional process analysis report in Markdown. Write in the same language as the process data provided (use English if mixed).
+${techpubsKnowledgeBase}
+
+${auditContext}
+
+${b1Context}
+
+${b2Context}
+
+${b3Context}
+
+${existingUCContext}
+
+---
+
+Generate the following 4-section report:
+
+## Section 1 — Context Summary
+Provide a rich narrative summary of:
+- The audit and client context (sector, classification, strategic relevance)
+- The process being analysed (purpose, scope, department, stakeholders)
+- The team involved (profiles, their roles, hourly costs)
+- Key organisational and contractual context
+
+## Section 2 — Sovereignty Assessment
+Provide a structured analysis of:
+- The overall sovereignty level (${sovLevel}, index ${sovIdx !== null ? sovIdx.toFixed(1) : 'N/A'}/5) and what it means for AI deployment
+- Each axis individually: status, key findings, implications for AI, applicable normative frameworks
+- A summary of blocking constraints and conditions that must be met before deploying AI
+- Recommended infrastructure deployment model(s) given the sovereignty profile
+
+${ucSection}
+`;
 
     const markdown = await callMistral(
       [{ role: 'user', content: prompt }],
