@@ -134,7 +134,23 @@ SOVEREIGNTY CONSTRAINTS: ${axesSummary}
 ${ucInstruction}`;
 
     const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 4000 : 3000, temperature: 0.4 });
-    const suggestions = parseLLMJson<any[]>(text);
+
+    console.log('[SUGGEST-USECASES-DIAG] isTechpubs:', isTechpubs);
+    console.log('[SUGGEST-USECASES-DIAG] Mistral raw response length:', text.length);
+    console.log('[SUGGEST-USECASES-DIAG] Mistral raw response (first 500 chars):', text.slice(0, 500));
+    console.log('[SUGGEST-USECASES-DIAG] Mistral raw response (last 200 chars):', text.slice(-200));
+
+    let suggestions: any[] = [];
+    try {
+      suggestions = parseLLMJson<any[]>(text);
+      console.log('[SUGGEST-USECASES-DIAG] Successfully parsed JSON, count:', Array.isArray(suggestions) ? suggestions.length : 'not array');
+      if (Array.isArray(suggestions) && suggestions.length > 0) {
+        console.log('[SUGGEST-USECASES-DIAG] First suggestion:', JSON.stringify(suggestions[0], null, 2).slice(0, 300));
+      }
+    } catch (parseErr) {
+      console.log('[SUGGEST-USECASES-DIAG] JSON parse error:', parseErr instanceof Error ? parseErr.message : String(parseErr));
+      console.log('[SUGGEST-USECASES-DIAG] Could not parse response as JSON');
+    }
 
     return NextResponse.json({ suggestions: Array.isArray(suggestions) ? suggestions : [] });
   } catch (err) {
