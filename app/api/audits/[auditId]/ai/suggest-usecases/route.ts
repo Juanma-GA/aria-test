@@ -135,28 +135,16 @@ ${ucInstruction}`;
 
     const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 10000 : 3000, temperature: 0.4 });
 
-    console.log('[DIAG] raw text first 200:', text.slice(0, 200));
-    console.log('[DIAG] raw text last 200:', text.slice(-200));
-
     let suggestions: any[] = [];
-    let stripped = '';
     try {
       // Strip markdown code fences
-      stripped = text
+      const stripped = text
         .replace(/^[\s\S]*?```(?:json)?\s*/i, '')
         .replace(/\s*```[\s\S]*$/, '')
         .trim();
 
-      console.log('[DIAG] stripped first 200:', stripped.slice(0, 200));
-
       // parseLLMJson now safely handles both arrays and objects
       const parsed = parseLLMJson<any>(stripped);
-
-      console.log('[DIAG] typeof parsed:', typeof parsed);
-      console.log('[DIAG] isArray:', Array.isArray(parsed));
-      if (!Array.isArray(parsed) && parsed) {
-        console.log('[DIAG] parsed keys:', Object.keys(parsed));
-      }
 
       // Ensure we have an array: if Mistral returns an object, extract the array
       if (Array.isArray(parsed)) {
@@ -174,8 +162,7 @@ ${ucInstruction}`;
         }
       }
     } catch (err) {
-      console.log('[DIAG] parse failed:', err);
-      console.log('[DIAG] stripped that failed:', stripped.slice(0, 200));
+      console.error("[SUGGEST-USECASES] Parse error:", err);
     }
 
     return NextResponse.json({ suggestions });
