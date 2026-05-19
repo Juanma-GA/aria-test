@@ -330,7 +330,10 @@ export default function POCDetailPage() {
 
   const handleDelete = async () => {
     const url = `/api/audits/${auditId}/pocs/${pocId}${confirmDelete.cascade ? '?cascade=true' : ''}`;
-    const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+    const res = await fetch(apiUrl(url), {
+      method: 'DELETE',
+      credentials: 'include',
+    });
     if (res.ok) {
       router.push(`/audits/${auditId}/pocs`);
       return;

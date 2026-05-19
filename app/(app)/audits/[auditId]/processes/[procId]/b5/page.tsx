@@ -464,7 +464,7 @@ function SlideOver({
         ? `/api/audits/${auditId}/usecases/${editUC._id}`
         : `/api/audits/${auditId}/usecases`;
       const method = editUC ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl(url), {
         method,
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1238,7 +1238,10 @@ export default function B5Page() {
   const handleDelete = async () => {
     if (!deleteModal.uc) return;
     const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
-    const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+    const res = await fetch(apiUrl(url), {
+      method: 'DELETE',
+      credentials: 'include',
+    });
     if (res.ok) {
       const id = deleteModal.uc._id;
       setUseCases((prev) => prev.filter((u) => u._id !== id));
