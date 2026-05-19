@@ -3,7 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC, Industrialization } from '@/lib/models';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 import { computeAnnualCompute } from '@/lib/calculations';
-import { getEstadoDelArte, getCasosDeUso } from '@/lib/references';
+import { getStateOfTheArt, getUseCases } from '@/lib/references';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -712,19 +712,19 @@ export async function POST(
     // Inject TechPubs reference context if applicable
     let prompt = basePrompt;
     if (isTechpubs) {
-      const [estadoDelArte, casosDeUso] = await Promise.all([
-        getEstadoDelArte(),
-        getCasosDeUso(),
+      const [stateOfTheArt, useCases] = await Promise.all([
+        getStateOfTheArt(),
+        getUseCases(),
       ]);
 
       const techpubsSection = `## TECHPUBS KNOWLEDGE BASE
 ==========================
 
 ### Estado del Arte Tecnológico
-${estadoDelArte}
+${stateOfTheArt}
 
 ### Casos de Uso para Publicaciones Técnicas
-${casosDeUso}
+${useCases}
 
 ---
 

@@ -3,7 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
-import { getEstadoDelArte } from '@/lib/references';
+import { getStateOfTheArt } from '@/lib/references';
 
 export async function POST(
   req: NextRequest,
@@ -49,15 +49,15 @@ export async function POST(
 
     const isTechpubs = ((audit as any)?.projectType || 'techpubs') === 'techpubs';
 
-    let estadoDelArte = '';
+    let stateOfTheArt = '';
     if (isTechpubs) {
-      estadoDelArte = await getEstadoDelArte();
+      stateOfTheArt = await getStateOfTheArt();
     }
 
     const techpubsSection = isTechpubs ? `
 ## TECHPUBS KNOWLEDGE BASE
 ==========================
-${estadoDelArte}
+${stateOfTheArt}
 
 ---
 

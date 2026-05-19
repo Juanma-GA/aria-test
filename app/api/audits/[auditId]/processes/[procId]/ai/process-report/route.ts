@@ -3,7 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase } from '@/lib/models';
 import { callMistral } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
-import { getEstadoDelArte, getCasosDeUso } from '@/lib/references';
+import { getStateOfTheArt, getUseCases } from '@/lib/references';
 
 const AXIS_NAMES: Record<string, string> = {
   axis1_InfoClassification: 'Information Classification',
@@ -150,10 +150,10 @@ ${useCases.map((uc: any) => `- ${uc.cuId}: ${uc.description} [${uc.status}]`).jo
 ==========================
 
 ### Estado del Arte Tecnológico
-${await getEstadoDelArte()}
+${await getStateOfTheArt()}
 
 ### Casos de Uso para Publicaciones Técnicas
-${await getCasosDeUso()}
+${await getUseCases()}
 
 ---
 
