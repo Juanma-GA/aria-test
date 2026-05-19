@@ -312,7 +312,7 @@ export default function B3Page() {
     setReportLoading(true);
     try {
       const res = await fetch(
-        `/api/audits/${auditId}/processes/${procId}/ai/process-report`,
+        apiUrl(`/api/audits/${auditId}/processes/${procId}/ai/process-report`),
         {
           method: 'POST',
           credentials: 'include',
@@ -558,7 +558,7 @@ ${body}
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch(`/api/audits/${auditId}/processes/${procId}`, {
+      await fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
