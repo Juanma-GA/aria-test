@@ -42,6 +42,7 @@ import {
   ComputeCalculator,
   DEFAULT_COMPUTE_BREAKDOWN,
 } from '@/components/cost/ComputeCalculator';
+import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 
 const AI_TYPE_COLORS: Record<
   AIType,
@@ -105,6 +106,17 @@ const DIMENSIONS: {
   },
 ];
 
+const SUGGEST_USECASES_STEPS = [
+  { text: 'Analyzing process context...', startPercent: 0, endPercent: 20 },
+  { text: 'Loading knowledge base...', startPercent: 20, endPercent: 40 },
+  {
+    text: 'Generating use case proposals...',
+    startPercent: 40,
+    endPercent: 90,
+  },
+  { text: 'Finalizing suggestions...', startPercent: 90, endPercent: 100 },
+];
+
 function emptyScore() {
   const dim = { value: 3 as ScoreValue, justification: '' };
   return {
@@ -147,9 +159,7 @@ function d1FromPct(pct: number): ScoreValue {
   return 5;
 }
 
-function emptyForm(
-  processId: string,
-): Partial<UseCase> & {
+function emptyForm(processId: string): Partial<UseCase> & {
   aiTypes: AIType[];
   timeSavedPerProfile: TimeSavedEntry[];
   targetActivities: string[];
@@ -1625,7 +1635,14 @@ export default function B5Page() {
                 className="btn-primary flex items-center gap-2"
               >
                 {generating ? <Spinner size="sm" /> : <Bot size={14} />}
-                {generating ? 'Analyzing process…' : 'Analyze & Suggest'}
+                {generating ? (
+                  <ProgressIndicator
+                    steps={SUGGEST_USECASES_STEPS}
+                    completionTimeMs={30000}
+                  />
+                ) : (
+                  'Analyze & Suggest'
+                )}
               </button>
 
               {suggestions.length > 0 && (

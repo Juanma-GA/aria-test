@@ -101,6 +101,13 @@ export function parseLLMJson<T>(text: string): T {
     .replace(/\s*```[\s\S]*$/, '')
     .trim();
 
+  // If response is an array, parse it directly (safe for array-expecting endpoints,
+  // no impact on object-expecting endpoints which never start with '[')
+  const trimmed = stripped.trim();
+  if (trimmed.startsWith('[')) {
+    try { return JSON.parse(trimmed) as T; } catch {}
+  }
+
   const candidates = [
     stripped.length ? stripped : null,
     extractBalancedJson(text),
@@ -212,25 +219,32 @@ function stripCommentsOutsideStrings(s: string): string {
 }
 
 function extractBalancedJson(text: string): string | null {
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch !== '{' && ch !== '[') continue;
-    const open = ch;
-    const close = ch === '{' ? '}' : ']';
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-    for (let j = i; j < text.length; j++) {
-      const c = text[j];
-      if (escape) { escape = false; continue; }
-      if (c === '\\') { escape = true; continue; }
-      if (c === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (c === open) depth++;
-      else if (c === close) {
-        depth--;
-        if (depth === 0) return text.slice(i, j + 1);
-      }
+  // Find the outermost bracket: '[' or '{', whichever comes first
+  const firstBracket = text.indexOf('[');
+  const firstBrace = text.indexOf('{');
+  const startPos = (firstBracket !== -1 &&
+    (firstBrace === -1 || firstBracket < firstBrace))
+    ? firstBracket : (firstBrace !== -1 ? firstBrace : -1);
+
+  if (startPos === -1) return null;
+
+  const ch = text[startPos];
+  const open = ch;
+  const close = ch === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let j = startPos; j < text.length; j++) {
+    const c = text[j];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === open) depth++;
+    else if (c === close) {
+      depth--;
+      if (depth === 0) return text.slice(startPos, j + 1);
     }
   }
   return null;

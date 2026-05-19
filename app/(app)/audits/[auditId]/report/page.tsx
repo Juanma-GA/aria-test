@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/Spinner';
+import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 import { apiUrl } from '@/lib/utils';
 import { Bot, RefreshCw, FileText, AlertTriangle } from 'lucide-react';
 
@@ -11,6 +12,14 @@ interface ReportMeta {
   generatedAt: string;
   model: string;
 }
+
+const AUDIT_REPORT_STEPS = [
+  { text: "Collecting audit data...", startPercent: 0, endPercent: 15 },
+  { text: "Analyzing processes...", startPercent: 15, endPercent: 40 },
+  { text: "Generating executive report...", startPercent: 40, endPercent: 80 },
+  { text: "Applying context...", startPercent: 80, endPercent: 95 },
+  { text: "Finalizing report...", startPercent: 95, endPercent: 100 },
+];
 
 // ─── Simple Markdown → HTML converter ────────────────────────────────────────
 
@@ -279,9 +288,8 @@ export default function AuditReportPage() {
 
         {/* Generating indicator */}
         {generating && (
-          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-sm px-4 py-3 text-sm text-blue-700">
-            <Spinner size="sm" className="text-blue-aria" />
-            <span>Analizando datos de la auditoría y generando informe…</span>
+          <div className="bg-blue-50 border border-blue-200 rounded-sm px-4 py-4 text-sm text-blue-700">
+            <ProgressIndicator steps={AUDIT_REPORT_STEPS} completionTimeMs={60000} showBar={true} />
           </div>
         )}
 

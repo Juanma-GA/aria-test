@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const SECTORS = ['defence', 'aerospace', 'naval', 'railway', 'internal', 'other'] as const;
+export const PROJECT_TYPES = ['techpubs', 'training', 'iss', 'lsa', 'digital', 'simulation', 'ils', 'supplychain', 'other'] as const;
 export const PRIORITIES = ['high', 'medium', 'low'] as const;
 export const AUDIT_STATUSES = ['draft', 'active', 'review', 'completed'] as const;
 
@@ -9,6 +10,7 @@ export const createAuditSchema = z.object({
   client: z.string().trim().min(1, 'Client is required'),
   project: z.string().trim().optional().default(''),
   sector: z.enum(SECTORS).default('other'),
+  projectType: z.enum(PROJECT_TYPES).optional().default('techpubs'),
   classification: z.string().optional(),
   startDate: z.string().optional(),
   targetEndDate: z.string().optional(),

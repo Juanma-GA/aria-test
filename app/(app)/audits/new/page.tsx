@@ -12,13 +12,13 @@ import {
 } from '@/components/audit-team/TeamEditor';
 import type { SectorType, Priority } from '@/lib/types';
 import { apiUrl } from '@/lib/utils';
-import type { AuditTeamRole } from '@/lib/models/Audit';
-
+import type { AuditTeamRole, ProjectType } from '@/lib/models/Audit';
 interface Step1Data {
   name: string;
   client: string;
   project: string;
   sector: SectorType;
+  projectType: ProjectType;
   startDate: string;
   targetEndDate: string;
 }
@@ -37,6 +37,18 @@ const SECTORS: { value: SectorType; label: string }[] = [
   { value: 'naval', label: 'Naval' },
   { value: 'railway', label: 'Railway' },
   { value: 'internal', label: 'Internal' },
+  { value: 'other', label: 'Other' },
+];
+
+const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
+  { value: 'techpubs', label: 'Technical Publications' },
+  { value: 'training', label: 'Training Development & Delivery' },
+  { value: 'iss', label: 'In Service Support' },
+  { value: 'lsa', label: 'LSA' },
+  { value: 'digital', label: 'Digital' },
+  { value: 'simulation', label: 'Simulation' },
+  { value: 'ils', label: 'General ILS' },
+  { value: 'supplychain', label: 'Supply Chain' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -71,6 +83,7 @@ export default function NewAuditPage() {
     client: '',
     project: '',
     sector: 'aerospace',
+    projectType: 'techpubs',
     startDate: '',
     targetEndDate: '',
   });
@@ -135,6 +148,7 @@ export default function NewAuditPage() {
           client: step1.client,
           project: step1.project,
           sector: step1.sector,
+          projectType: step1.projectType,
           startDate: step1.startDate || new Date().toISOString(),
           targetEndDate: step1.targetEndDate || new Date().toISOString(),
           firstProcess: hasProcess
@@ -299,6 +313,29 @@ export default function NewAuditPage() {
                 {SECTORS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Project Type */}
+            <div>
+              <label className="block text-sm font-medium text-text mb-1">
+                Project Type
+              </label>
+              <select
+                value={step1.projectType}
+                onChange={(e) =>
+                  setStep1({
+                    ...step1,
+                    projectType: e.target.value as ProjectType,
+                  })
+                }
+                className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
+              >
+                {PROJECT_TYPES.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
                   </option>
                 ))}
               </select>

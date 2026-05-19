@@ -23,8 +23,9 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { BlockProgressBar } from '@/components/layout/BlockProgressBar';
 import { TeamEditModal } from '@/components/audit-team/TeamEditModal';
 import { useAuditAccess } from '@/context/AuditAccessContext';
-import type { AuditTeamRole } from '@/lib/models/Audit';
+import type { AuditTeamRole, ProjectType } from '@/lib/models/Audit';
 import { apiUrl } from '@/lib/utils';
+
 import type {
   AuditStatus,
   SectorType,
@@ -94,6 +95,18 @@ const SECTORS: { value: SectorType; label: string }[] = [
   { value: 'naval', label: 'Naval' },
   { value: 'railway', label: 'Railway' },
   { value: 'internal', label: 'Internal' },
+  { value: 'other', label: 'Other' },
+];
+
+const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
+  { value: 'techpubs', label: 'Technical Publications' },
+  { value: 'training', label: 'Training Development & Delivery' },
+  { value: 'iss', label: 'In Service Support' },
+  { value: 'lsa', label: 'LSA' },
+  { value: 'digital', label: 'Digital' },
+  { value: 'simulation', label: 'Simulation' },
+  { value: 'ils', label: 'General ILS' },
+  { value: 'supplychain', label: 'Supply Chain' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -177,6 +190,7 @@ export default function AuditPage() {
     client: '',
     project: '',
     sector: 'aerospace' as SectorType,
+    projectType: 'techpubs' as ProjectType,
     startDate: '',
     targetEndDate: '',
   });
@@ -222,6 +236,7 @@ export default function AuditPage() {
           client: data.client || '',
           project: data.project || '',
           sector: data.sector || 'aerospace',
+          projectType: data.projectType || 'techpubs',
           startDate: data.startDate ? data.startDate.slice(0, 10) : '',
           targetEndDate: data.targetEndDate
             ? data.targetEndDate.slice(0, 10)
@@ -777,24 +792,45 @@ export default function AuditPage() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="form-label">Sector</label>
-                <select
-                  className="form-input"
-                  value={editForm.sector}
-                  onChange={(e) =>
-                    setEditForm((f) => ({
-                      ...f,
-                      sector: e.target.value as SectorType,
-                    }))
-                  }
-                >
-                  {SECTORS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Sector</label>
+                  <select
+                    className="form-input"
+                    value={editForm.sector}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        sector: e.target.value as SectorType,
+                      }))
+                    }
+                  >
+                    {SECTORS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Project Type</label>
+                  <select
+                    className="form-input"
+                    value={editForm.projectType}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        projectType: e.target.value as ProjectType,
+                      }))
+                    }
+                  >
+                    {PROJECT_TYPES.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

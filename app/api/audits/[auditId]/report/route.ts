@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC, Industrialization } from '@/lib/models';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 import { computeAnnualCompute } from '@/lib/calculations';
+import { getStateOfTheArt, getUseCases } from '@/lib/references';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -907,13 +908,39 @@ export async function POST(
     if (!audit)
       return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
 
-    const prompt = buildPrompt(
+    const isTechpubs =
+      ((audit as any)?.projectType || 'techpubs') === 'techpubs';
+
+    let basePrompt = buildPrompt(
       audit,
       processes as any[],
       useCases as any[],
       pocs as any[],
       industrializations as any[],
     );
+
+    // Inject TechPubs reference context if applicable
+    let prompt = basePrompt;
+    if (isTechpubs) {
+      const [stateOfTheArt, useCases] = await Promise.all([
+        getStateOfTheArt(),
+        getUseCases(),
+      ]);
+
+      const techpubsSection = `## TECHPUBS KNOWLEDGE BASE
+==========================
+
+### Estado del Arte Tecnológico
+${stateOfTheArt}
+
+### Casos de Uso para Publicaciones Técnicas
+${useCases}
+
+---
+
+`;
+      prompt = techpubsSection + basePrompt;
+    }
 
     if (!process.env.MISTRAL_API_KEY) {
       return NextResponse.json(
@@ -933,7 +960,7 @@ export async function POST(
         body: JSON.stringify({
           model: 'mistral-medium-latest',
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 6000,
+          max_tokens: isTechpubs ? 8000 : 6000,
           temperature: 0.2,
         }),
       },
