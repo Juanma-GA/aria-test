@@ -22,7 +22,15 @@ const STATUS_EMOJI: Record<string, string> = {
 function sovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
   const vals = (Object.values(b2.axes) as any[])
-    .map((a) => a.status === 'green' ? 5 : a.status === 'amber' ? 3 : a.status === 'red' ? 1 : null)
+    .map((a) =>
+      a.status === 'green'
+        ? 5
+        : a.status === 'amber'
+          ? 3
+          : a.status === 'red'
+            ? 1
+            : null,
+    )
     .filter((v) => v !== null) as number[];
   if (!vals.length) return null;
   return Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10;
@@ -39,11 +47,16 @@ function sovereigntyLevel(idx: number | null): string {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string; procId: string }> }
+  context: {
+    params:
+      | Promise<{ auditId: string; procId: string }>
+      | { auditId: string; procId: string };
+  },
 ) {
   try {
     await dbConnect();
-    const { auditId, procId } = await params;
+    const params = await Promise.resolve(context.params);
+    const { auditId, procId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -107,19 +120,29 @@ SOVEREIGNTY ASSESSMENT (B2)
 Sovereignty Index: ${sovIdx !== null ? sovIdx.toFixed(1) + '/5' : 'Not assessed'} — Level: ${sovLevel}
 
 Axes:
-${b2.axes ? Object.entries(b2.axes).map(([key, axis]: [string, any]) => `
+${
+  b2.axes
+    ? Object.entries(b2.axes)
+        .map(
+          ([key, axis]: [string, any]) => `
   ${STATUS_EMOJI[axis.status] ?? '⚪'} ${AXIS_NAMES[key] ?? key}: ${axis.status?.toUpperCase() ?? 'N/A'}
     Findings: ${axis.findings ?? 'N/A'}
     Implications: ${axis.implications ?? 'N/A'}
     Normative Frameworks: ${axis.normativeFrameworks?.join(', ') || 'None'}
     Infrastructure Mode: ${axis.infrastructureMode ?? 'N/A'}
-`).join('') : '  Not assessed'}
+`,
+        )
+        .join('')
+    : '  Not assessed'
+}
 `.trim();
 
     const b3Context = `
 PROCESS MAP (B3) — ${activities.length} steps | ${b3.annualRepetitions ?? 1} runs/year
 =========================================================
-${activities.map((a: any, i: number) => `
+${activities
+  .map(
+    (a: any, i: number) => `
 Step ${i + 1}${a.isDecisionPoint ? ' [DECISION POINT]' : ''}: ${a.name || '(unnamed)'}
   Tools/Systems: ${a.tools?.join(', ') || 'None'}
   Inputs: ${a.inputs?.join(', ') || 'None'}
@@ -131,21 +154,27 @@ ${(a.profileHours ?? []).length ? (a.profileHours ?? []).map((ph: any) => `    -
   Tasks:
 ${(a.tasks ?? []).length ? (a.tasks ?? []).map((t: any, ti: number) => `    ${ti + 1}. ${t.description}`).join('\n') : '    None'}
   Notes: ${a.notes || 'None'}
-`).join('')}
+`,
+  )
+  .join('')}
 Total Time per Run: ${activities.reduce((s: number, a: any) => s + (Number(a.estimatedTimeHours) || 0), 0)}h
 B3 Notes: ${b3.notes ?? 'None'}
 `.trim();
 
-    const existingUCContext = useCases.length > 0 ? `
+    const existingUCContext =
+      useCases.length > 0
+        ? `
 EXISTING USE CASES (for reference)
 ====================================
 ${useCases.map((uc: any) => `- ${uc.cuId}: ${uc.description} [${uc.status}]`).join('\n')}
-` : '';
+`
+        : '';
 
     // ── TechPubs reference section ────────────────────────────────────────────
 
     const isTechpubs = (audit as any)?.projectType === 'techpubs';
-    const techpubsKnowledgeBase = isTechpubs ? `
+    const techpubsKnowledgeBase = isTechpubs
+      ? `
 ## TECHPUBS KNOWLEDGE BASE
 ==========================
 
@@ -157,10 +186,12 @@ ${await getUseCases()}
 
 ---
 
-` : '';
+`
+      : '';
 
     // ── Build UC section based on projectType ────────────────────────────────
-    const ucSection = isTechpubs ? `## Section 4 — AI Use Case Proposals (TechPubs - Phase-Based)
+    const ucSection = isTechpubs
+      ? `## Section 4 — AI Use Case Proposals (TechPubs - Phase-Based)
 
 You MUST propose a MINIMUM of 5 concrete AI use cases for this technical publications process. The first 5 use cases MUST cover the TechPubs production phases in this exact order:
 
@@ -199,7 +230,8 @@ For EACH use case (all 5+), provide ALL of the following fields in structured fo
 - Implementation notes and risks
 - Recommended tools/platforms: (from the TechPubs knowledge base: Oxygen XML, S1000D tools, ATEXIS solutions, etc.)
 
-Be specific, technically precise, and grounded in the actual process data. Reference the TechPubs knowledge base for tool recommendations.` : `## Section 4 — AI Use Case Proposals
+Be specific, technically precise, and grounded in the actual process data. Reference the TechPubs knowledge base for tool recommendations.`
+      : `## Section 4 — AI Use Case Proposals
 Propose 3 to 5 concrete AI use cases for this process. For EACH use case, provide ALL of the following fields in structured format:
 
 **[UC-N] Title**
@@ -259,15 +291,18 @@ Provide a structured analysis of:
 ${ucSection}
 `;
 
-    const markdown = await callMistral(
-      [{ role: 'user', content: prompt }],
-      { maxTokens: isTechpubs ? 10000 : 8000, temperature: 0.2 }
-    );
+    const markdown = await callMistral([{ role: 'user', content: prompt }], {
+      maxTokens: isTechpubs ? 10000 : 8000,
+      temperature: 0.2,
+    });
 
     return NextResponse.json({ markdown });
   } catch (err) {
     console.error('Process report error:', err);
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

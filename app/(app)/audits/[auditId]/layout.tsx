@@ -2,9 +2,13 @@
 
 import { useEffect } from 'react';
 import { useParams, usePathname } from 'next/navigation';
+import { apiUrl } from '@/lib/utils';
 import { Lock } from 'lucide-react';
 import { useBreadcrumb } from '@/context/BreadcrumbContext';
-import { AuditAccessProvider, useAuditAccess } from '@/context/AuditAccessContext';
+import {
+  AuditAccessProvider,
+  useAuditAccess,
+} from '@/context/AuditAccessContext';
 
 const AUDIT_SUB_LABELS: Record<string, string> = {
   scoring: 'Scoring',
@@ -22,13 +26,20 @@ function ReadOnlyBanner() {
     <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-sov-light border border-amber-sov/30 text-amber-sov text-xs rounded-sm mb-3">
       <Lock size={12} />
       <span>
-        Read-only mode {effectiveRole ? <span className="text-muted">— your role: {effectiveRole}</span> : null}
+        Read-only mode{' '}
+        {effectiveRole ? (
+          <span className="text-muted">— your role: {effectiveRole}</span>
+        ) : null}
       </span>
     </div>
   );
 }
 
-export default function AuditLayout({ children }: { children: React.ReactNode }) {
+export default function AuditLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { auditId } = useParams<{ auditId: string }>();
   const pathname = usePathname();
   const { setItems } = useBreadcrumb();
@@ -40,10 +51,10 @@ export default function AuditLayout({ children }: { children: React.ReactNode })
     if (pathname?.includes('/processes/')) return;
 
     let active = true;
-    fetch(`/api/audits/${auditId}`, { credentials: 'include' })
-      .then(r => (r.ok ? r.json() : null))
+    fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
       .catch(() => null)
-      .then(audit => {
+      .then((audit) => {
         if (!active) return;
         const auditLabel = audit?.name ?? 'Audit';
         const items = [

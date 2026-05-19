@@ -5,11 +5,12 @@ import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
-    const { auditId } = await params;
+    const params = await Promise.resolve(context.params);
+    const { auditId } = params;
     const access = await requireAuditAccess(req, auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -30,18 +31,22 @@ export async function GET(
 
     return NextResponse.json(roadmap);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
-    const { auditId } = await params;
+    const params = await Promise.resolve(context.params);
+    const { auditId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -50,12 +55,15 @@ export async function PUT(
     const roadmap = await Roadmap.findOneAndUpdate(
       { auditId },
       { auditId, ...body },
-      { new: true, upsert: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true },
     );
 
     return NextResponse.json(roadmap);
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

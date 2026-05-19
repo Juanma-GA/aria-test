@@ -7,11 +7,12 @@ import { getStateOfTheArt } from '@/lib/references';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
-    const { auditId } = await params;
+    const params = await Promise.resolve(context.params);
+    const { auditId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -19,7 +20,10 @@ export async function POST(
     const { processId } = body;
 
     if (!processId) {
-      return NextResponse.json({ error: 'processId is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'processId is required' },
+        { status: 400 },
+      );
     }
 
     const [audit, process] = await Promise.all([
@@ -35,36 +39,49 @@ export async function POST(
     const b2 = (process as any).b2 ?? {};
     const b3 = (process as any).b3 ?? {};
 
-    const profilesSummary = (b1.profiles ?? [])
-      .map((p: any) => `${p.count}× ${p.role} (€${p.hourlyRateEur}/h)`)
-      .join(', ') || 'Not specified';
+    const profilesSummary =
+      (b1.profiles ?? [])
+        .map((p: any) => `${p.count}× ${p.role} (€${p.hourlyRateEur}/h)`)
+        .join(', ') || 'Not specified';
 
-    const activitiesSummary = (b3.activities ?? [])
-      .map((a: any, i: number) => `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`)
-      .join('\n') || 'Not specified';
+    const activitiesSummary =
+      (b3.activities ?? [])
+        .map(
+          (a: any, i: number) =>
+            `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`,
+        )
+        .join('\n') || 'Not specified';
 
-    const axesSummary = Object.entries(b2.axes ?? {})
-      .map(([k, v]: [string, any]) => `${k}: ${v.compliance ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`)
-      .join(', ') || 'Not assessed';
+    const axesSummary =
+      Object.entries(b2.axes ?? {})
+        .map(
+          ([k, v]: [string, any]) =>
+            `${k}: ${v.compliance ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`,
+        )
+        .join(', ') || 'Not assessed';
 
-    const isTechpubs = ((audit as any)?.projectType || 'techpubs') === 'techpubs';
+    const isTechpubs =
+      ((audit as any)?.projectType || 'techpubs') === 'techpubs';
 
     let stateOfTheArt = '';
     if (isTechpubs) {
       stateOfTheArt = await getStateOfTheArt();
     }
 
-    const techpubsSection = isTechpubs ? `
+    const techpubsSection = isTechpubs
+      ? `
 ## TECHPUBS KNOWLEDGE BASE
 ==========================
 ${stateOfTheArt}
 
 ---
 
-` : '';
+`
+      : '';
 
     // Build use case instruction based on projectType
-    const ucInstruction = isTechpubs ? `Return a JSON array of MINIMUM 5 AI use case objects, one per TechPubs production phase. The first 5 MUST cover these phases in order:
+    const ucInstruction = isTechpubs
+      ? `Return a JSON array of MINIMUM 5 AI use case objects, one per TechPubs production phase. The first 5 MUST cover these phases in order:
 - UC-01: Analysis and Source Data Preparation
 - UC-02: Authoring
 - UC-03: Illustration
@@ -99,7 +116,8 @@ PHASE DESCRIPTIONS for description field:
 - For UC-05: "Publication & Dispatching — [Title]"
 - For UC-06+: "Multi-phase — [Title]"
 
-Return ONLY valid JSON array, no explanation.` : `Return a JSON array of 3-5 AI use case objects. Each object must have exactly these fields:
+Return ONLY valid JSON array, no explanation.`
+      : `Return a JSON array of 3-5 AI use case objects. Each object must have exactly these fields:
 {
   "description": "Clear 1-2 sentence description of the AI opportunity",
   "aiTypes": ["generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "validation" | "prediction" | "intelligent_automation" | "agentic_ai" | "other"],
@@ -133,7 +151,10 @@ SOVEREIGNTY CONSTRAINTS: ${axesSummary}
 
 ${ucInstruction}`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 10000 : 3000, temperature: 0.4 });
+    const text = await callMistral([{ role: 'user', content: prompt }], {
+      maxTokens: isTechpubs ? 10000 : 3000,
+      temperature: 0.4,
+    });
 
     let suggestions: any[] = [];
     try {
@@ -162,12 +183,15 @@ ${ucInstruction}`;
         }
       }
     } catch (err) {
-      console.error("[SUGGEST-USECASES] Parse error:", err);
+      console.error('[SUGGEST-USECASES] Parse error:', err);
     }
 
     return NextResponse.json({ suggestions });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
