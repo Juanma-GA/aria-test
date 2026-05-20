@@ -741,7 +741,7 @@ ${body}
       >
         {reportLoading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <ProgressIndicator steps={PROCESS_REPORT_STEPS} completionTimeMs={45000} showBar={true} />
+            <ProgressIndicator steps={PROCESS_REPORT_STEPS} completionTimeMs={45000} showBar={false} />
           </div>
         ) : reportMarkdown ? (
           <div>
