@@ -19,16 +19,16 @@ async function readReference(filename: string): Promise<string> {
 
 /**
  * Reads the technology landscape reference file.
- * Returns full content of estado-del-arte-tecnologico.md for injection into AI prompts.
+ * Returns full content of state-of-the-art.md for injection into AI prompts.
  */
-export async function getEstadoDelArte(): Promise<string> {
-  return readReference('estado-del-arte-tecnologico.md');
+export async function getStateOfTheArt(): Promise<string> {
+  return readReference('state-of-the-art.md');
 }
 
 /**
  * Reads the TechPubs use case catalog reference file.
- * Returns full content of casos-de-uso-techpubs.md for injection into AI prompts.
+ * Returns full content of techpubs-use-cases.md for injection into AI prompts.
  */
-export async function getCasosDeUso(): Promise<string> {
-  return readReference('casos-de-uso-techpubs.md');
+export async function getUseCases(): Promise<string> {
+  return readReference('techpubs-use-cases.md');
 }
