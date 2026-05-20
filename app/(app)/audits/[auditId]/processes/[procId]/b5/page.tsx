@@ -984,28 +984,30 @@ export default function B5Page() {
               <p className="text-sm text-muted">
                 AI will analyze the process context (B1 profiles, B2 sovereignty, B3 activities) and suggest AI use cases.
               </p>
-              <button
-                onClick={async () => {
-                  setGenerating(true);
-                  setSuggestions([]);
-                  setSelectedSuggestions(new Set());
-                  try {
-                    const res = await fetch(`/api/audits/${auditId}/ai/suggest-usecases`, {
-                      method: 'POST', credentials: 'include',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ processId: procId }),
-                    });
-                    const data = await res.json();
-                    if (data.suggestions) setSuggestions(data.suggestions);
-                  } catch {}
-                  setGenerating(false);
-                }}
-                disabled={generating}
-                className="btn-primary flex items-center gap-2"
-              >
-                {generating ? <Spinner size="sm" /> : <Bot size={14} />}
-                {generating ? <ProgressIndicator steps={SUGGEST_USECASES_STEPS} completionTimeMs={30000} /> : 'Analyze & Suggest'}
-              </button>
+              {suggestions.length === 0 && (
+                <button
+                  onClick={async () => {
+                    setGenerating(true);
+                    setSuggestions([]);
+                    setSelectedSuggestions(new Set());
+                    try {
+                      const res = await fetch(`/api/audits/${auditId}/ai/suggest-usecases`, {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ processId: procId }),
+                      });
+                      const data = await res.json();
+                      if (data.suggestions) setSuggestions(data.suggestions);
+                    } catch {}
+                    setGenerating(false);
+                  }}
+                  disabled={generating}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {generating ? <Spinner size="sm" /> : <Bot size={14} />}
+                  {generating ? <ProgressIndicator steps={SUGGEST_USECASES_STEPS} completionTimeMs={30000} /> : 'Analyze & Suggest'}
+                </button>
+              )}
 
               {suggestions.length > 0 && (
                 <div className="space-y-3">
