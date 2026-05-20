@@ -195,6 +195,8 @@ Provide a step-by-step analysis of the process map:
 - For each activity/step: current tools used, time spent, pain points
 - Overall efficiency summary
 - Main bottlenecks identified
+
+IMPORTANT: Generate ONLY the 3 sections specified above. Do NOT add recommendations, conclusions, additional sections, or any text beyond Section 3. End the report immediately after Section 3.
 `;
 
     const markdown = await callMistral(
