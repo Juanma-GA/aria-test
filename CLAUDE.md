@@ -26,5 +26,32 @@
 - Use migration `scripts/fix-empty-teams.ts` to repair audits with empty team[] arrays
 
 ## ⚠️ Knowledge base files
-- **NEVER auto-generate or overwrite files in `/references/`** — these are manually maintained knowledge base files (estado-del-arte-tecnologico.md, casos-de-uso-techpubs.md)
+- **NEVER auto-generate or overwrite files in `/references/`** — these are manually maintained knowledge base files
 - Updates to reference files must be made by human review only, not by AI automation
+
+## Current Architecture Decisions
+- **projectType → department**: `projectType` has been moved from Audit model to Process model as the `department` field
+- **department is now an enum** (not free text) with these 13 values:
+  - `'Technical Publications'` | `'Training Development'` | `'Training Delivery'`
+  - `'ISS'` | `'LSA'` | `'Digital'` | `'Simulation'` | `'General ILS'`
+  - `'Material Supply'` | `'Provisioning'` | `'Supply Chain'` | `'D&D Engineering'` | `'Other'`
+  - Default: `'Other'`
+- **TechPubs detection**: Always use `process.department === 'Technical Publications'` NOT `audit.projectType === 'techpubs'`
+  - Found in: `app/api/audits/[auditId]/ai/suggest-usecases/route.ts` line 50
+  - Found in: `app/api/audits/[auditId]/report/route.ts` line 708
+
+## Pending Refactor (IN PROGRESS)
+A major refactor moving `projectType` from Audit to Process is pending with **16 files affected**:
+- **Schemas**: Remove `projectType` from Audit; add `department` enum to Process
+- **Validators**: Update audit/process validators; add `DEPARTMENT_TYPES` constant
+- **API endpoints** (6): Update all TechPubs checks to use `process.department`
+- **UI forms** (5): Remove projectType dropdowns; convert department field to enum dropdown
+- **Seed data**: Remove projectType from audits; ensure processes have department set
+- **Migration**: Create `scripts/fix-process-departments.ts` to set default department='Other' for existing processes
+
+See git log for full analysis summary.
+
+## Reference Files
+- `/references/state-of-the-art.md` — TechPubs AI tools & infrastructure knowledge base
+- `/references/techpubs-use-cases.md` — TechPubs use cases catalogue
+- **NEVER auto-generate or overwrite these files** — human review only
