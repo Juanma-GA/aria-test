@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(validationErrorResponse(parsed.error), { status: 400 });
     }
-    const { name, client, project, sector, projectType, classification, startDate, targetEndDate, firstProcess, team: extraTeam } = parsed.data;
+    const { name, client, project, sector, classification, startDate, targetEndDate, firstProcess, team: extraTeam } = parsed.data;
 
     const auditSeq = await nextSequence('audit');
     const auditCode = `AUD-${String(auditSeq).padStart(3, '0')}`;
@@ -179,7 +179,6 @@ export async function POST(req: NextRequest) {
       client,
       project: project || '',
       sector,
-      projectType,
       classification,
       leadConsultant: userId,
       team,

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const SECTORS = ['defence', 'aerospace', 'naval', 'railway', 'internal', 'other'] as const;
-export const PROJECT_TYPES = ['techpubs', 'training', 'iss', 'lsa', 'digital', 'simulation', 'ils', 'supplychain', 'other'] as const;
+export const DEPARTMENT_TYPES = ['Technical Publications', 'Training Development', 'Training Delivery', 'ISS', 'LSA', 'Digital', 'Simulation', 'General ILS', 'Material Supply', 'Provisioning', 'Supply Chain', 'D&D Engineering', 'Other'] as const;
 export const PRIORITIES = ['high', 'medium', 'low'] as const;
 export const AUDIT_STATUSES = ['draft', 'active', 'review', 'completed'] as const;
 
@@ -10,14 +10,13 @@ export const createAuditSchema = z.object({
   client: z.string().trim().min(1, 'Client is required'),
   project: z.string().trim().optional().default(''),
   sector: z.enum(SECTORS).default('other'),
-  projectType: z.enum(PROJECT_TYPES).optional().default('techpubs'),
   classification: z.string().optional(),
   startDate: z.string().optional(),
   targetEndDate: z.string().optional(),
   firstProcess: z
     .object({
       name: z.string().trim().min(1),
-      department: z.string().optional().default(''),
+      department: z.enum(DEPARTMENT_TYPES).optional().default('Other'),
       responsible: z.string().optional().default(''),
       applicableNorms: z.array(z.string()).optional().default([]),
       priority: z.enum(PRIORITIES).optional().default('medium'),
@@ -35,7 +34,7 @@ export const createAuditSchema = z.object({
 
 export const createProcessSchema = z.object({
   name: z.string().trim().min(1, 'Process name is required'),
-  department: z.string().optional().default(''),
+  department: z.enum(DEPARTMENT_TYPES).optional().default('Other'),
   responsible: z.string().optional().default(''),
   sector: z.string().optional().default(''),
   applicableNorms: z.array(z.string()).optional().default([]),

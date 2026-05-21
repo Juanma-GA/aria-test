@@ -7,21 +7,21 @@ import { TagInput } from '@/components/ui/TagInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { TeamEditor, type UserDir, type TeamMemberRow } from '@/components/audit-team/TeamEditor';
 import type { SectorType, Priority } from '@/lib/types';
-import type { AuditTeamRole, ProjectType } from '@/lib/models/Audit';
+import type { AuditTeamRole } from '@/lib/models/Audit';
+import type { DepartmentType } from '@/lib/models/Process';
 
 interface Step1Data {
   name: string;
   client: string;
   project: string;
   sector: SectorType;
-  projectType: ProjectType;
   startDate: string;
   targetEndDate: string;
 }
 
 interface Step2Data {
   processName: string;
-  department: string;
+  department: DepartmentType;
   responsible: string;
   applicableNorms: string[];
   priority: Priority;
@@ -36,16 +36,20 @@ const SECTORS: { value: SectorType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
-  { value: 'techpubs', label: 'Technical Publications' },
-  { value: 'training', label: 'Training Development & Delivery' },
-  { value: 'iss', label: 'In Service Support' },
-  { value: 'lsa', label: 'LSA' },
-  { value: 'digital', label: 'Digital' },
-  { value: 'simulation', label: 'Simulation' },
-  { value: 'ils', label: 'General ILS' },
-  { value: 'supplychain', label: 'Supply Chain' },
-  { value: 'other', label: 'Other' },
+const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
+  { value: 'Technical Publications', label: 'Technical Publications' },
+  { value: 'Training Development', label: 'Training Development' },
+  { value: 'Training Delivery', label: 'Training Delivery' },
+  { value: 'ISS', label: 'In Service Support' },
+  { value: 'LSA', label: 'LSA' },
+  { value: 'Digital', label: 'Digital' },
+  { value: 'Simulation', label: 'Simulation' },
+  { value: 'General ILS', label: 'General ILS' },
+  { value: 'Material Supply', label: 'Material Supply' },
+  { value: 'Provisioning', label: 'Provisioning' },
+  { value: 'Supply Chain', label: 'Supply Chain' },
+  { value: 'D&D Engineering', label: 'D&D Engineering' },
+  { value: 'Other', label: 'Other' },
 ];
 
 const PRIORITIES: { value: Priority; label: string }[] = [
@@ -79,14 +83,13 @@ export default function NewAuditPage() {
     client: '',
     project: '',
     sector: 'aerospace',
-    projectType: 'techpubs',
     startDate: '',
     targetEndDate: '',
   });
 
   const [step2, setStep2] = useState<Step2Data>({
     processName: '',
-    department: '',
+    department: 'Other',
     responsible: '',
     applicableNorms: [],
     priority: 'medium',
@@ -138,7 +141,6 @@ export default function NewAuditPage() {
           client: step1.client,
           project: step1.project,
           sector: step1.sector,
-          projectType: step1.projectType,
           startDate: step1.startDate || new Date().toISOString(),
           targetEndDate: step1.targetEndDate || new Date().toISOString(),
           firstProcess: hasProcess ? {
@@ -296,22 +298,6 @@ export default function NewAuditPage() {
               </select>
             </div>
 
-            {/* Project Type */}
-            <div>
-              <label className="block text-sm font-medium text-text mb-1">Project Type</label>
-              <select
-                value={step1.projectType}
-                onChange={(e) => setStep1({ ...step1, projectType: e.target.value as ProjectType })}
-                className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
-              >
-                {PROJECT_TYPES.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -375,13 +361,17 @@ export default function NewAuditPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-text mb-1">Department</label>
-                <input
-                  type="text"
+                <select
                   value={step2.department}
-                  onChange={(e) => setStep2({ ...step2, department: e.target.value })}
-                  placeholder="e.g. Engineering"
-                  className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
-                />
+                  onChange={(e) => setStep2({ ...step2, department: e.target.value as DepartmentType })}
+                  className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
+                >
+                  {DEPARTMENTS.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-text mb-1">Responsible</label>

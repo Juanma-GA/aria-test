@@ -705,7 +705,7 @@ export async function POST(
 
     if (!audit) return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
 
-    const isTechpubs = ((audit as any)?.projectType || 'techpubs') === 'techpubs';
+    const isTechpubs = (processes as any[]).some((p) => p?.department === 'Technical Publications');
 
     let basePrompt = buildPrompt(audit, processes as any[], useCases as any[], pocs as any[], industrializations as any[]);
 

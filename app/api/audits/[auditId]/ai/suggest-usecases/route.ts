@@ -47,7 +47,7 @@ export async function POST(
       .map(([k, v]: [string, any]) => `${k}: ${v.compliance ?? 'N/A'} (${(v.normativeFrameworks ?? []).join(', ') || 'no frameworks'})`)
       .join(', ') || 'Not assessed';
 
-    const isTechpubs = ((audit as any)?.projectType || 'techpubs') === 'techpubs';
+    const isTechpubs = (process as any)?.department === 'Technical Publications';
 
     let stateOfTheArt = '';
     if (isTechpubs) {
@@ -63,7 +63,7 @@ ${stateOfTheArt}
 
 ` : '';
 
-    // Build use case instruction based on projectType
+    // Build use case instruction based on process department
     const ucInstruction = isTechpubs ? `Return a JSON array of MINIMUM 5 AI use case objects, one per TechPubs production phase. The first 5 MUST cover these phases in order:
 - UC-01: Analysis and Source Data Preparation
 - UC-02: Authoring

@@ -62,11 +62,13 @@ const ActivitySchema = new Schema({
   tasks: { type: [TaskSchema], default: [] },
 }, { _id: false });
 
+export type DepartmentType = 'Technical Publications' | 'Training Development' | 'Training Delivery' | 'ISS' | 'LSA' | 'Digital' | 'Simulation' | 'General ILS' | 'Material Supply' | 'Provisioning' | 'Supply Chain' | 'D&D Engineering' | 'Other';
+
 export interface IProcess extends Document {
   auditId: mongoose.Types.ObjectId;
   procId: string;
   name: string;
-  department: string;
+  department: DepartmentType;
   responsible: string;
   sector: string;
   applicableNorms: string[];
@@ -111,7 +113,7 @@ const ProcessSchema = new Schema<IProcess>({
   auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true },
   procId: { type: String, required: true },
   name: { type: String, required: true },
-  department: { type: String, default: '' },
+  department: { type: String, enum: ['Technical Publications', 'Training Development', 'Training Delivery', 'ISS', 'LSA', 'Digital', 'Simulation', 'General ILS', 'Material Supply', 'Provisioning', 'Supply Chain', 'D&D Engineering', 'Other'], default: 'Other' },
   responsible: { type: String, default: '' },
   sector: { type: String, default: '' },
   applicableNorms: [{ type: String }],
