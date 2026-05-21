@@ -7,7 +7,7 @@ import { getStateOfTheArt } from '@/lib/references';
 
 const SYSTEM_PROMPT = `You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.).
 
-Your goal is to propose at least one AI use case per step of the Process Map (B3) being audited.
+Your goal is to propose at least one AI use case per step of the Process Map (B3) being audited. To do that you need to read also B1 and B2.
 
 ## NAMING RULES FOR USE CASES
 - Minimum 1 UC per B3 step, named as:
