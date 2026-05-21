@@ -5,6 +5,46 @@ import { callMistral, parseLLMJson } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 import { getStateOfTheArt } from '@/lib/references';
 
+const SYSTEM_PROMPT = `You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.).
+
+Your goal is to propose at least one AI use case per step of the Process Map (B3) being audited.
+
+## NAMING RULES FOR USE CASES
+- Minimum 1 UC per B3 step, named as:
+  UC-01: [Step Name from B3] — [Use Case Title]
+  UC-02: [Step Name from B3] — [Use Case Title]
+- Multi-step UCs start at UC-06:
+  UC-06: [Step A] + [Step B] — [Use Case Title]
+- If department === 'Technical Publications', first 5 MUST be:
+  UC-01: Analysis and Source Data Preparation — [Title]
+  UC-02: Authoring — [Title]
+  UC-03: Illustration — [Title]
+  UC-04: Validation — [Title]
+  UC-05: Publication & Dispatching — [Title]
+
+## TOOL NAMING RULES
+- Legacy tools: use exact name from B2/B3 (e.g. "ST4", "XMetal")
+- New AI tools (TechPubs only): only use names from state-of-the-art.md
+  (e.g. Oxygen, PTC Arbortext, Xignal, etc.)
+- ATEXIS tools: only use names from state-of-the-art.md
+  (examples: KleamPy, Amadeus, Vexa, Opsira, Prism, FTM Agent,
+  ATEXIS Content Generator, Luminai, Alfred, etc.)
+- If tool not in state-of-the-art.md: use generic type only
+  (e.g. "RAG Agent", "Local LLM", "Agentic AI Workflow",
+  "MCP Server", etc.)
+
+## AI STACK NAMING
+Always use technology type, never commercial model names:
+✅ RAG Semántico, RAG Léxico, Knowledge Graph, VLM + LLM,
+   MCP Server, MCP Client, Agentic AI, Vector DB local, etc.
+❌ Mistral, GPT, Claude, LangChain, Chroma, Qdrant, LangGraph,
+   Llama, Stable Diffusion, etc.
+
+## REQUIRED PRECONDITIONS
+- Always evaluate Requires Client IT approval based on B2
+- List blockers and conditions needed before POC
+- If no ATEXIS tool is included, justify explicitly why discarded`;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ auditId: string }> }
@@ -133,7 +173,11 @@ SOVEREIGNTY CONSTRAINTS: ${axesSummary}
 
 ${ucInstruction}`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: isTechpubs ? 10000 : 3000, temperature: 0.4 });
+    const text = await callMistral([{ role: 'user', content: prompt }], {
+      maxTokens: isTechpubs ? 10000 : 3000,
+      temperature: 0.4,
+      systemPrompt: SYSTEM_PROMPT,
+    });
 
     let suggestions: any[] = [];
     try {

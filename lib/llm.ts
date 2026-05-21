@@ -20,6 +20,11 @@ export interface LLMOptions {
    * retry without it so the call doesn't fail on older endpoints.
    */
   webSearch?: boolean;
+  /**
+   * Optional system prompt to prepend to the messages array.
+   * Provides instruction context for the model's behavior.
+   */
+  systemPrompt?: string;
 }
 
 export async function callMistral(
@@ -29,9 +34,14 @@ export async function callMistral(
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('MISTRAL_API_KEY no configurada en .env.local');
 
+  // Prepend system prompt if provided
+  const allMessages = options.systemPrompt
+    ? [{ role: 'system', content: options.systemPrompt }, ...messages]
+    : messages;
+
   const baseBody: Record<string, unknown> = {
     model: options.model ?? DEFAULT_MODEL,
-    messages,
+    messages: allMessages,
     max_tokens: options.maxTokens ?? 2048,
     temperature: options.temperature ?? 0.3,
   };
