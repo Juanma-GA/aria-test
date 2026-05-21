@@ -7,12 +7,30 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
+import { DEPARTMENT_TYPES } from '@/lib/validators';
 import type { Stakeholder, InfluenceLevel, AIAttitude, ProfileEntry } from '@/lib/types';
+import type { DepartmentType } from '@/lib/models/Process';
 
 const AI_ATTITUDE_COLORS: Record<AIAttitude, 'green' | 'teal' | 'slate' | 'amber' | 'red'> = {
   champion: 'green', supporter: 'teal', neutral: 'slate',
   sceptic: 'amber', blocker: 'red', unknown: 'slate',
 };
+
+const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
+  { value: 'Technical Publications', label: 'Technical Publications' },
+  { value: 'Training Development', label: 'Training Development' },
+  { value: 'Training Delivery', label: 'Training Delivery' },
+  { value: 'ISS', label: 'In Service Support' },
+  { value: 'LSA', label: 'LSA' },
+  { value: 'Digital', label: 'Digital' },
+  { value: 'Simulation', label: 'Simulation' },
+  { value: 'General ILS', label: 'General ILS' },
+  { value: 'Material Supply', label: 'Material Supply' },
+  { value: 'Provisioning', label: 'Provisioning' },
+  { value: 'Supply Chain', label: 'Supply Chain' },
+  { value: 'D&D Engineering', label: 'D&D Engineering' },
+  { value: 'Other', label: 'Other' },
+];
 
 function emptyStakeholder(): Stakeholder {
   return { role: '', name: '', type: 'internal', influenceLevel: 'medium', aiAttitude: 'unknown', notes: '' };
@@ -37,6 +55,7 @@ export default function B1Page() {
   const [auditProject, setAuditProject] = useState('');
 
   // Process-level fields
+  const [processDept, setProcessDept] = useState<DepartmentType>('Other');
   const [norms, setNorms] = useState<string[]>([]);
   const [certs, setCerts] = useState<string[]>([]);
   const [maturity, setMaturity] = useState(1);
@@ -62,6 +81,7 @@ export default function B1Page() {
       fetch(`/api/audits/${auditId}`, { credentials: 'include' }).then(r => r.json()),
     ]).then(([procData, auditData]) => {
       setProcessName(procData.name || '');
+      setProcessDept(procData.department || 'Other');
       setNorms(procData.applicableNorms || []);
       setCerts(procData.activeCertifications || []);
       setMaturity(procData.digitalMaturityLevel || 1);
@@ -95,6 +115,7 @@ export default function B1Page() {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          department: processDept,
           b1: { ...b1, stakeholders, profiles },
           applicableNorms: norms,
           activeCertifications: certs,
@@ -200,6 +221,21 @@ export default function B1Page() {
               <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Project</p>
               <p className="text-sm text-text font-medium">{auditProject || '—'}</p>
             </div>
+          </div>
+
+          <div>
+            <label className="form-label">Process Department</label>
+            <select
+              className="form-input"
+              value={processDept}
+              onChange={e => { setProcessDept(e.target.value as DepartmentType); markUnsaved(); }}
+            >
+              {DEPARTMENTS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
