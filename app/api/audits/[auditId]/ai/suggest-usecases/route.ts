@@ -12,12 +12,18 @@ Your goal is to propose concrete, actionable AI use cases tailored to the proces
 ## NAMING RULES FOR USE CASES
 - Each UC name format: "UC-01: [Activity Name] — [Use Case Title]"
 - Multi-activity UCs: "UC-06: [Activity A] + [Activity B] — [Use Case Title]"
-${isTechpubs ? `- TechPubs department: FIRST 5 UCs MUST be exactly:
-  UC-01: Analysis and Source Data Preparation — [Title]
-  UC-02: Authoring — [Title]
-  UC-03: Illustration — [Title]
-  UC-04: Validation — [Title]
-  UC-05: Publication & Dispatching — [Title]` : ''}
+${isTechpubs ? `
+⚠️ CRITICAL — This process is Technical Publications. You MUST use EXACTLY these titles for the first 5 use cases, no exceptions:
+- UC-01: Analysis and Source Data Preparation — [Your Title Here]
+- UC-02: Authoring — [Your Title Here]
+- UC-03: Illustration — [Your Title Here]
+- UC-04: Validation — [Your Title Here]
+- UC-05: Publication & Dispatching — [Your Title Here]
+
+DO NOT use B3 step names for UC-01 to UC-05.
+These 5 phase names are MANDATORY and cannot be changed.
+Additional UCs from UC-06 onwards may use B3 step names.
+` : ''}
 
 ## TOOL & STACK NAMING RULES
 - Technology types ONLY (not brand names): "RAG Semantic", "MCP Server", "Agentic AI", "Knowledge Graph", "VLM + LLM"
