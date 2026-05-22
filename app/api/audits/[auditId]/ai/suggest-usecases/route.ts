@@ -35,6 +35,14 @@ ${isTechpubs ? `- TechPubs-specific tools: reference state-of-the-art.md only (e
 - List blockers and preconditions before POC starts
 - Justify all sovereignty decisions clearly
 
+## TIME SAVINGS & IMPACT ESTIMATION
+For timeSavedPerProfile: for each profile listed in the Target Steps of B3, estimate hours saved per execution.
+- **Base your estimate on the actual hours each profile currently spends on those steps** (shown in B3 per-profile breakdown)
+- Use the **exact role name** from B3 (e.g., "Senior Tech Writer", not "Tech Writer")
+- hoursPerExecution must be **less than or equal to** the current hours that profile spends on that step
+- Example: If "Senior Tech Writer" currently spends 8h on "Data Module Authoring", estimate saving as 1–8h (not 10h)
+- For multi-step use cases: sum the current hours across all targeted steps, then estimate what AI saves
+
 ## RECOMMENDED GRADERS FOR AI OUTPUT EVALUATION — MANDATORY FOR EVERY UC
 **CRITICAL: EVERY use case must include 1-3 Grader recommendations based on its AI types and architecture.**
 
@@ -99,7 +107,22 @@ export async function POST(
       .join(', ') || 'Not specified';
 
     const activitiesSummary = (b3.activities ?? [])
-      .map((a: any, i: number) => `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`)
+      .map((a: any, i: number) => {
+        const profileBreakdown = (a.profileHours ?? [])
+          .map((ph: any) => {
+            const prof = b1.profiles?.find((p: any) => p.id === ph.profileId);
+            return `    - ${ph.role} (${prof?.count ?? '?'}× · €${prof?.hourlyRateEur ?? '?'}/h): ${ph.hours}h`;
+          })
+          .join('\n');
+
+        const stepInfo = a.stepRepetitions && a.stepRepetitions > 1
+          ? `, step reps: ${a.stepRepetitions}`
+          : '';
+
+        return profileBreakdown
+          ? `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run${stepInfo}, ${a.isDecisionPoint ? 'decision point' : 'manual task'})\n${profileBreakdown}`
+          : `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run${stepInfo}, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`;
+      })
       .join('\n') || 'Not specified';
 
     const axesSummary = Object.entries(b2.axes ?? {})
