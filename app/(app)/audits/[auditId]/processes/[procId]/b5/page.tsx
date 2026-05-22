@@ -519,6 +519,13 @@ function SlideOver({
             })}
           </div>
 
+          {/* Save & Calculate button (Phase 1 action button) */}
+          <div className="flex gap-3">
+            <button onClick={handleSave_Phase1} disabled={isRecalculating} className="btn-primary flex-1">
+              {isRecalculating ? 'Calculating...' : 'Save & Calculate'}
+            </button>
+          </div>
+
           {/* === PHASE 2: Implementation Economics & Technical (Greyed out initially) === */}
           <div className={`transition-opacity duration-300 space-y-5 ${isPhase2Visible ? 'opacity-100 pointer-events-auto' : 'opacity-50 pointer-events-none'}`}>
             {!isPhase2Visible && (
@@ -687,14 +694,6 @@ function SlideOver({
               </div>
             )}
           </div>
-        </div>
-
-        {/* === PHASE 1 FOOTER === */}
-        <div className="p-5 border-t border-border flex gap-3">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-          <button onClick={handleSave_Phase1} disabled={saving || isRecalculating || !phase1ChangeDetected} className="btn-primary flex-1">
-            {saving || isRecalculating ? 'Saving...' : 'Save & Recalculate'}
-          </button>
         </div>
 
         {/* === PHASE 2 FOOTER (only visible after Phase 1 saved) === */}
