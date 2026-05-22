@@ -182,11 +182,15 @@ Each object must have EXACTLY these fields:
 
 Return ONLY valid JSON array, no explanation.`;
 
+    console.log('[SUGGEST-USECASES] Full user prompt:\n', prompt);
+
     const text = await callMistral([{ role: 'user', content: prompt }], {
       maxTokens: isTechpubs ? 14000 : 3000,
       temperature: 0.4,
       systemPrompt: SYSTEM_PROMPT(stateOfTheArt, isTechpubs),
     });
+
+    console.log('[SUGGEST-USECASES] Raw LLM response:\n', text);
 
     let suggestions: any[] = [];
     try {
@@ -198,6 +202,8 @@ Return ONLY valid JSON array, no explanation.`;
 
       // parseLLMJson now safely handles both arrays and objects
       const parsed = parseLLMJson<any>(stripped);
+
+      console.log('[SUGGEST-USECASES] Parsed JSON:\n', JSON.stringify(parsed, null, 2));
 
       // Ensure we have an array: if Mistral returns an object, extract the array
       if (Array.isArray(parsed)) {
