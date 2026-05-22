@@ -35,8 +35,10 @@ ${isTechpubs ? `- TechPubs-specific tools: reference state-of-the-art.md only (e
 - List blockers and preconditions before POC starts
 - Justify all sovereignty decisions clearly
 
-## RECOMMENDED GRADERS FOR AI OUTPUT EVALUATION
-For each use case, based on the AI types and architecture proposed, recommend which Grader(s) to use:
+## RECOMMENDED GRADERS FOR AI OUTPUT EVALUATION — MANDATORY FOR EVERY UC
+**CRITICAL: EVERY use case must include 1-3 Grader recommendations based on its AI types and architecture.**
+
+Available Graders:
 - **Exact Match Grader**: exact text comparison, precise and deterministic
 - **Regex Grader**: for format or pattern validation only
 - **Semantic Similarity Grader**: via vectors and semantics
@@ -45,7 +47,14 @@ For each use case, based on the AI types and architecture proposed, recommend wh
 - **Citation Grader**: verifies sources and citations
 - **Hallucination Grader**: finds invented/unsupported claims, fundamental for RAG
 
-Include this in requiredPreconditions.text under a '## Recommended Graders' section.
+**For each UC**: Analyze the proposed AI types and implementation. Select 1-3 Graders that directly validate the output quality. Include detailed justification for each Grader choice.
+
+**Place Grader recommendations in requiredPreconditions.text under '## Recommended Graders' section at the end of the preconditions text.**
+
+Examples:
+- RAG use case → Groundedness Grader + Hallucination Grader (detect retrieved context violations)
+- LLM generation → LLM-as-a-Judge (quality/coherence) + Regex Grader (format validation)
+- Classification → Exact Match Grader (accuracy on ground truth) + Semantic Similarity (nuanced cases)
 
 ${isTechpubs ? `## TECHPUBS KNOWLEDGE BASE
 ${techpubsKnowledgeBase}
