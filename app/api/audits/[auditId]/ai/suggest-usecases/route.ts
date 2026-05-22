@@ -87,12 +87,6 @@ export async function POST(
 
     const isTechpubs = (process as any)?.department === 'Technical Publications';
 
-    console.log('[SUGGEST-USECASES]', {
-      process_department: (process as any)?.department,
-      isTechpubs,
-      systemPrompt_first_200: SYSTEM_PROMPT('', isTechpubs).slice(0, 200),
-    });
-
     let stateOfTheArt = '';
     if (isTechpubs) {
       stateOfTheArt = await getStateOfTheArt();
