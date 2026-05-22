@@ -35,6 +35,18 @@ ${isTechpubs ? `- TechPubs-specific tools: reference state-of-the-art.md only (e
 - List blockers and preconditions before POC starts
 - Justify all sovereignty decisions clearly
 
+## RECOMMENDED GRADERS FOR AI OUTPUT EVALUATION
+For each use case, based on the AI types and architecture proposed, recommend which Grader(s) to use:
+- **Exact Match Grader**: exact text comparison, precise and deterministic
+- **Regex Grader**: for format or pattern validation only
+- **Semantic Similarity Grader**: via vectors and semantics
+- **LLM-as-a-Judge**: global response quality where another LLM acts as evaluator
+- **Groundedness Grader**: for RAG, compares response vs retrieved context, detects hallucinations
+- **Citation Grader**: verifies sources and citations
+- **Hallucination Grader**: finds invented/unsupported claims, fundamental for RAG
+
+Include this in requiredPreconditions.text under a '## Recommended Graders' section.
+
 ${isTechpubs ? `## TECHPUBS KNOWLEDGE BASE
 ${techpubsKnowledgeBase}
 
@@ -123,7 +135,7 @@ Each object must have EXACTLY these fields:
   "devCostExplanation": "Why this cost estimate",
   "requiredPreconditions": {
     "requiresClientIT": boolean,
-    "text": "What must be in place before POC"
+    "text": "What must be in place before POC\n\n## Recommended Graders\n- [Grader Type 1]: justification\n- [Grader Type 2]: justification"
   },
   "estimatedImplWeeks": number,
   "score": {

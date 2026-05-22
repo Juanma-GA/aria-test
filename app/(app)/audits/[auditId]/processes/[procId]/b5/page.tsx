@@ -441,22 +441,26 @@ function SlideOver({
           <div className="border-t pt-4 mt-4 space-y-3">
             <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
 
-            {/* Requires Client IT toggle */}
+            {/* Requires Client IT dropdown (Yes/No) */}
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
+              <div className="flex-1">
+                <label htmlFor="requiresClientIT" className="text-sm text-text">
+                  Requires Client IT approval
+                </label>
+                <p className="text-[10px] text-muted">Auto-calculated from B2. You can override.</p>
+              </div>
+              <select
                 id="requiresClientIT"
-                checked={(form.requiredPreconditions?.requiresClientIT) ?? false}
+                value={(form.requiredPreconditions?.requiresClientIT) ? 'yes' : 'no'}
                 onChange={(e) => set('requiredPreconditions', {
                   ...form.requiredPreconditions,
-                  requiresClientIT: e.target.checked,
+                  requiresClientIT: e.target.value === 'yes',
                 })}
-                className="accent-blue-aria"
-              />
-              <label htmlFor="requiresClientIT" className="text-sm text-text">
-                Requires Client IT approval
-              </label>
-              <span className="text-[10px] text-muted ml-auto italic">Auto-calculated from B2. You can override.</span>
+                className="form-input text-sm w-20"
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
             </div>
 
             {/* Preconditions text textarea */}
