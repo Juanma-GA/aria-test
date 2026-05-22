@@ -1262,13 +1262,14 @@ export default function B5Page() {
                       const toImport = [...selectedSuggestions].map(i => suggestions[i]);
                       for (const s of toImport) {
                         const score = s.score ? { dimensions: s.score, scoringNotes: '', scoredBy: 'ai', scoredAt: new Date().toISOString() } : undefined;
+                        const mappedActivityIds = (s.targetActivityNames ?? []).map((name: string) => activities.find(a => a.name === name)?.id).filter(Boolean) as string[];
                         await fetch(`/api/audits/${auditId}/usecases`, {
                           method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
                             description: s.description,
                             aiTypes: s.aiTypes ?? [],
-                            targetActivities: [],
+                            targetActivities: mappedActivityIds,
                             timeSavedPerProfile: s.timeSavedPerProfile ?? [],
                             estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
                             devCostExplanation: s.devCostExplanation ?? '',
