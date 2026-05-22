@@ -1263,6 +1263,29 @@ export default function B5Page() {
                       for (const s of toImport) {
                         const score = s.score ? { dimensions: s.score, scoringNotes: '', scoredBy: 'ai', scoredAt: new Date().toISOString() } : undefined;
                         const mappedActivityIds = (s.targetActivityNames ?? []).map((name: string) => activities.find(a => a.name === name)?.id).filter(Boolean) as string[];
+
+                        // Map roles to profileIds and consolidate duplicates
+                        const mapped = (s.timeSavedPerProfile ?? []).map(entry => {
+                          const matched = b1Profiles.find(
+                            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+                          );
+                          return {
+                            profileId: matched?.id ?? crypto.randomUUID(),
+                            role: matched?.role ?? entry.role ?? '',
+                            hoursPerExecution: entry.hoursPerExecution ?? 0,
+                          };
+                        });
+
+                        const consolidated = mapped.reduce((acc, entry) => {
+                          const existing = acc.find(e => e.profileId === entry.profileId);
+                          if (existing) {
+                            existing.hoursPerExecution += entry.hoursPerExecution;
+                          } else {
+                            acc.push({ ...entry });
+                          }
+                          return acc;
+                        }, [] as typeof mapped);
+
                         await fetch(`/api/audits/${auditId}/usecases`, {
                           method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
@@ -1270,7 +1293,7 @@ export default function B5Page() {
                             description: s.description,
                             aiTypes: s.aiTypes ?? [],
                             targetActivities: mappedActivityIds,
-                            timeSavedPerProfile: s.timeSavedPerProfile ?? [],
+                            timeSavedPerProfile: consolidated,
                             estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
                             devCostExplanation: s.devCostExplanation ?? '',
                             requiredPreconditions: s.requiredPreconditions ?? null,
@@ -1280,6 +1303,7 @@ export default function B5Page() {
                             score,
                           }),
                         });
+                        // TODO: apply same consolidation after role→profileId mapping in recalculate response
                       }
                       await load();
                       setGenerateModal(false);
