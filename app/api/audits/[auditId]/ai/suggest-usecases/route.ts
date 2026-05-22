@@ -5,45 +5,37 @@ import { callMistral, parseLLMJson } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 import { getStateOfTheArt } from '@/lib/references';
 
-const SYSTEM_PROMPT = `You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.).
+const SYSTEM_PROMPT = (techpubsKnowledgeBase: string, isTechpubs: boolean) => `You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.).
 
-Your goal is to propose at least one AI use case per step of the Process Map (B3) being audited. To do that you need to read also B1 and B2.
+Your goal is to propose concrete, actionable AI use cases tailored to the process being audited. Read B1 (process context), B2 (sovereignty constraints), and B3 (activities) carefully.
 
 ## NAMING RULES FOR USE CASES
-- Minimum 1 UC per B3 step, named as:
-  UC-01: [Step Name from B3] — [Use Case Title]
-  UC-02: [Step Name from B3] — [Use Case Title]
-- Multi-step UCs start at UC-06:
-  UC-06: [Step A] + [Step B] — [Use Case Title]
-- If department === 'Technical Publications', first 5 MUST be:
+- Each UC name format: "UC-01: [Activity Name] — [Use Case Title]"
+- Multi-activity UCs: "UC-06: [Activity A] + [Activity B] — [Use Case Title]"
+${isTechpubs ? `- TechPubs department: FIRST 5 UCs MUST be exactly:
   UC-01: Analysis and Source Data Preparation — [Title]
   UC-02: Authoring — [Title]
   UC-03: Illustration — [Title]
   UC-04: Validation — [Title]
-  UC-05: Publication & Dispatching — [Title]
+  UC-05: Publication & Dispatching — [Title]` : ''}
 
-## TOOL NAMING RULES
-- Legacy tools: use exact name from B2/B3 (e.g. "ST4", "XMetal")
-- New AI tools (TechPubs only): only use names from state-of-the-art.md
-  (e.g. Oxygen, PTC Arbortext, Xignal, etc.)
-- ATEXIS tools: only use names from state-of-the-art.md
-  (examples: KleamPy, Amadeus, Vexa, Opsira, Prism, FTM Agent,
-  ATEXIS Content Generator, Luminai, Alfred, etc.)
-- If tool not in state-of-the-art.md: use generic type only
-  (e.g. "RAG Agent", "Local LLM", "Agentic AI Workflow",
-  "MCP Server", etc.)
+## TOOL & STACK NAMING RULES
+- Technology types ONLY (not brand names): "RAG Semantic", "MCP Server", "Agentic AI", "Knowledge Graph", "VLM + LLM"
+- NEVER use: Mistral, GPT, Claude, LangChain, Chroma, Qdrant, LangGraph, Stable Diffusion
+${isTechpubs ? `- TechPubs-specific tools: reference state-of-the-art.md only (e.g., Oxygen XML, PTC Arbortext, Xignal, etc.)` : ''}
 
-## AI STACK NAMING
-Always use technology type, never commercial model names:
-✅ RAG Semántico, RAG Léxico, Knowledge Graph, VLM + LLM,
-   MCP Server, MCP Client, Agentic AI, Vector DB local, etc.
-❌ Mistral, GPT, Claude, LangChain, Chroma, Qdrant, LangGraph,
-   Llama, Stable Diffusion, etc.
+## SOVEREIGNTY & CLIENT IT
+- Evaluate "requires Client IT approval" from B2 constraints
+- List blockers and preconditions before POC starts
+- Justify all sovereignty decisions clearly
 
-## REQUIRED PRECONDITIONS
-- Always evaluate Requires Client IT approval based on B2
-- List blockers and conditions needed before POC
-- If no ATEXIS tool is included, justify explicitly why discarded`;
+${isTechpubs ? `## TECHPUBS KNOWLEDGE BASE
+${techpubsKnowledgeBase}
+
+---
+` : ''}`;
+
+export type AITypeValue = 'generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other';
 
 export async function POST(
   req: NextRequest,
@@ -94,89 +86,56 @@ export async function POST(
       stateOfTheArt = await getStateOfTheArt();
     }
 
-    const techpubsSection = isTechpubs ? `
-## TECHPUBS KNOWLEDGE BASE
-==========================
-${stateOfTheArt}
+    const prompt = `
+## B1 — PROCESS CONTEXT
+Process: ${process.name || 'Unnamed'}
+Description: ${b1.description || 'Not provided'}
+Client Department: ${b1.clientDepartment || 'Not specified'}
+Annual Repetitions: ${b3.annualRepetitions ?? 0}
+Stakeholders: ${(b1.stakeholders ?? []).join(', ') || 'Not specified'}
+Profiles Involved: ${profilesSummary}
+
+## B2 — SOVEREIGNTY & INFRASTRUCTURE ASSESSMENT
+${axesSummary}
+
+## B3 — PROCESS MAP (ACTIVITIES & TASKS)
+${activitiesSummary}
 
 ---
 
-` : '';
+## INSTRUCTIONS
 
-    // Build use case instruction based on process department
-    const ucInstruction = isTechpubs ? `Return a JSON array of MINIMUM 5 AI use case objects, one per TechPubs production phase. The first 5 MUST cover these phases in order:
-- UC-01: Analysis and Source Data Preparation
-- UC-02: Authoring
-- UC-03: Illustration
-- UC-04: Validation
-- UC-05: Publication & Dispatching
+Return a JSON array of ${isTechpubs ? 'MINIMUM 5' : '3-5'} AI use case objects.
 
-Additional UCs covering multiple phases simultaneously start at UC-06.
-
-Each object must have exactly these fields:
+Each object must have EXACTLY these fields:
 {
-  "description": "[Phase Name] — [Specific Use Case Title]",
-  "aiTypes": ["generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "validation" | "prediction" | "intelligent_automation" | "agentic_ai" | "other"],
-  "targetActivityNames": ["name of activity this applies to"],
-  "timeSavedPerProfile": [{ "role": "Role name", "hoursPerExecution": 0.5 }],
-  "estimatedDevCostEur": 50000,
-  "estimatedImplWeeks": 8,
-  "score": {
-    "d1_efficiencyImpact": { "value": 4, "justification": "..." },
-    "d2_qualityImpact": { "value": 3, "justification": "..." },
-    "d3_techMaturity": { "value": 4, "justification": "..." },
-    "d4_dataReadiness": { "value": 3, "justification": "..." },
-    "d5_sovereigntyIndex": { "value": 3, "justification": "..." }
+  "description": "${isTechpubs ? '"[Phase] — [Title]"' : '"Concise 1-2 sentence description"'}",
+  "aiTypes": [${isTechpubs ? `"generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "rag_semantic" | "rag_lexical" | "knowledge_graph" | "validation" | "prediction" | "prediction_ml" | "intelligent_automation" | "agentic_ai" | "agentic_ai_workflow" | "mcp_client" | "mcp_server" | "function_tool" | "chatbot" | "multimodal_vlm" | "other"` : `"generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "validation" | "prediction" | "intelligent_automation" | "agentic_ai" | "other"`}],
+  "targetActivityNames": ["activity from B3"],
+  "timeSavedPerProfile": [{ "role": "role from B1", "hoursPerExecution": number }],
+  "estimatedDevCostEur": number,
+  "devCostExplanation": "Why this cost estimate",
+  "requiredPreconditions": {
+    "requiresClientIT": boolean,
+    "text": "What must be in place before POC"
   },
-  "notes": "Additional implementation notes, tool recommendations from TechPubs knowledge base"
-}
-
-PHASE DESCRIPTIONS for description field:
-- For UC-01: "Analysis and Source Data Preparation — [Title]"
-- For UC-02: "Authoring — [Title]"
-- For UC-03: "Illustration — [Title]"
-- For UC-04: "Validation — [Title]"
-- For UC-05: "Publication & Dispatching — [Title]"
-- For UC-06+: "Multi-phase — [Title]"
-
-Return ONLY valid JSON array, no explanation.` : `Return a JSON array of 3-5 AI use case objects. Each object must have exactly these fields:
-{
-  "description": "Clear 1-2 sentence description of the AI opportunity",
-  "aiTypes": ["generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "validation" | "prediction" | "intelligent_automation" | "agentic_ai" | "other"],
-  "targetActivityNames": ["name of activity this applies to"],
-  "timeSavedPerProfile": [{ "role": "Role name", "hoursPerExecution": 0.5 }],
-  "estimatedDevCostEur": 50000,
-  "estimatedImplWeeks": 8,
+  "estimatedImplWeeks": number,
   "score": {
-    "d1_efficiencyImpact": { "value": 4, "justification": "..." },
-    "d2_qualityImpact": { "value": 3, "justification": "..." },
-    "d3_techMaturity": { "value": 4, "justification": "..." },
-    "d4_dataReadiness": { "value": 3, "justification": "..." },
-    "d5_sovereigntyIndex": { "value": 3, "justification": "..." }
+    "d1_efficiencyImpact": { "value": 1-5, "justification": "..." },
+    "d2_qualityImpact": { "value": 1-5, "justification": "..." },
+    "d3_techMaturity": { "value": 1-5, "justification": "..." },
+    "d4_dataReadiness": { "value": 1-5, "justification": "..." },
+    "d5_sovereigntyIndex": { "value": 1-5, "justification": "..." }
   },
-  "notes": "Additional implementation notes"
+  "notes": "Implementation recommendations, tool suggestions, blockers"
 }
 
 Return ONLY valid JSON array, no explanation.`;
 
-    const prompt = `You are an AI consultant specializing in enterprise AI strategy. Analyze the following business process and suggest concrete AI use cases.
-${techpubsSection}
-PROCESS: ${process.name || 'Unnamed'}
-DESCRIPTION: ${b1.description || 'Not provided'}
-CLIENT DEPARTMENT: ${b1.clientDepartment || 'Not specified'}
-ANNUAL REPETITIONS: ${b3.annualRepetitions ?? 0}
-STAKEHOLDERS: ${(b1.stakeholders ?? []).join(', ') || 'Not specified'}
-PROFILES INVOLVED: ${profilesSummary}
-ACTIVITIES:
-${activitiesSummary}
-SOVEREIGNTY CONSTRAINTS: ${axesSummary}
-
-${ucInstruction}`;
-
     const text = await callMistral([{ role: 'user', content: prompt }], {
-      maxTokens: isTechpubs ? 10000 : 3000,
+      maxTokens: isTechpubs ? 14000 : 3000,
       temperature: 0.4,
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: SYSTEM_PROMPT(stateOfTheArt, isTechpubs),
     });
 
     let suggestions: any[] = [];

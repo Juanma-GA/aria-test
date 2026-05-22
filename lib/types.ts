@@ -156,7 +156,7 @@ export interface B3_ProcessMap {
 }
 
 // ── B5 USE CASES ───────────────────────────────────────────────────────────────
-export type AIType = 'generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag' | 'validation' | 'prediction' | 'intelligent_automation' | 'agentic_ai' | 'other';
+export type AIType = 'generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other';
 export type UseCaseStatus = 'eligible' | 'blocked' | 'pending_review';
 export type B2CompatibilityType = 'yes' | 'no' | 'partial';
 
@@ -747,10 +747,20 @@ export const AI_TYPE_LABELS: Record<AIType, { label: string; description: string
   generative_llm: { label: 'Generative (LLM)', description: 'Content drafting, summarisation, transformation' },
   extraction_nlp: { label: 'Extraction (NLP)', description: 'Entity extraction, structured data from unstructured text' },
   classification_ml: { label: 'Classification (ML)', description: 'Automatic categorisation and tagging' },
-  rag: { label: 'RAG', description: 'Semantic search + contextualised generation over a knowledge base' },
+  rag: { label: 'RAG (Generic)', description: 'Semantic search + contextualised generation over a knowledge base' },
+  rag_semantic: { label: 'RAG Semantic', description: 'Semantic search with vector embeddings for contextualised generation' },
+  rag_lexical: { label: 'RAG Lexical', description: 'Keyword-based search and contextualised generation' },
+  knowledge_graph: { label: 'Knowledge Graph', description: 'Structured entity relationships and semantic reasoning' },
   validation: { label: 'Validation', description: 'Rule + AI-based compliance checking (schema, style, applicability)' },
-  prediction: { label: 'Prediction (ML)', description: 'Anticipating behaviours or needs from historical data' },
+  prediction: { label: 'Prediction (Legacy)', description: 'Anticipating behaviours or needs from historical data' },
+  prediction_ml: { label: 'Prediction (ML)', description: 'Machine learning models for forecasting and trend analysis' },
   intelligent_automation: { label: 'Intelligent Automation', description: 'AI-driven workflow and process automation' },
-  agentic_ai: { label: 'Agentic AI', description: 'Autonomous multi-step AI agents with planning and tool use' },
+  agentic_ai: { label: 'Agentic AI (Legacy)', description: 'Autonomous agents with planning and tool use' },
+  agentic_ai_workflow: { label: 'Agentic AI Workflow', description: 'Multi-step autonomous agents with complex reasoning and tool orchestration' },
+  mcp_client: { label: 'MCP Client', description: 'Model Context Protocol client for system integration' },
+  mcp_server: { label: 'MCP Server', description: 'Model Context Protocol server for tool exposure' },
+  function_tool: { label: 'Function Tool', description: 'Structured API-based function calling and integration' },
+  chatbot: { label: 'Chatbot', description: 'Conversational interface with dialogue management' },
+  multimodal_vlm: { label: 'Multimodal VLM', description: 'Vision + Language models for image, video, and document understanding' },
   other: { label: 'Other', description: 'Specify in notes' },
 };
