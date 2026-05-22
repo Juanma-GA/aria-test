@@ -295,15 +295,20 @@ function SlideOver({
 
   // Detect Phase 1 changes
   useEffect(() => {
-    const hasPhase1Changes =
-      form.description !== originalForm.description ||
-      JSON.stringify(form.aiTypes) !== JSON.stringify(originalForm.aiTypes) ||
-      JSON.stringify(form.targetActivities) !== JSON.stringify(originalForm.targetActivities) ||
-      form.requiredPreconditions?.requiresClientIT !== originalForm.requiredPreconditions?.requiresClientIT ||
-      form.requiredPreconditions?.text !== originalForm.requiredPreconditions?.text ||
-      JSON.stringify(dims) !== JSON.stringify(originalDims);
+    try {
+      const hasPhase1Changes =
+        form.description !== originalForm.description ||
+        JSON.stringify(form.aiTypes ?? []) !== JSON.stringify(originalForm.aiTypes ?? []) ||
+        JSON.stringify(form.targetActivities ?? []) !== JSON.stringify(originalForm.targetActivities ?? []) ||
+        form.requiredPreconditions?.requiresClientIT !== originalForm.requiredPreconditions?.requiresClientIT ||
+        form.requiredPreconditions?.text !== originalForm.requiredPreconditions?.text ||
+        JSON.stringify(dims ?? {}) !== JSON.stringify(originalDims ?? {});
 
-    setPhase1ChangeDetected(hasPhase1Changes);
+      setPhase1ChangeDetected(hasPhase1Changes);
+    } catch (err) {
+      console.error('[Phase1ChangeDetection]', err);
+      setPhase1ChangeDetected(false);
+    }
   }, [form, originalForm, dims, originalDims]);
 
   const handleSave_Phase1 = async () => {
@@ -313,22 +318,41 @@ function SlideOver({
     try {
       const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
       const method = editUC ? 'PATCH' : 'POST';
+      const bodyData = {
+        ...form,
+        processId,
+        targetActivities: form.targetActivities ?? [],
+        score: {
+          dimensions: dims ?? {},
+          scoringNotes: '',
+          scoredBy: 'consultant',
+          scoredAt: new Date().toISOString(),
+        },
+      };
+
+      let bodyStr = '';
+      try {
+        bodyStr = JSON.stringify(bodyData);
+        if (!bodyStr) throw new Error('Failed to serialize form data');
+      } catch (jsonErr) {
+        throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
+      }
+
       const res = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          processId,
-          targetActivities: form.targetActivities ?? [],
-          score: {
-            dimensions: dims,
-            scoringNotes: '',
-            scoredBy: 'consultant',
-            scoredAt: new Date().toISOString(),
-          },
-        }),
+        body: bodyStr,
       });
-      const data = await res.json();
+
+      let data;
+      try {
+        const text = await res.text();
+        if (!text) throw new Error('Empty response from server');
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(`Server response parse failed: ${parseErr instanceof Error ? parseErr.message : 'Invalid JSON'}`);
+      }
+
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
 
@@ -347,22 +371,41 @@ function SlideOver({
     try {
       const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
       const method = editUC ? 'PATCH' : 'POST';
+      const bodyData = {
+        ...form,
+        processId,
+        targetActivities: form.targetActivities ?? [],
+        score: {
+          dimensions: dims ?? {},
+          scoringNotes: '',
+          scoredBy: 'consultant',
+          scoredAt: new Date().toISOString(),
+        },
+      };
+
+      let bodyStr = '';
+      try {
+        bodyStr = JSON.stringify(bodyData);
+        if (!bodyStr) throw new Error('Failed to serialize form data');
+      } catch (jsonErr) {
+        throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
+      }
+
       const res = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          processId,
-          targetActivities: form.targetActivities ?? [],
-          score: {
-            dimensions: dims,
-            scoringNotes: '',
-            scoredBy: 'consultant',
-            scoredAt: new Date().toISOString(),
-          },
-        }),
+        body: bodyStr,
       });
-      const data = await res.json();
+
+      let data;
+      try {
+        const text = await res.text();
+        if (!text) throw new Error('Empty response from server');
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(`Server response parse failed: ${parseErr instanceof Error ? parseErr.message : 'Invalid JSON'}`);
+      }
+
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
       onSaved(data, data.status === 'blocked' && !editUC);
@@ -599,16 +642,20 @@ function SlideOver({
                   onClick={async () => {
                     setRefreshingCompute(true);
                     try {
+                      const bodyData = {
+                        computeBreakdown: (form as any).computeBreakdown ?? {},
+                        useCaseDescription: form.description ?? '',
+                        aiTypes: form.aiTypes ?? [],
+                      };
+                      const bodyStr = JSON.stringify(bodyData) || '{}';
+
                       const res = await fetch('/api/ai/refresh-compute-estimates', {
                         method: 'POST', credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          computeBreakdown: (form as any).computeBreakdown ?? {},
-                          useCaseDescription: form.description,
-                          aiTypes: form.aiTypes,
-                        }),
+                        body: bodyStr,
                       });
-                      const data = await res.json();
+                      const text = await res.text();
+                      const data = text ? JSON.parse(text) : {};
                       if (data.estimates) {
                         const e = data.estimates;
                         const cb = ((form as any).computeBreakdown ?? DEFAULT_COMPUTE_BREAKDOWN) as ComputeBreakdown;
@@ -620,7 +667,9 @@ function SlideOver({
                         setForm(f => ({ ...f, computeBreakdown: next }));
                         if (e.rationale) setComputeRationale(e.rationale);
                       }
-                    } catch {}
+                    } catch (err) {
+                      console.error('[ComputeRefresh]', err);
+                    }
                     setRefreshingCompute(false);
                   }}
                   disabled={refreshingCompute || !isPhase2Visible}
@@ -781,20 +830,41 @@ export default function B5Page() {
   useBeforeUnload(slideOver || generateModal);
 
   const load = useCallback(async () => {
-    const [procRes, ucRes] = await Promise.all([
-      fetch(`/api/audits/${auditId}/processes/${procId}`, { credentials: 'include' }),
-      fetch(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`, { credentials: 'include' }),
-    ]);
-    const proc = await procRes.json();
-    const ucs = await ucRes.json();
-    setProcessName(proc.name || '');
-    const acts: ProcessActivity[] = proc.b3?.activities || [];
-    setActivities(acts);
-    setB1Profiles(proc.b1?.profiles || []);
-    setAnnualReps(proc.b3?.annualRepetitions ?? 0);
-    setB2Axes(proc.b2?.axes ?? {});
-    setUseCases(Array.isArray(ucs) ? ucs : []);
-    setLoading(false);
+    try {
+      const [procRes, ucRes] = await Promise.all([
+        fetch(`/api/audits/${auditId}/processes/${procId}`, { credentials: 'include' }),
+        fetch(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`, { credentials: 'include' }),
+      ]);
+
+      let proc = {};
+      try {
+        const procText = await procRes.text();
+        proc = procText ? JSON.parse(procText) : {};
+      } catch (err) {
+        console.error('[LoadProcess]', err);
+      }
+
+      let ucs: any[] = [];
+      try {
+        const ucsText = await ucRes.text();
+        const parsed = ucsText ? JSON.parse(ucsText) : [];
+        ucs = Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        console.error('[LoadUseCases]', err);
+      }
+
+      setProcessName(proc?.name || '');
+      const acts: ProcessActivity[] = proc?.b3?.activities || [];
+      setActivities(acts);
+      setB1Profiles(proc?.b1?.profiles || []);
+      setAnnualReps(proc?.b3?.annualRepetitions ?? 0);
+      setB2Axes(proc?.b2?.axes ?? {});
+      setUseCases(ucs);
+      setLoading(false);
+    } catch (err) {
+      console.error('[LoadPage]', err);
+      setLoading(false);
+    }
   }, [auditId, procId, showArchived]);
 
   useEffect(() => { load(); }, [load]);
@@ -838,38 +908,65 @@ export default function B5Page() {
 
   const handleDelete = async () => {
     if (!deleteModal.uc) return;
-    const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
-    const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
-    if (res.ok) {
-      const id = deleteModal.uc._id;
-      setUseCases(prev => prev.filter(u => u._id !== id));
-      setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 409 && data?.dependents) {
-      setDeleteModal(s => ({ ...s, cascade: true, pocs: data.dependents.pocs ?? 0, industrializations: data.dependents.industrializations ?? 0, error: data.error }));
-    } else {
-      setDeleteModal(s => ({ ...s, error: data?.error || 'Delete failed' }));
+    try {
+      const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
+      const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        const id = deleteModal.uc._id;
+        setUseCases(prev => prev.filter(u => u._id !== id));
+        setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+        return;
+      }
+
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        console.error('[DeleteParse]', parseErr);
+      }
+
+      if (res.status === 409 && data?.dependents) {
+        setDeleteModal(s => ({ ...s, cascade: true, pocs: data.dependents.pocs ?? 0, industrializations: data.dependents.industrializations ?? 0, error: data.error }));
+      } else {
+        setDeleteModal(s => ({ ...s, error: data?.error || 'Delete failed' }));
+      }
+    } catch (err) {
+      console.error('[DeleteError]', err);
+      setDeleteModal(s => ({ ...s, error: 'Delete failed' }));
     }
   };
 
   const toggleArchive = async (uc: UseCase) => {
-    const next = !uc.isArchived;
-    const res = await fetch(`/api/audits/${auditId}/usecases/${uc._id}`, {
-      method: 'PATCH', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isArchived: next }),
-    });
-    if (!res.ok) return;
-    const updated = await res.json();
-    setUseCases(prev => {
-      // When the archived toggle is off, archived items should disappear; when on, active ones disappear.
-      if (showArchived ? !updated.isArchived : updated.isArchived) {
-        return prev.filter(u => u._id !== uc._id);
+    try {
+      const next = !uc.isArchived;
+      const bodyStr = JSON.stringify({ isArchived: next }) || '{}';
+      const res = await fetch(`/api/audits/${auditId}/usecases/${uc._id}`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+      });
+      if (!res.ok) return;
+
+      let updated: any = {};
+      try {
+        const text = await res.text();
+        updated = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        console.error('[ArchiveParse]', parseErr);
+        return;
       }
-      return prev.map(u => u._id === uc._id ? updated : u);
-    });
+
+      setUseCases(prev => {
+        // When the archived toggle is off, archived items should disappear; when on, active ones disappear.
+        if (showArchived ? !updated.isArchived : updated.isArchived) {
+          return prev.filter(u => u._id !== uc._id);
+        }
+        return prev.map(u => u._id === uc._id ? updated : u);
+      });
+    } catch (err) {
+      console.error('[ArchiveError]', err);
+    }
   };
 
   const createPOC = (uc: UseCase) => {
