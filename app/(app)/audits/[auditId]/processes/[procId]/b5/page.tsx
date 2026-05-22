@@ -88,7 +88,7 @@ function emptyForm(processId: string): Partial<UseCase> & { aiTypes: AIType[]; t
     estimatedDevCostEur: 0,
     devCostExplanation: '',
     estimatedImplWeeks: 0,
-    notes: '',
+    requiredPreconditions: { requiresClientIT: false, text: '' },
     computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
     processId,
   };
@@ -131,12 +131,17 @@ function SlideOver({
 }) {
   type FormType = Partial<UseCase> & { aiTypes: AIType[]; timeSavedPerProfile: TimeSavedEntry[]; targetActivities: string[]; sovereigntyAnalysis?: string };
   const [form, setForm] = useState<FormType>(emptyForm(processId));
+  const [originalForm, setOriginalForm] = useState<FormType>(emptyForm(processId));
   const [dims, setDims] = useState(emptyScore());
+  const [originalDims, setOriginalDims] = useState(emptyScore());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [analyzingSOV, setAnalyzingSOV] = useState(false);
   const [refreshingCompute, setRefreshingCompute] = useState(false);
   const [computeRationale, setComputeRationale] = useState('');
+  const [isPhase2Visible, setIsPhase2Visible] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
@@ -160,7 +165,9 @@ function SlideOver({
 
     if (editUC) {
       const defaultCB = emptyForm(processId).computeBreakdown as ComputeBreakdown;
-      setForm({
+      // Backwards compatibility: requiredPreconditions.text from notes or sovereigntyAnalysis
+      const preconditionsText = (editUC as any).requiredPreconditions?.text || (editUC as any).notes || (editUC as any).sovereigntyAnalysis || '';
+      const newForm = {
         ...editUC,
         aiTypes: editUC.aiTypes?.length ? editUC.aiTypes : [(editUC as any).aiType ?? 'generative_llm'],
         timeSavedPerProfile: editUC.timeSavedPerProfile ?? [],
@@ -171,31 +178,47 @@ function SlideOver({
           : [],
         computeBreakdown: { ...defaultCB, ...((editUC as any).computeBreakdown ?? {}) },
         requiresClientIT: requiresClientITAuto,
+        requiredPreconditions: {
+          requiresClientIT: (editUC as any).requiredPreconditions?.requiresClientIT ?? requiresClientITAuto,
+          text: preconditionsText,
+        },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
-      });
+      };
+      setForm(newForm);
+      setOriginalForm(newForm);
       if (editUC.score?.dimensions) {
         const existingDims = editUC.score.dimensions as any;
         // Re-autofill D5 unless manually edited
         if (!d5ManualRef.current) {
-          setDims({ ...existingDims, d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } });
+          const newDims = { ...existingDims, d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
+          setDims(newDims);
+          setOriginalDims(newDims);
         } else {
           setDims(existingDims);
+          setOriginalDims(existingDims);
         }
       } else {
-        setDims({ ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } });
+        const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
+        setDims(newDims);
+        setOriginalDims(newDims);
       }
     } else {
       const base = emptyForm(processId);
       if (initialDesc) base.description = initialDesc;
       (base as any).requiresClientIT = requiresClientITAuto;
+      (base as any).requiredPreconditions = { requiresClientIT: requiresClientITAuto, text: '' };
       (base as any).sovereigntyAnalysis = '';
       setForm(base as any);
-      setDims({ ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } });
+      setOriginalForm(base as any);
+      const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
+      setDims(newDims);
+      setOriginalDims(newDims);
     }
     d1ManualRef.current = false;
     d5ManualRef.current = false;
     setError('');
     setComputeRationale('');
+    setIsPhase2Visible(false);
   }, [editUC, processId, open, initialDesc, b2Axes]);
 
   const set = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
@@ -270,9 +293,56 @@ function SlideOver({
     }));
   }, [roi?.savingPct, roi?.totalHours, annualReps]);
 
-  const handleSave = async () => {
+  // Detect Phase 1 changes
+  useEffect(() => {
+    const hasPhase1Changes =
+      form.description !== originalForm.description ||
+      JSON.stringify(form.aiTypes) !== JSON.stringify(originalForm.aiTypes) ||
+      JSON.stringify(form.targetActivities) !== JSON.stringify(originalForm.targetActivities) ||
+      form.requiredPreconditions?.requiresClientIT !== originalForm.requiredPreconditions?.requiresClientIT ||
+      form.requiredPreconditions?.text !== originalForm.requiredPreconditions?.text ||
+      JSON.stringify(dims) !== JSON.stringify(originalDims);
+
+    setPhase1ChangeDetected(hasPhase1Changes);
+  }, [form, originalForm, dims, originalDims]);
+
+  const handleSave_Phase1 = async () => {
     if (!form.description?.trim()) { setError('Description is required.'); return; }
     if (!form.aiTypes?.length) { setError('Select at least one AI type.'); return; }
+    setSaving(true);
+    try {
+      const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
+      const method = editUC ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method, credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          processId,
+          targetActivities: form.targetActivities ?? [],
+          score: {
+            dimensions: dims,
+            scoringNotes: '',
+            scoredBy: 'consultant',
+            scoredAt: new Date().toISOString(),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      if (!data || !data._id) throw new Error('Invalid response from server');
+
+      // Update form with saved data in case it was a new UC
+      setForm(data);
+      setOriginalForm(data);
+      setIsPhase2Visible(true);
+      setError('');
+      setPhase1ChangeDetected(false);
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
+    finally { setSaving(false); }
+  };
+
+  const handleSave_Phase2 = async () => {
     setSaving(true);
     try {
       const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
@@ -315,6 +385,8 @@ function SlideOver({
         <div className="flex-1 p-5 space-y-5 overflow-y-auto">
           {error && <div className="text-xs text-red-sov bg-red-sov-light rounded p-2">{error}</div>}
 
+          {/* === PHASE 1: AI Strategy & Sovereignty === */}
+
           {/* Description */}
           <div>
             <label className="form-label">Description <span className="text-red-sov">*</span></label>
@@ -341,9 +413,9 @@ function SlideOver({
             </div>
           </div>
 
-          {/* Target Activities — checklist */}
+          {/* Target Steps — renamed from Target Activities (B3) */}
           <div>
-            <label className="form-label">Target Activities (B3)</label>
+            <label className="form-label">Target Steps</label>
             {activities.length === 0 ? (
               <p className="text-xs text-muted italic mt-1">No activities defined in B3 yet.</p>
             ) : (
@@ -365,177 +437,46 @@ function SlideOver({
             )}
           </div>
 
-          {/* Client IT — read-only, auto-calculated from B2 */}
-          <div className="flex items-center justify-between py-1 bg-slate-50 rounded px-2">
+          {/* Required Preconditions — NEW combined section */}
+          <div className="border-t pt-4 mt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
+
+            {/* Requires Client IT toggle */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="requiresClientIT"
+                checked={(form.requiredPreconditions?.requiresClientIT) ?? false}
+                onChange={(e) => set('requiredPreconditions', {
+                  ...form.requiredPreconditions,
+                  requiresClientIT: e.target.checked,
+                })}
+                className="accent-blue-aria"
+              />
+              <label htmlFor="requiresClientIT" className="text-sm text-text">
+                Requires Client IT approval
+              </label>
+              <span className="text-[10px] text-muted ml-auto italic">Auto-calculated from B2. You can override.</span>
+            </div>
+
+            {/* Preconditions text textarea */}
             <div>
-              <span className="text-sm text-text">Requires Client IT approval</span>
-              <p className="text-[10px] text-muted">Auto-calculated from B2 sovereignty level</p>
-            </div>
-            <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${form.requiresClientIT ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-              {form.requiresClientIT ? '⚠ Yes' : '✓ No'}
+              <label className="form-label text-sm">Preconditions, blockers and actions needed before POC</label>
+              <textarea
+                rows={4}
+                className="form-textarea"
+                placeholder="List any preconditions, data dependencies, infrastructure requirements, or blockers…"
+                value={form.requiredPreconditions?.text ?? ''}
+                onChange={(e) => set('requiredPreconditions', {
+                  ...form.requiredPreconditions,
+                  text: e.target.value,
+                })}
+              />
             </div>
           </div>
 
-          {/* Time saved per profile */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="form-label mb-0">Time Saved per Profile</label>
-              <button onClick={addTimeSaved} className="text-xs text-blue-aria hover:underline flex items-center gap-1"><Plus size={12} />Add profile</button>
-            </div>
-            {b1Profiles.length === 0 && (
-              <p className="text-xs text-muted italic mb-2">No profiles defined in B1 Context yet.</p>
-            )}
-            {(form.timeSavedPerProfile ?? []).map((e, i) => (
-              <div key={i} className="flex items-center gap-2 mb-1">
-                {b1Profiles.length > 0 ? (
-                  <select className="form-input text-xs flex-1" value={e.profileId}
-                    onChange={ev => updateTimeSaved(i, 'profileId', ev.target.value)}>
-                    {b1Profiles.map(p => (
-                      <option key={p.id} value={p.id}>{p.role} ({p.count}× · €{p.hourlyRateEur}/h)</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input className="form-input text-xs flex-1" placeholder="Role / profile…" value={e.role}
-                    onChange={ev => updateTimeSaved(i, 'role', ev.target.value)} />
-                )}
-                <input type="number" min={0} step={0.5} className="form-input text-xs w-20" placeholder="h" value={e.hoursPerExecution}
-                  onChange={ev => updateTimeSaved(i, 'hoursPerExecution', parseFloat(ev.target.value) || 0)} />
-                <span className="text-xs text-muted">h/run</span>
-                <button onClick={() => removeTimeSaved(i)} className="text-muted hover:text-red-sov"><Trash2 size={13} /></button>
-              </div>
-            ))}
-          </div>
-
-          {/* Dev cost + impl weeks */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="form-label">Dev Cost — Man-Hours (€)</label>
-              <input type="number" min={0} className="form-input" value={form.estimatedDevCostEur ?? 0}
-                onChange={e => set('estimatedDevCostEur', parseFloat(e.target.value) || 0)} />
-            </div>
-            <div>
-              <label className="form-label">Impl. Time (weeks)</label>
-              <input type="number" min={0} className="form-input" value={form.estimatedImplWeeks ?? 0}
-                onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
-            </div>
-          </div>
-          <div>
-            <label className="form-label">Dev Cost Explanation</label>
-            <textarea rows={2} className="form-textarea" placeholder="Briefly explain the cost estimate…"
-              value={form.devCostExplanation || ''} onChange={e => set('devCostExplanation', e.target.value)} />
-          </div>
-
-          {/* Compute Cost Simulator — unified calculator (shared with POC + Industrialization) */}
-          <div className="border border-border rounded p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text">
-                <span>🖥️</span> Compute cost calculator
-              </div>
-              <button
-                onClick={async () => {
-                  setRefreshingCompute(true);
-                  try {
-                    const res = await fetch('/api/ai/refresh-compute-estimates', {
-                      method: 'POST', credentials: 'include',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        computeBreakdown: (form as any).computeBreakdown ?? {},
-                        useCaseDescription: form.description,
-                        aiTypes: form.aiTypes,
-                      }),
-                    });
-                    const data = await res.json();
-                    if (data.estimates) {
-                      const e = data.estimates;
-                      const cb = ((form as any).computeBreakdown ?? DEFAULT_COMPUTE_BREAKDOWN) as ComputeBreakdown;
-                      const next: ComputeBreakdown = {
-                        ...cb,
-                        ...(e.inputTokensPerExec != null ? { inputTokensPerExec: e.inputTokensPerExec } : {}),
-                        ...(e.outputTokensPerExec != null ? { outputTokensPerExec: e.outputTokensPerExec } : {}),
-                      };
-                      setForm(f => ({ ...f, computeBreakdown: next }));
-                      if (e.rationale) setComputeRationale(e.rationale);
-                    }
-                  } catch {}
-                  setRefreshingCompute(false);
-                }}
-                disabled={refreshingCompute}
-                className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
-              >
-                {refreshingCompute ? <Spinner size="sm" /> : <RefreshCw size={11} />}
-                {refreshingCompute ? 'Updating…' : 'Suggest token volumes (AI)'}
-              </button>
-            </div>
-            {computeRationale && (
-              <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-                <Bot size={11} className="mt-0.5 flex-shrink-0" /><span>{computeRationale}</span>
-              </div>
-            )}
-            <ComputeCalculator
-              breakdown={(form as any).computeBreakdown}
-              onChange={(next) => setForm(f => ({ ...f, computeBreakdown: next }))}
-              defaultOpen
-            />
-          </div>
-
-          {/* ROI estimate */}
-          {roi && (
-            <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
-              <div className="flex items-center gap-1.5 font-semibold text-text">
-                <TrendingUp size={13} className="text-green-600" />
-                ROI Estimate
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 border border-green-200 rounded p-2">
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Gross Annual Saving</div>
-                  <div className="font-bold text-green-700 text-sm">€{Math.round(roi.annualSaving).toLocaleString()}</div>
-                  <div className="text-green-600">{roi.totalHours}h/run × {annualReps} runs/yr</div>
-                  {roi.savingPct !== null && (
-                    <div className="mt-1 font-semibold text-green-700">{roi.savingPct}% of targeted activities</div>
-                  )}
-                </div>
-                <div className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}>
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Compute Cost/yr</div>
-                  <div className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}>
-                    {roi.computeCostPerYear > 0 ? `€${Math.round(roi.computeCostPerYear).toLocaleString()}` : '—'}
-                  </div>
-                  {roi.computeCostPerYear > 0 && (
-                    <div className="text-amber-600">
-                      €{(roi.computeCostPerYear / Math.max(annualReps, 1)).toFixed(3)}/exec
-                    </div>
-                  )}
-                </div>
-                <div className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}>
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Net Annual Saving</div>
-                  <div className={`font-bold text-base ${roi.netAnnualSaving > 0 ? 'text-teal-700' : 'text-red-600'}`}>
-                    €{Math.round(roi.netAnnualSaving).toLocaleString()}
-                  </div>
-                  {roi.computeCostPerYear > 0 && (
-                    <div className="text-[10px] text-muted">Gross €{Math.round(roi.annualSaving).toLocaleString()} − Compute €{Math.round(roi.computeCostPerYear).toLocaleString()}</div>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-red-50 border border-red-200 rounded p-2">
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Dev Cost (one-time)</div>
-                  <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString()}</div>
-                  {(form.estimatedImplWeeks ?? 0) > 0 && (
-                    <div className="text-red-600">{form.estimatedImplWeeks} weeks impl.</div>
-                  )}
-                </div>
-                {roi.paybackMonths > 0 && (
-                  <div className="bg-slate-100 border border-border rounded p-2">
-                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Payback Period</div>
-                    <div className="font-bold text-text text-sm">{roi.paybackMonths.toFixed(1)} months</div>
-                    <div className="text-muted">on net saving</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Inline scoring */}
-          <div className="border border-border rounded p-4 space-y-3">
+          {/* Scoring B6 (moved to end of Phase 1) */}
+          <div className="border border-border rounded p-4 space-y-3 mt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
               <div className="flex items-center gap-2">
@@ -578,54 +519,193 @@ function SlideOver({
             })}
           </div>
 
-          <div>
-            <label className="form-label">Notes</label>
-            <textarea rows={6} className="form-textarea" value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
-          </div>
+          {/* === PHASE 2: Implementation Economics & Technical (Greyed out initially) === */}
+          <div className={`transition-opacity duration-300 space-y-5 ${isPhase2Visible ? 'opacity-100 pointer-events-auto' : 'opacity-50 pointer-events-none'}`}>
+            {!isPhase2Visible && (
+              <div className="text-sm text-gray-500 p-3 bg-blue-50 rounded border border-blue-200">
+                💡 Phase 2 will be available after Phase 1 is saved and recalculated.
+              </div>
+            )}
 
-          {/* Sovereignty Analysis */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="form-label mb-0">Sovereignty Analysis</label>
-              <button
-                onClick={async () => {
-                  setAnalyzingSOV(true);
-                  try {
-                    const res = await fetch(`/api/audits/${auditId}/processes/${processId}/ai/sovereignty-analysis`, {
-                      method: 'POST', credentials: 'include',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ useCaseDescription: form.description, aiTypes: form.aiTypes }),
-                    });
-                    const data = await res.json();
-                    if (data.analysis) set('sovereigntyAnalysis', data.analysis);
-                  } catch {}
-                  setAnalyzingSOV(false);
-                }}
-                disabled={analyzingSOV}
-                className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
-              >
-                {analyzingSOV ? <Spinner size="sm" /> : <Sparkles size={11} />}
-                {analyzingSOV ? 'Analyzing…' : 'Analyze with AI'}
-              </button>
+            {/* Time saved per profile */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="form-label mb-0">Time Saved per Profile</label>
+                <button onClick={addTimeSaved} disabled={!isPhase2Visible} className="text-xs text-blue-aria hover:underline flex items-center gap-1 disabled:opacity-50"><Plus size={12} />Add profile</button>
+              </div>
+              {b1Profiles.length === 0 && (
+                <p className="text-xs text-muted italic mb-2">No profiles defined in B1 Context yet.</p>
+              )}
+              {(form.timeSavedPerProfile ?? []).map((e, i) => (
+                <div key={i} className="flex items-center gap-2 mb-1">
+                  {b1Profiles.length > 0 ? (
+                    <select className="form-input text-xs flex-1" value={e.profileId} disabled={!isPhase2Visible}
+                      onChange={ev => updateTimeSaved(i, 'profileId', ev.target.value)}>
+                      {b1Profiles.map(p => (
+                        <option key={p.id} value={p.id}>{p.role} ({p.count}× · €{p.hourlyRateEur}/h)</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="form-input text-xs flex-1" placeholder="Role / profile…" value={e.role} disabled={!isPhase2Visible}
+                      onChange={ev => updateTimeSaved(i, 'role', ev.target.value)} />
+                  )}
+                  <input type="number" min={0} step={0.5} className="form-input text-xs w-20" placeholder="h" value={e.hoursPerExecution} disabled={!isPhase2Visible}
+                    onChange={ev => updateTimeSaved(i, 'hoursPerExecution', parseFloat(ev.target.value) || 0)} />
+                  <span className="text-xs text-muted">h/run</span>
+                  <button onClick={() => removeTimeSaved(i)} disabled={!isPhase2Visible} className="text-muted hover:text-red-sov disabled:opacity-50"><Trash2 size={13} /></button>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1">
-              <textarea rows={9} className="form-textarea"
-                placeholder="Describe sovereignty conditions, constraints, and compliance requirements for this use case…"
-                value={(form as any).sovereigntyAnalysis || ''}
-                onChange={e => set('sovereigntyAnalysis', e.target.value)} />
-              {(form as any).sovereigntyAnalysis && (
-                <div className="flex items-center gap-1 text-[10px] text-blue-600">
-                  <Bot size={10} /><span>AI-generated — review and edit as needed</span>
+
+            {/* Dev cost + impl weeks (same row) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Dev Cost — Man-Hours (€)</label>
+                <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedDevCostEur ?? 0}
+                  onChange={e => set('estimatedDevCostEur', parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="form-label">Impl. Time (weeks)</label>
+                <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedImplWeeks ?? 0}
+                  onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
+              </div>
+            </div>
+
+            {/* Dev Cost Explanation */}
+            <div>
+              <label className="form-label">Dev Cost Explanation</label>
+              <textarea rows={2} className="form-textarea" disabled={!isPhase2Visible} placeholder="Briefly explain the cost estimate…"
+                value={form.devCostExplanation || ''} onChange={e => set('devCostExplanation', e.target.value)} />
+            </div>
+
+            {/* Compute Cost Simulator */}
+            <div className="border border-border rounded p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                  <span>🖥️</span> Compute cost calculator
+                </div>
+                <button
+                  onClick={async () => {
+                    setRefreshingCompute(true);
+                    try {
+                      const res = await fetch('/api/ai/refresh-compute-estimates', {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          computeBreakdown: (form as any).computeBreakdown ?? {},
+                          useCaseDescription: form.description,
+                          aiTypes: form.aiTypes,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.estimates) {
+                        const e = data.estimates;
+                        const cb = ((form as any).computeBreakdown ?? DEFAULT_COMPUTE_BREAKDOWN) as ComputeBreakdown;
+                        const next: ComputeBreakdown = {
+                          ...cb,
+                          ...(e.inputTokensPerExec != null ? { inputTokensPerExec: e.inputTokensPerExec } : {}),
+                          ...(e.outputTokensPerExec != null ? { outputTokensPerExec: e.outputTokensPerExec } : {}),
+                        };
+                        setForm(f => ({ ...f, computeBreakdown: next }));
+                        if (e.rationale) setComputeRationale(e.rationale);
+                      }
+                    } catch {}
+                    setRefreshingCompute(false);
+                  }}
+                  disabled={refreshingCompute || !isPhase2Visible}
+                  className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                >
+                  {refreshingCompute ? <Spinner size="sm" /> : <RefreshCw size={11} />}
+                  {refreshingCompute ? 'Updating…' : 'Suggest token volumes (AI)'}
+                </button>
+              </div>
+              {computeRationale && (
+                <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+                  <Bot size={11} className="mt-0.5 flex-shrink-0" /><span>{computeRationale}</span>
                 </div>
               )}
+              <ComputeCalculator
+                breakdown={(form as any).computeBreakdown}
+                onChange={(next) => setForm(f => ({ ...f, computeBreakdown: next }))}
+                defaultOpen
+              />
             </div>
+
+            {/* ROI estimate */}
+            {roi && (
+              <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-semibold text-text">
+                  <TrendingUp size={13} className="text-green-600" />
+                  ROI Estimate
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-green-50 border border-green-200 rounded p-2">
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Gross Annual Saving</div>
+                    <div className="font-bold text-green-700 text-sm">€{Math.round(roi.annualSaving).toLocaleString()}</div>
+                    <div className="text-green-600">{roi.totalHours}h/run × {annualReps} runs/yr</div>
+                    {roi.savingPct !== null && (
+                      <div className="mt-1 font-semibold text-green-700">{roi.savingPct}% of targeted activities</div>
+                    )}
+                  </div>
+                  <div className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}>
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Compute Cost/yr</div>
+                    <div className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}>
+                      {roi.computeCostPerYear > 0 ? `€${Math.round(roi.computeCostPerYear).toLocaleString()}` : '—'}
+                    </div>
+                    {roi.computeCostPerYear > 0 && (
+                      <div className="text-amber-600">
+                        €{(roi.computeCostPerYear / Math.max(annualReps, 1)).toFixed(3)}/exec
+                      </div>
+                    )}
+                  </div>
+                  <div className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}>
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Net Annual Saving</div>
+                    <div className={`font-bold text-base ${roi.netAnnualSaving > 0 ? 'text-teal-700' : 'text-red-600'}`}>
+                      €{Math.round(roi.netAnnualSaving).toLocaleString()}
+                    </div>
+                    {roi.computeCostPerYear > 0 && (
+                      <div className="text-[10px] text-muted">Gross €{Math.round(roi.annualSaving).toLocaleString()} − Compute €{Math.round(roi.computeCostPerYear).toLocaleString()}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-red-50 border border-red-200 rounded p-2">
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Dev Cost (one-time)</div>
+                    <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString()}</div>
+                    {(form.estimatedImplWeeks ?? 0) > 0 && (
+                      <div className="text-red-600">{form.estimatedImplWeeks} weeks impl.</div>
+                    )}
+                  </div>
+                  {roi.paybackMonths > 0 && (
+                    <div className="bg-slate-100 border border-border rounded p-2">
+                      <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Payback Period</div>
+                      <div className="font-bold text-text text-sm">{roi.paybackMonths.toFixed(1)} months</div>
+                      <div className="text-muted">on net saving</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* === PHASE 1 FOOTER === */}
         <div className="p-5 border-t border-border flex gap-3">
-          <button onClick={handleSave} disabled={saving} className="btn-primary flex-1">{saving ? 'Saving…' : 'Save'}</button>
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+          <button onClick={handleSave_Phase1} disabled={saving || isRecalculating || !phase1ChangeDetected} className="btn-primary flex-1">
+            {saving || isRecalculating ? 'Saving...' : 'Save & Recalculate'}
+          </button>
         </div>
+
+        {/* === PHASE 2 FOOTER (only visible after Phase 1 saved) === */}
+        {isPhase2Visible && (
+          <div className="p-5 border-t border-border flex gap-3 bg-slate-50">
+            <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button onClick={handleSave_Phase2} disabled={saving} className="btn-primary flex-1">
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
