@@ -184,6 +184,12 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
+      console.log('[SlideOver] Loading UC:', {
+        ucId: editUC._id,
+        targetActivities: editUC.targetActivities,
+        formTargetActivities: newForm.targetActivities,
+        activitiesInB3: activities.map(a => ({ id: a.id, name: a.name })),
+      });
       setForm(newForm);
       setOriginalForm(newForm);
       if (editUC.score?.dimensions) {
@@ -484,26 +490,34 @@ function SlideOver({
           <div className="border-t pt-4 mt-4 space-y-3">
             <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
 
-            {/* Requires Client IT dropdown (Yes/No) */}
+            {/* Requires Client IT toggle switch (Yes/No) */}
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <label htmlFor="requiresClientIT" className="text-sm text-text">
+                <label className="text-sm text-text">
                   Requires Client IT approval
                 </label>
                 <p className="text-[10px] text-muted">Auto-calculated from B2. You can override.</p>
               </div>
-              <select
-                id="requiresClientIT"
-                value={(form.requiredPreconditions?.requiresClientIT) ? 'yes' : 'no'}
-                onChange={(e) => set('requiredPreconditions', {
-                  ...form.requiredPreconditions,
-                  requiresClientIT: e.target.value === 'yes',
-                })}
-                className="form-input text-sm w-20"
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => set('requiredPreconditions', {
+                    ...form.requiredPreconditions,
+                    requiresClientIT: !(form.requiredPreconditions?.requiresClientIT),
+                  })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    form.requiredPreconditions?.requiresClientIT ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                  role="switch"
+                  aria-checked={form.requiredPreconditions?.requiresClientIT}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    form.requiredPreconditions?.requiresClientIT ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+                <span className="text-sm font-medium text-text w-8">
+                  {form.requiredPreconditions?.requiresClientIT ? 'Yes' : 'No'}
+                </span>
+              </div>
             </div>
 
             {/* Preconditions text textarea */}
