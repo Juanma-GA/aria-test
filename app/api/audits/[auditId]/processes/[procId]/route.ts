@@ -88,11 +88,15 @@ export async function PATCH(
       }
     }
 
+    console.log('[PATCH-PROCESS] setOps:', JSON.stringify(setOps));
+
     const updated = await Process.findOneAndUpdate(
       { auditId, _id: procId },
       { $set: setOps },
       { new: true, runValidators: false, strict: false, lean: true }
     ) as any;
+
+    console.log('[PATCH-PROCESS] updated.department:', updated?.department);
 
     if (!updated) {
       return NextResponse.json({ error: 'Process not found' }, { status: 404 });
