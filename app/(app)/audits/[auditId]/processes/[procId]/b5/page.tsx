@@ -15,10 +15,11 @@ import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 
 const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'> = {
   generative_llm: 'purple', extraction_nlp: 'blue', classification_ml: 'teal',
-  rag: 'blue', validation: 'amber', prediction: 'green', intelligent_automation: 'teal',
-  agentic_ai: 'purple', other: 'slate',
+  rag_semantic: 'blue', rag_lexical: 'blue', knowledge_graph: 'purple',
+  validation: 'amber', prediction_ml: 'green', intelligent_automation: 'teal',
+  agentic_ai_workflow: 'purple', mcp_client: 'teal', mcp_server: 'teal',
+  function_tool: 'slate', chatbot: 'blue', multimodal_vlm: 'purple', other: 'slate',
 };
-
 const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
   eligible: 'green', blocked: 'red', pending_review: 'amber',
 };
@@ -1076,6 +1077,8 @@ export default function B5Page() {
                             targetActivities: [],
                             timeSavedPerProfile: s.timeSavedPerProfile ?? [],
                             estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
+                            devCostExplanation: s.devCostExplanation ?? '',
+                            requiredPreconditions: s.requiredPreconditions ?? null,
                             estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
                             notes: s.notes ?? '',
                             processId: procId,

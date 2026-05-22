@@ -81,6 +81,12 @@ export async function POST(
 
     const isTechpubs = (process as any)?.department === 'Technical Publications';
 
+    console.log('[SUGGEST-USECASES]', {
+      process_department: (process as any)?.department,
+      isTechpubs,
+      systemPrompt_first_200: SYSTEM_PROMPT('', isTechpubs).slice(0, 200),
+    });
+
     let stateOfTheArt = '';
     if (isTechpubs) {
       stateOfTheArt = await getStateOfTheArt();
@@ -109,8 +115,8 @@ Return a JSON array of ${isTechpubs ? 'MINIMUM 5' : '3-5'} AI use case objects.
 
 Each object must have EXACTLY these fields:
 {
-  "description": "${isTechpubs ? '"[Phase] — [Title]"' : '"Concise 1-2 sentence description"'}",
-  "aiTypes": [${isTechpubs ? `"generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "rag_semantic" | "rag_lexical" | "knowledge_graph" | "validation" | "prediction" | "prediction_ml" | "intelligent_automation" | "agentic_ai" | "agentic_ai_workflow" | "mcp_client" | "mcp_server" | "function_tool" | "chatbot" | "multimodal_vlm" | "other"` : `"generative_llm" | "extraction_nlp" | "classification_ml" | "rag" | "validation" | "prediction" | "intelligent_automation" | "agentic_ai" | "other"`}],
+  "description": "UC-01: [Exact Step Name from B3] — [Title]. [Architecture]",
+  "aiTypes": ["generative_llm" | "extraction_nlp" | "classification_ml" | "rag_semantic" | "rag_lexical" | "knowledge_graph" | "validation" | "prediction_ml" | "intelligent_automation" | "agentic_ai_workflow" | "mcp_client" | "mcp_server" | "function_tool" | "chatbot" | "multimodal_vlm" | "other"],
   "targetActivityNames": ["activity from B3"],
   "timeSavedPerProfile": [{ "role": "role from B1", "hoursPerExecution": number }],
   "estimatedDevCostEur": number,

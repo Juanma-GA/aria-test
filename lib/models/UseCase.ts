@@ -5,7 +5,7 @@ export interface IUseCase extends Document {
   processId: mongoose.Types.ObjectId;
   cuId: string;
   description: string;
-  aiTypes: ('generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other')[];
+  aiTypes: ('generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other')[];
   targetActivities: string[];
   b2Compatible: 'yes' | 'no' | 'partial';
   requiresClientIT: boolean;

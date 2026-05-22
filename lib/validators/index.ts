@@ -4,7 +4,7 @@ export const SECTORS = ['defence', 'aerospace', 'naval', 'railway', 'internal', 
 export const DEPARTMENT_TYPES = ['Technical Publications', 'Training Development', 'Training Delivery', 'ISS', 'LSA', 'Digital', 'Simulation', 'General ILS', 'Material Supply', 'Provisioning', 'Supply Chain', 'D&D Engineering', 'Other'] as const;
 export const PRIORITIES = ['high', 'medium', 'low'] as const;
 export const AUDIT_STATUSES = ['draft', 'active', 'review', 'completed'] as const;
-export const AI_TYPES = ['generative_llm', 'extraction_nlp', 'classification_ml', 'rag', 'rag_semantic', 'rag_lexical', 'knowledge_graph', 'validation', 'prediction', 'prediction_ml', 'intelligent_automation', 'agentic_ai', 'agentic_ai_workflow', 'mcp_client', 'mcp_server', 'function_tool', 'chatbot', 'multimodal_vlm', 'other'] as const;
+export const AI_TYPES = ['generative_llm', 'extraction_nlp', 'classification_ml', 'rag_semantic', 'rag_lexical', 'knowledge_graph', 'validation', 'prediction_ml', 'intelligent_automation', 'agentic_ai_workflow', 'mcp_client', 'mcp_server', 'function_tool', 'chatbot', 'multimodal_vlm', 'other'] as const;
 
 export const createAuditSchema = z.object({
   name: z.string().trim().min(1, 'Audit name is required'),
