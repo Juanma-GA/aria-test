@@ -145,6 +145,8 @@ function SlideOver({
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
+  console.log('[ANNUALREPS] prop value:', annualReps);
+
   useEffect(() => {
     // Compute D5 autofill from B2 axes
     let d5AutoValue: ScoreValue = 3;
@@ -188,6 +190,7 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
+      console.log('[ANNUALREPS] computeBreakdown.annualReps set to:', (editUC as any).computeBreakdown?.annualReps ?? annualReps);
       setForm(newForm);
       setOriginalForm(newForm);
       if (editUC.score?.dimensions) {
