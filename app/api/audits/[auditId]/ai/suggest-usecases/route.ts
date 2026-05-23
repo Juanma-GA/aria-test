@@ -37,6 +37,9 @@ ${isTechpubs ? `- TechPubs-specific tools: reference state-of-the-art.md only (e
 
 ## TIME SAVINGS & IMPACT ESTIMATION
 For timeSavedPerProfile: for each profile listed in the Target Steps of B3, estimate hours saved per execution.
+- **CRITICAL: You MUST include ALL profiles that appear in the targetActivityNames steps in B3, without exception.**
+- **Even if a profile has few hours, it must appear in timeSavedPerProfile.**
+- **Do not add profiles from steps not listed in targetActivityNames.**
 - **Base your estimate on the actual hours each profile currently spends on those steps** (shown in B3 per-profile breakdown)
 - Use the **exact role name** from B3 (e.g., "Senior Tech Writer", not "Tech Writer")
 - hoursPerExecution must be **less than or equal to** the current hours that profile spends on that step

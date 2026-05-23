@@ -77,6 +77,7 @@ export async function POST(
     const prompt = `Recalculate implementation economics for this AI use case.
 
 For timeSavedPerProfile: for each profile that works on the Target Steps listed below, estimate hours saved per execution based on the actual hours each profile currently spends on those steps (shown in B3).
+**You MUST include ALL profiles listed in the B3 Target Steps above, without exception. Do not omit any profile, even if hours are low.**
 Use the exact role name from B3. hoursPerExecution must be ≤ current hours that profile spends on that step.
 If the same profile appears in multiple target steps, return ONE entry with the sum of hours saved across all steps.
 
