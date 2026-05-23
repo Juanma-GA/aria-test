@@ -359,9 +359,72 @@ function SlideOver({
       // Update form with saved data in case it was a new UC
       setForm(data);
       setOriginalForm(data);
-      setIsPhase2Visible(true);
       setError('');
       setPhase1ChangeDetected(false);
+
+      // Recalculate Phase 2 with LLM
+      setIsRecalculating(true);
+      try {
+        const recalcRes = await fetch(
+          `/api/audits/${auditId}/usecases/${data._id}/ai/recalculate`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              description: form.description,
+              aiTypes: form.aiTypes,
+              targetActivities: form.targetActivities,
+              requiredPreconditions: form.requiredPreconditions,
+              score: { dimensions: dims },
+            }),
+          }
+        );
+
+        if (!recalcRes.ok) {
+          throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
+        }
+
+        const result = await recalcRes.json();
+
+        // Map roles to profileIds and consolidate duplicates (same logic as import handler)
+        const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
+          const matched = b1Profiles.find(
+            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+          );
+          return {
+            profileId: matched?.id ?? crypto.randomUUID(),
+            role: matched?.role ?? entry.role ?? '',
+            hoursPerExecution: entry.hoursPerExecution ?? 0,
+          };
+        });
+
+        const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
+          const existing = acc.find(e => e.profileId === entry.profileId);
+          if (existing) {
+            existing.hoursPerExecution += entry.hoursPerExecution;
+          } else {
+            acc.push({ ...entry });
+          }
+          return acc;
+        }, [] as typeof mapped);
+
+        // Update form with recalculated Phase 2 values
+        setForm(f => ({
+          ...f,
+          timeSavedPerProfile: consolidated,
+          estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
+          estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
+          devCostExplanation: result.devCostExplanation ?? '',
+        }));
+
+        setIsPhase2Visible(true);
+      } catch (recalcErr) {
+        setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
+        setIsPhase2Visible(true);
+      } finally {
+        setIsRecalculating(false);
+      }
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
     finally { setSaving(false); }
   };
