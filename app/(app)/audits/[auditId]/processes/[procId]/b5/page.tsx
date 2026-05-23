@@ -662,7 +662,7 @@ function SlideOver({
                 <p className="text-xs text-muted italic mb-2">No profiles defined in B1 Context yet.</p>
               )}
               {(form.timeSavedPerProfile ?? []).map((e, i) => (
-                <div key={i} className="flex items-center gap-2 mb-1">
+                <div key={e.profileId || i} className="flex items-center gap-2 mb-1">
                   {b1Profiles.length > 0 ? (
                     <select className="form-input text-xs flex-1" value={e.profileId} disabled={!isPhase2Visible}
                       onChange={ev => updateTimeSaved(i, 'profileId', ev.target.value)}>

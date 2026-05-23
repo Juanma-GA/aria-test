@@ -17,9 +17,6 @@ export async function POST(
     const body = await req.json();
     const { description, aiTypes, targetActivities, requiredPreconditions } = body;
 
-    // DEBUG: Log request body
-    console.log('[RECALC] Request body:', JSON.stringify(body, null, 2));
-
     // Fetch UseCase and Process
     const useCase = await UseCase.findOne({ auditId, _id: cuId }).lean();
     if (!useCase) {
@@ -40,8 +37,10 @@ export async function POST(
       .map((p: any) => `${p.count}× ${p.role} (€${p.hourlyRateEur}/h)`)
       .join(', ') || 'Not specified';
 
-    // Build B3 activities summary (EXACT same logic as suggest-usecases)
+    // Build B3 activities summary - FILTERED to only target steps
+    const targetActivityIds = targetActivities ?? [];
     const activitiesSummary = (b3.activities ?? [])
+      .filter((a: any) => targetActivityIds.includes(a.id))
       .map((a: any, i: number) => {
         const profileBreakdown = (a.profileHours ?? [])
           .map((ph: any) => {
@@ -58,7 +57,7 @@ export async function POST(
           ? `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run${stepInfo}, ${a.isDecisionPoint ? 'decision point' : 'manual task'})\n${profileBreakdown}`
           : `${i + 1}. ${a.name || `Activity ${i + 1}`} (${a.estimatedTimeHours ?? 0}h/run${stepInfo}, ${a.isDecisionPoint ? 'decision point' : 'manual task'})`;
       })
-      .join('\n') || 'Not specified';
+      .join('\n') || 'No matching activities found';
 
     // Build axes summary
     const axesSummary = Object.entries(b2.axes ?? {})
@@ -121,9 +120,6 @@ Return ONLY valid JSON:
       temperature: 0.2,
       systemPrompt: 'You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.). Your task is to estimate implementation economics for an AI use case based on its architecture and the process context provided. Return ONLY valid JSON, no explanation outside the JSON.',
     });
-
-    // DEBUG: Log raw LLM response
-    console.log('[RECALC] Raw LLM response:', text);
 
     // Parse JSON response
     let result: any;
