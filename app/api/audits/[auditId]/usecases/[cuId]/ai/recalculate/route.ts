@@ -95,9 +95,12 @@ hoursPerExecution must be ≤ current hours that profile spends on that step.
 If the same profile appears in multiple target steps, return ONE entry with the sum of hours saved across all steps.
 
 For estimatedDevCostEur: estimate total development cost in EUR based on:
-- AI stack complexity (description and aiTypes)
+- UC description and required preconditions (existing tools like Oxygen XML,
+  BRDP Manager or similar reduce custom development significantly)
 - Regulated sector compliance overhead (B2 sovereignty)
-- Integration effort with existing tools
+- Integration effort described in requiredPreconditions
+- Must be coherent with estimatedImplWeeks (more weeks = higher cost)
+- Reference: assume €450/day average dev rate in Spain (2025)
 
 For estimatedImplWeeks: total weeks from kickoff to production including integration, testing and validation.
 
