@@ -449,6 +449,10 @@ function SlideOver({
           return acc;
         }, [] as typeof mapped);
 
+        console.log('[RECALC UI] result.timeSavedPerProfile:', result.timeSavedPerProfile);
+        console.log('[RECALC UI] consolidated:', consolidated);
+        console.log('[RECALC UI] setForm called with timeSavedPerProfile length:', consolidated.length);
+
         // Update form with recalculated Phase 2 values
         setForm(f => ({
           ...f,
