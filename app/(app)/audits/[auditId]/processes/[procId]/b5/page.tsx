@@ -176,7 +176,11 @@ function SlideOver({
           : (editUC as any).targetActivity
           ? [(editUC as any).targetActivity]
           : [],
-        computeBreakdown: { ...defaultCB, ...((editUC as any).computeBreakdown ?? {}) },
+        computeBreakdown: {
+          ...defaultCB,
+          ...((editUC as any).computeBreakdown ?? {}),
+          annualReps: (editUC as any).computeBreakdown?.annualReps ?? annualReps,
+        },
         requiresClientIT: requiresClientITAuto,
         requiredPreconditions: {
           requiresClientIT: (editUC as any).requiredPreconditions?.requiresClientIT ?? requiresClientITAuto,
@@ -208,6 +212,7 @@ function SlideOver({
       (base as any).requiresClientIT = requiresClientITAuto;
       (base as any).requiredPreconditions = { requiresClientIT: requiresClientITAuto, text: '' };
       (base as any).sovereigntyAnalysis = '';
+      (base as any).computeBreakdown = { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '', annualReps };
       setForm(base as any);
       setOriginalForm(base as any);
       const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
@@ -1402,6 +1407,7 @@ export default function B5Page() {
                             ].filter(Boolean).join('\n\n'),
                           },
                           estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
+                          computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, annualReps },
                           processId: procId,
                           score,
                         };
