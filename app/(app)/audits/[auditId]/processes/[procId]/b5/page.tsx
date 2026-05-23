@@ -182,6 +182,7 @@ function SlideOver({
           ...defaultCB,
           ...((editUC as any).computeBreakdown ?? {}),
           annualReps: (editUC as any).computeBreakdown?.annualReps ?? annualReps,
+          annualRepsManuallyEdited: ((editUC as any).computeBreakdown?.annualReps ?? annualReps) !== annualReps,
         },
         requiresClientIT: requiresClientITAuto,
         requiredPreconditions: {

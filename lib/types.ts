@@ -413,6 +413,7 @@ export interface ComputeBreakdown {
   concurrentUsersPerGpuSnapshot?: number;
   // Calculator inputs
   annualReps: number;
+  annualRepsManuallyEdited?: boolean;
   inputTokensPerExec: number;
   outputTokensPerExec: number;
   nGpus: number;

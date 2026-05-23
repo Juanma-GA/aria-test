@@ -182,7 +182,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                     )}
                   </select>
                 </div>
-                <NumField label="Annual executions" value={b.annualReps}          onChange={v => update({ annualReps: v })}           cols={3} />
+                <NumField label="Annual executions" value={b.annualReps}          onChange={v => update({ annualReps: v, annualRepsManuallyEdited: true })}           cols={3} />
                 <NumField label="In tokens / exec"  value={b.inputTokensPerExec}  onChange={v => update({ inputTokensPerExec: v })}   cols={2} />
                 <NumField label="Out tokens / exec" value={b.outputTokensPerExec} onChange={v => update({ outputTokensPerExec: v })}  cols={2} />
               </div>
@@ -191,6 +191,11 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                 {' '}+ {fmt.format(b.outputTokensPerExec ?? 0)} out × €{(b.modelPriceOutSnapshot ?? 0).toFixed(2)}/M)
                 {' '}= <span className="font-semibold text-text">{fmt.format(calc.cloudCostEur)} €/yr cloud</span>
               </p>
+              {b.annualRepsManuallyEdited && (
+                <div className="bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 p-2">
+                  <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 process value.
+                </div>
+              )}
             </div>
           )}
 
@@ -310,6 +315,13 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                   Occupancy share: <span className="font-semibold text-text">{(calc.occupancyShare * 100).toFixed(1)}%</span>
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Override warning (visible in all modes) */}
+          {b.annualRepsManuallyEdited && !showCloud && (
+            <div className="bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 p-2">
+              <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 process value.
             </div>
           )}
 
