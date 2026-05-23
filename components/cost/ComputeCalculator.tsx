@@ -51,9 +51,11 @@ interface Props {
   title?: string;
   /** Optional initial-open state when no breakdown exists yet. */
   defaultOpen?: boolean;
+  /** B3 annual repetitions for override detection. */
+  b3AnnualReps?: number;
 }
 
-export function ComputeCalculator({ breakdown, onChange, title = 'Compute calculator', defaultOpen = false }: Props) {
+export function ComputeCalculator({ breakdown, onChange, title = 'Compute calculator', defaultOpen = false, b3AnnualReps }: Props) {
   const b: ComputeBreakdown = breakdown ?? DEFAULT_COMPUTE_BREAKDOWN;
   const usingCalc = !!breakdown?.mode;
   const [open, setOpen] = useState(usingCalc || defaultOpen);
@@ -182,7 +184,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                     )}
                   </select>
                 </div>
-                <NumField label="Annual executions" value={b.annualReps}          onChange={v => update({ annualReps: v, annualRepsManuallyEdited: true })}           cols={3} />
+                <NumField label="Annual executions" value={b.annualReps}          onChange={v => update({ annualReps: v, annualRepsManuallyEdited: v !== (b3AnnualReps ?? 0) })}           cols={3} />
                 <NumField label="In tokens / exec"  value={b.inputTokensPerExec}  onChange={v => update({ inputTokensPerExec: v })}   cols={2} />
                 <NumField label="Out tokens / exec" value={b.outputTokensPerExec} onChange={v => update({ outputTokensPerExec: v })}  cols={2} />
               </div>
@@ -193,7 +195,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
               </p>
               {b.annualRepsManuallyEdited && (
                 <div className="bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 p-2">
-                  <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 process value.
+                  <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 value ({b3AnnualReps ?? 0}).
                 </div>
               )}
             </div>
