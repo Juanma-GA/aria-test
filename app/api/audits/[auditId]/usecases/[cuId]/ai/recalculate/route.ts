@@ -123,17 +123,18 @@ ${profileListStr}
 ## B3 — PROCESS MAP
 ${activitiesSummary}
 
-Return ONLY valid JSON:
+Return ONLY a flat JSON object with EXACTLY these 4 top-level keys, no wrapper object, no nesting:
 {
   "timeSavedPerProfile": [{ "role": "exact role name from B3", "hoursPerExecution": 0.0 }],
   "estimatedDevCostEur": 0,
   "estimatedImplWeeks": 0,
   "devCostExplanation": "explanation"
-}`;
+}
+Do NOT wrap in any outer key like 'implementationEconomics' or 'result'.`;
 
     // Call Mistral
     const text = await callMistral([{ role: 'user', content: prompt }], {
-      maxTokens: 1000,
+      maxTokens: 2000,
       temperature: 0.2,
       systemPrompt: 'You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.). Your task is to estimate implementation economics for an AI use case based on its architecture and the process context provided. Return ONLY valid JSON, no explanation outside the JSON.',
     });
