@@ -62,8 +62,8 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/admin/catalog?kind=ai_model&activeOnly=true').then(r => r.ok ? r.json() : []),
-      fetch('/api/admin/catalog?kind=gpu&activeOnly=true').then(r => r.ok ? r.json() : []),
+      fetch('/api/admin/catalog?kind=ai_model&activeOnly=true', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+      fetch('/api/admin/catalog?kind=gpu&activeOnly=true', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
     ]).then(([m, g]) => {
       setModels(m as CatalogEntry[]);
       setGpus(g as CatalogEntry[]);
