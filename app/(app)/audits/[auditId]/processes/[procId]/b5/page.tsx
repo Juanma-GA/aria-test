@@ -1067,20 +1067,29 @@ export default function B5Page() {
                       const toImport = [...selectedSuggestions].map(i => suggestions[i]);
                       for (const s of toImport) {
                         const score = s.score ? { dimensions: s.score, scoringNotes: '', scoredBy: 'ai', scoredAt: new Date().toISOString() } : undefined;
+
+                        // DEBUG: Log raw LLM data and merged result
+                        console.log('[IMPORT DEBUG] Raw LLM requiredPreconditions:', s.requiredPreconditions);
+                        console.log('[IMPORT DEBUG] Raw LLM notes:', s.notes);
+
+                        const body = {
+                          description: s.description,
+                          aiTypes: s.aiTypes ?? [],
+                          targetActivities: [],
+                          timeSavedPerProfile: s.timeSavedPerProfile ?? [],
+                          estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
+                          estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
+                          notes: s.notes ?? '',
+                          processId: procId,
+                          score,
+                        };
+
+                        console.log('[IMPORT DEBUG] Full body being sent to POST /api/audits/.../usecases:', JSON.stringify(body, null, 2));
+
                         await fetch(`/api/audits/${auditId}/usecases`, {
                           method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            description: s.description,
-                            aiTypes: s.aiTypes ?? [],
-                            targetActivities: [],
-                            timeSavedPerProfile: s.timeSavedPerProfile ?? [],
-                            estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
-                            estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
-                            notes: s.notes ?? '',
-                            processId: procId,
-                            score,
-                          }),
+                          body: JSON.stringify(body),
                         });
                       }
                       await load();
