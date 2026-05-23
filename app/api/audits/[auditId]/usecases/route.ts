@@ -134,6 +134,7 @@ export async function POST(
       estimatedImplWeeks: body.estimatedImplWeeks || 0,
       status,
       notes: body.notes || '',
+      requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
     };
 
     if (blockedReason) useCaseData.blockedReason = blockedReason;

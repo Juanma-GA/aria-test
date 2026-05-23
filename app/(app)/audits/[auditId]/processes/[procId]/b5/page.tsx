@@ -184,12 +184,6 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
-      console.log('[SlideOver] Loading UC:', {
-        ucId: editUC._id,
-        targetActivities: editUC.targetActivities,
-        formTargetActivities: newForm.targetActivities,
-        activitiesInB3: activities.map(a => ({ id: a.id, name: a.name })),
-      });
       setForm(newForm);
       setOriginalForm(newForm);
       if (editUC.score?.dimensions) {
@@ -1286,10 +1280,6 @@ export default function B5Page() {
                           return acc;
                         }, [] as typeof mapped);
 
-                        // DEBUG: Log raw LLM data and merged result
-                        console.log('[IMPORT DEBUG] Raw LLM requiredPreconditions:', s.requiredPreconditions);
-                        console.log('[IMPORT DEBUG] Raw LLM notes:', s.notes);
-
                         const body = {
                           description: s.description,
                           aiTypes: s.aiTypes ?? [],
@@ -1308,8 +1298,6 @@ export default function B5Page() {
                           processId: procId,
                           score,
                         };
-
-                        console.log('[IMPORT DEBUG] Full body being sent to POST /api/audits/.../usecases:', JSON.stringify(body, null, 2));
 
                         await fetch(`/api/audits/${auditId}/usecases`, {
                           method: 'POST', credentials: 'include',
