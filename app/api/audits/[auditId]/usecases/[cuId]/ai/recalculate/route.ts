@@ -39,6 +39,21 @@ export async function POST(
 
     // Build B3 activities summary - FILTERED to only target steps
     const targetActivityIds = targetActivities ?? [];
+
+    // Derive profile list from filtered B3 target activities
+    const profileList = (b3.activities ?? [])
+      .filter((a: any) => targetActivityIds.includes(a.id))
+      .flatMap((a: any) => a.profileHours ?? [])
+      .reduce((acc: any[], ph: any) => {
+        const existing = acc.find(e => e.profileId === ph.profileId);
+        if (!existing) acc.push({ profileId: ph.profileId, role: ph.role });
+        return acc;
+      }, []);
+
+    const profileListStr = profileList
+      .map(p => `- ${p.role} (profileId: ${p.profileId})`)
+      .join('\n');
+
     const activitiesSummary = (b3.activities ?? [])
       .filter((a: any) => targetActivityIds.includes(a.id))
       .map((a: any, i: number) => {
@@ -75,9 +90,8 @@ export async function POST(
     // Build LLM prompt
     const prompt = `Recalculate implementation economics for this AI use case.
 
-For timeSavedPerProfile: for each profile that works on the Target Steps listed below, estimate hours saved per execution based on the actual hours each profile currently spends on those steps (shown in B3).
-**You MUST include ALL profiles listed in the B3 Target Steps above, without exception. Do not omit any profile, even if hours are low.**
-Use the exact role name from B3. hoursPerExecution must be ≤ current hours that profile spends on that step.
+For timeSavedPerProfile: Return hoursPerExecution ONLY for the profiles listed below in TARGET PROFILES. Do not add or remove profiles. Only estimate hoursPerExecution for each based on the actual hours they spend on the Target Steps (shown in B3).
+hoursPerExecution must be ≤ current hours that profile spends on that step.
 If the same profile appears in multiple target steps, return ONE entry with the sum of hours saved across all steps.
 
 For estimatedDevCostEur: estimate total development cost in EUR based on:
@@ -102,6 +116,9 @@ Profiles: ${profilesSummary}
 
 ## B2 — SOVEREIGNTY
 ${axesSummary}
+
+## TARGET PROFILES FOR TIME SAVINGS
+${profileListStr}
 
 ## B3 — PROCESS MAP
 ${activitiesSummary}

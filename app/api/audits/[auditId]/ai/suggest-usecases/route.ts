@@ -36,15 +36,13 @@ ${isTechpubs ? `- TechPubs-specific tools: reference state-of-the-art.md only (e
 - Justify all sovereignty decisions clearly
 
 ## TIME SAVINGS & IMPACT ESTIMATION
-For timeSavedPerProfile: for each profile listed in the Target Steps of B3, estimate hours saved per execution.
-- **CRITICAL: You MUST include ALL profiles that appear in the targetActivityNames steps in B3, without exception.**
-- **Even if a profile has few hours, it must appear in timeSavedPerProfile.**
-- **Do not add profiles from steps not listed in targetActivityNames.**
-- **Base your estimate on the actual hours each profile currently spends on those steps** (shown in B3 per-profile breakdown)
-- Use the **exact role name** from B3 (e.g., "Senior Tech Writer", not "Tech Writer")
-- hoursPerExecution must be **less than or equal to** the current hours that profile spends on that step
-- Example: If "Senior Tech Writer" currently spends 8h on "Data Module Authoring", estimate saving as 1–8h (not 10h)
-- For multi-step use cases: sum the current hours across all targeted steps, then estimate what AI saves
+For timeSavedPerProfile: Return hoursPerExecution ONLY for profiles listed in the Target Steps of B3.
+- The app automatically derives the profile list from selected B3 activities.
+- **Do not add or remove profiles** — only estimate hoursPerExecution for each.
+- Base your estimate on the actual hours each profile currently spends on those steps (shown in B3 per-profile breakdown).
+- Use the **exact role name** from B3 (e.g., "Senior Tech Writer", not "Tech Writer").
+- hoursPerExecution must be **≤ current hours** that profile spends on that step (e.g., if spending 8h, save 1–8h, not 10h).
+- For multi-step use cases: sum the current hours across all targeted steps, then estimate what AI saves.
 
 ## RECOMMENDED GRADERS FOR AI OUTPUT EVALUATION — MANDATORY FOR EVERY UC
 **CRITICAL: EVERY use case must include 1-3 Grader recommendations based on its AI types and architecture.**

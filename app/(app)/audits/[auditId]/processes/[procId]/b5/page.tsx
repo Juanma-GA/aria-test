@@ -221,6 +221,46 @@ function SlideOver({
     setIsPhase2Visible(false);
   }, [editUC, processId, open, initialDesc, b2Axes]);
 
+  // Auto-derive timeSavedPerProfile from targetActivities changes
+  useEffect(() => {
+    if (!form.targetActivities?.length) {
+      set('timeSavedPerProfile', []);
+      return;
+    }
+
+    // Extract profiles from B3 activities matching targetActivities
+    const derivedProfiles = (form.targetActivities ?? [])
+      .flatMap(actId => {
+        const activity = activities.find(a => a.id === actId);
+        return (activity?.profileHours ?? []).map(ph => ({
+          profileId: ph.profileId,
+          role: ph.role,
+          hoursPerExecution: 0,
+        }));
+      })
+      // Merge duplicates by profileId
+      .reduce((acc, entry) => {
+        const existing = acc.find(e => e.profileId === entry.profileId);
+        if (!existing) acc.push(entry);
+        return acc;
+      }, [] as typeof form.timeSavedPerProfile);
+
+    // Preserve existing hoursPerExecution for profiles that remain
+    const merged = derivedProfiles.map(derived => {
+      const existing = form.timeSavedPerProfile?.find(
+        e => e.profileId === derived.profileId
+      );
+      return existing ?? derived;
+    });
+
+    // Only update if profiles actually changed (prevent infinite loop)
+    const currentIds = (form.timeSavedPerProfile ?? []).map(e => e.profileId).sort().join(',');
+    const mergedIds = merged.map(e => e.profileId).sort().join(',');
+    if (currentIds !== mergedIds) {
+      set('timeSavedPerProfile', merged);
+    }
+  }, [form.targetActivities, activities]);
+
   const set = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
   const toggleAiType = (t: AIType) => {
