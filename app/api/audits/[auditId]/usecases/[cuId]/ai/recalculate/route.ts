@@ -17,6 +17,9 @@ export async function POST(
     const body = await req.json();
     const { description, aiTypes, targetActivities, requiredPreconditions } = body;
 
+    // DEBUG: Log request body
+    console.log('[RECALC] Request body:', JSON.stringify(body, null, 2));
+
     // Fetch UseCase and Process
     const useCase = await UseCase.findOne({ auditId, _id: cuId }).lean();
     if (!useCase) {
@@ -118,6 +121,9 @@ Return ONLY valid JSON:
       temperature: 0.2,
       systemPrompt: 'You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.). Your task is to estimate implementation economics for an AI use case based on its architecture and the process context provided. Return ONLY valid JSON, no explanation outside the JSON.',
     });
+
+    // DEBUG: Log raw LLM response
+    console.log('[RECALC] Raw LLM response:', text);
 
     // Parse JSON response
     let result: any;
