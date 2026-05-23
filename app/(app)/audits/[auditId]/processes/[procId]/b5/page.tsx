@@ -525,7 +525,7 @@ function SlideOver({
               <label className="form-label text-sm">Preconditions, blockers and actions needed before POC</label>
               <textarea
                 rows={4}
-                className="form-textarea"
+                className="form-textarea whitespace-pre-wrap"
                 placeholder="List any preconditions, data dependencies, infrastructure requirements, or blockers…"
                 value={form.requiredPreconditions?.text ?? ''}
                 onChange={(e) => set('requiredPreconditions', {
@@ -1296,9 +1296,14 @@ export default function B5Page() {
                             timeSavedPerProfile: consolidated,
                             estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
                             devCostExplanation: s.devCostExplanation ?? '',
-                            requiredPreconditions: s.requiredPreconditions ?? null,
+                            requiredPreconditions: {
+                              requiresClientIT: s.requiredPreconditions?.requiresClientIT ?? false,
+                              text: [
+                                s.requiredPreconditions?.text ?? '',
+                                s.notes ? `---\n${s.notes}` : ''
+                              ].filter(Boolean).join('\n\n'),
+                            },
                             estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
-                            notes: s.notes ?? '',
                             processId: procId,
                             score,
                           }),

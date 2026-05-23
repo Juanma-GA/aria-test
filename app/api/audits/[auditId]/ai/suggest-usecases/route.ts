@@ -167,7 +167,7 @@ Each object must have EXACTLY these fields:
   "devCostExplanation": "Why this cost estimate",
   "requiredPreconditions": {
     "requiresClientIT": boolean,
-    "text": "What must be in place before POC\n\n## Recommended Graders\n- [Grader Type 1]: justification\n- [Grader Type 2]: justification"
+    "text": "What must be in place before POC\n\n**Recommended Graders**\n- [Grader Type 1]: justification\n- [Grader Type 2]: justification"
   },
   "estimatedImplWeeks": number,
   "score": {
