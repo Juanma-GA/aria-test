@@ -52,7 +52,7 @@ const EDITABLE_FIELDS = [
   'description', 'aiTypes', 'targetActivities', 'b2Compatible', 'requiresClientIT',
   'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'estimatedImplWeeks',
   'status', 'blockedReason', 'blockedAxis', 'unblockCondition', 'reviewDate', 'notes',
-  'computeBreakdown', 'sovereigntyAnalysis', 'isArchived',
+  'computeBreakdown', 'sovereigntyAnalysis', 'isArchived', 'requiredPreconditions', 'score',
 ] as const;
 
 export async function PATCH(
