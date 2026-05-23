@@ -65,7 +65,6 @@ export async function POST(
       .join(', ') || 'Not assessed';
 
     // Resolve target activity names from IDs
-    const targetActivityIds = targetActivities ?? [];
     const targetActivityNames = targetActivityIds
       .map((id: string) => {
         const activity = (b3.activities ?? []).find((a: any) => a.id === id);
