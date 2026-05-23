@@ -811,6 +811,7 @@ function SlideOver({
               <ComputeCalculator
                 breakdown={(form as any).computeBreakdown}
                 onChange={(next) => setForm(f => ({ ...f, computeBreakdown: next }))}
+                b3AnnualReps={annualReps}
                 defaultOpen
               />
             </div>
