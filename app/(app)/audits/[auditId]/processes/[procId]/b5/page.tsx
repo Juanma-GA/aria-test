@@ -518,7 +518,7 @@ function SlideOver({
             <div>
               <label className="form-label text-sm">Preconditions, blockers and actions needed before POC</label>
               <textarea
-                rows={4}
+                rows={8}
                 className="form-textarea whitespace-pre-wrap"
                 placeholder="List any preconditions, data dependencies, infrastructure requirements, or blockers…"
                 value={form.requiredPreconditions?.text ?? ''}
