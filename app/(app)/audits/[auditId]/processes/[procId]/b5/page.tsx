@@ -372,10 +372,10 @@ function SlideOver({
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              description: form.description,
-              aiTypes: form.aiTypes,
-              targetActivities: form.targetActivities,
-              requiredPreconditions: form.requiredPreconditions,
+              description: data.description,
+              aiTypes: data.aiTypes,
+              targetActivities: data.targetActivities,
+              requiredPreconditions: data.requiredPreconditions,
               score: { dimensions: dims },
             }),
           }
