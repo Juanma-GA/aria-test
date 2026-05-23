@@ -1286,27 +1286,35 @@ export default function B5Page() {
                           return acc;
                         }, [] as typeof mapped);
 
+                        // DEBUG: Log raw LLM data and merged result
+                        console.log('[IMPORT DEBUG] Raw LLM requiredPreconditions:', s.requiredPreconditions);
+                        console.log('[IMPORT DEBUG] Raw LLM notes:', s.notes);
+
+                        const body = {
+                          description: s.description,
+                          aiTypes: s.aiTypes ?? [],
+                          targetActivities: mappedActivityIds,
+                          timeSavedPerProfile: consolidated,
+                          estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
+                          devCostExplanation: s.devCostExplanation ?? '',
+                          requiredPreconditions: {
+                            requiresClientIT: s.requiredPreconditions?.requiresClientIT ?? false,
+                            text: [
+                              s.requiredPreconditions?.text ?? '',
+                              s.notes ? `---\n${s.notes}` : ''
+                            ].filter(Boolean).join('\n\n'),
+                          },
+                          estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
+                          processId: procId,
+                          score,
+                        };
+
+                        console.log('[IMPORT DEBUG] Full body being sent to POST /api/audits/.../usecases:', JSON.stringify(body, null, 2));
+
                         await fetch(`/api/audits/${auditId}/usecases`, {
                           method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            description: s.description,
-                            aiTypes: s.aiTypes ?? [],
-                            targetActivities: mappedActivityIds,
-                            timeSavedPerProfile: consolidated,
-                            estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
-                            devCostExplanation: s.devCostExplanation ?? '',
-                            requiredPreconditions: {
-                              requiresClientIT: s.requiredPreconditions?.requiresClientIT ?? false,
-                              text: [
-                                s.requiredPreconditions?.text ?? '',
-                                s.notes ? `---\n${s.notes}` : ''
-                              ].filter(Boolean).join('\n\n'),
-                            },
-                            estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
-                            processId: procId,
-                            score,
-                          }),
+                          body: JSON.stringify(body),
                         });
                         // TODO: apply same consolidation after role→profileId mapping in recalculate response
                       }
