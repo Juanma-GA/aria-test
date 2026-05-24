@@ -15,6 +15,7 @@ import type { CatalogEntry, ComputeBreakdown, AIModelDeploymentMode } from '@/li
 import { computeAnnualCompute } from '@/lib/calculations';
 
 const fmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
+console.log('[FMT TEST]', new Intl.NumberFormat('es-ES').format(1678), new Intl.NumberFormat('de-DE').format(1678));
 
 const MODE_TABS: { key: AIModelDeploymentMode; label: string; Icon: typeof Cloud; hint: string }[] = [
   { key: 'cloud_api',  label: 'Cloud API',  Icon: Cloud,  hint: 'Token-based vendor pricing.' },
