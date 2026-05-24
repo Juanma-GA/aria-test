@@ -1,1 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="46" fill="none" viewBox="0 0 48 46">
+  <!-- Fondo azul con esquinas redondeadas -->
+  <rect x="0" y="0" width="48" height="46" rx="6" fill="#1565C0"/>
+  
+  <!-- Letra A -->
+  <g>
+    <!-- Línea diagonal izquierda -->
+    <line x1="15" y1="32" x2="24" y2="10" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Línea diagonal derecha -->
+    <line x1="24" y1="10" x2="33" y2="32" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Línea horizontal (la barra de la A) -->
+    <line x1="18" y1="24" x2="30" y2="24" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
