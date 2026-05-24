@@ -783,7 +783,7 @@ function SlideOver({
             </div>
 
             {/* Dev Cost Calculator Box */}
-            <div className="border border-border rounded p-4 space-y-3">
+            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
 
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -873,7 +873,7 @@ function SlideOver({
             </div>
 
             {/* Compute Cost Simulator */}
-            <div className="border border-border rounded p-4 space-y-3">
+            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text">
                   <span>🖥️</span> Compute cost calculator
