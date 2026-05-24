@@ -147,8 +147,6 @@ function SlideOver({
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
-  console.log('[ANNUALREPS] prop value:', annualReps);
-
   useEffect(() => {
     // Compute D5 autofill from B2 axes
     let d5AutoValue: ScoreValue = 3;
@@ -193,7 +191,6 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
-      console.log('[ANNUALREPS] computeBreakdown.annualReps set to:', (editUC as any).computeBreakdown?.annualReps ?? annualReps);
       setForm(newForm);
       setOriginalForm(newForm);
       if (editUC.score?.dimensions) {
@@ -461,10 +458,6 @@ function SlideOver({
           }
           return acc;
         }, [] as typeof mapped);
-
-        console.log('[RECALC UI] result.timeSavedPerProfile:', result.timeSavedPerProfile);
-        console.log('[RECALC UI] consolidated:', consolidated);
-        console.log('[RECALC UI] setForm called with timeSavedPerProfile length:', consolidated.length);
 
         // Update form with recalculated Phase 2 values
         setForm(f => ({
