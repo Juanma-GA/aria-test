@@ -15,7 +15,7 @@ export async function POST(
     if (!isAccessGranted(access)) return access;
 
     const body = await req.json();
-    const { description, aiTypes, targetActivities, requiredPreconditions } = body;
+    const { description, aiTypes, targetActivities, requiredPreconditions, devRateEur } = body;
 
     // Fetch UseCase and Process
     const useCase = await UseCase.findOne({ auditId, _id: cuId }).lean();
@@ -88,6 +88,7 @@ export async function POST(
       .join(', ');
 
     // Build LLM prompt
+    const devRateRef = devRateEur ?? 450;
     const prompt = `Recalculate implementation economics for this AI use case.
 
 For timeSavedPerProfile: Return hoursPerExecution ONLY for the profiles listed below in TARGET PROFILES. Do not add or remove profiles. Only estimate hoursPerExecution for each based on the actual hours they spend on the Target Steps (shown in B3).
@@ -95,12 +96,28 @@ hoursPerExecution must be ≤ current hours that profile spends on that step.
 If the same profile appears in multiple target steps, return ONE entry with the sum of hours saved across all steps.
 
 For estimatedDevCostEur: estimate total development cost in EUR based on:
-- UC description and required preconditions (existing tools like Oxygen XML,
-  BRDP Manager or similar reduce custom development significantly)
-- Regulated sector compliance overhead (B2 sovereignty)
-- Integration effort described in requiredPreconditions
-- Must be coherent with estimatedImplWeeks (more weeks = higher cost)
-- Reference: assume €450/day average dev rate in Spain (2025)
+
+## COST ESTIMATION GUIDELINES
+
+**Scenario 1: ATEXIS Tools (minimal custom dev)**
+- Use Oxygen XML, BRDP Manager, or existing ATEXIS-maintained tools
+- Development cost: €20k–€40k (20–30% dev hours)
+- Rationale: Framework is production-ready; only integration and validation needed
+
+**Scenario 2: Standard Tools + Custom Integration**
+- Leverage Python, FastAPI, or open-source libraries
+- Development cost: €40k–€80k (40–60% dev hours)
+- Rationale: Third-party tools handle core AI; custom integration (APIs, ETL, logging) adds complexity
+
+**Scenario 3: Custom Development**
+- Build from scratch or highly specialized architecture (e.g., fine-tuned LLM, bespoke data pipeline)
+- Development cost: €80k–€200k+ (60–100% dev hours)
+- Rationale: Full bespoke development with comprehensive testing, documentation, compliance integration
+
+**Modifiers:**
+- AI-assisted development (Copilot, CoPilot, Claude): +50% productivity boost → reduce estimated hours by 33%
+- Regulated sector compliance overhead (B2 red flags): +20–30% additional cost for governance, audit, traceability
+- Reference dev rate: €${devRateRef}/day (Spain 2025, inclusive of overhead)
 
 For estimatedImplWeeks: total weeks from kickoff to production including integration, testing and validation.
 
@@ -108,7 +125,6 @@ For devCostExplanation: 2-3 sentences justifying the cost, mentioning main cost 
 
 ## USE CASE (Phase 1)
 Description: ${description}
-AI Types: ${(aiTypes ?? []).join(', ')}
 Target Steps: ${targetActivityNames}
 Required Preconditions: ${requiredPreconditions?.text || 'None'}
 

@@ -50,7 +50,7 @@ export async function GET(
 
 const EDITABLE_FIELDS = [
   'description', 'aiTypes', 'targetActivities', 'b2Compatible', 'requiresClientIT',
-  'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'estimatedImplWeeks',
+  'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'devRateEur', 'estimatedImplWeeks',
   'status', 'blockedReason', 'blockedAxis', 'unblockCondition', 'reviewDate', 'notes',
   'computeBreakdown', 'sovereigntyAnalysis', 'isArchived', 'requiredPreconditions', 'score',
 ] as const;

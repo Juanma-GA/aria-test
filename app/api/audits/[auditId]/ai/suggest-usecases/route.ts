@@ -152,6 +152,35 @@ ${axesSummary}
 ## B3 — PROCESS MAP (ACTIVITIES & TASKS)
 ${activitiesSummary}
 
+## COST ESTIMATION GUIDELINES
+
+**Scenario 1: ATEXIS Tools (minimal custom dev)**
+- Use Oxygen XML, BRDP Manager, or existing ATEXIS-maintained tools
+- Development cost: €20k–€40k (20–30% dev hours)
+- Rationale: Framework is production-ready; only integration and validation needed
+
+**Scenario 2: Standard Tools + Custom Integration**
+- Leverage Python, FastAPI, or open-source libraries
+- Development cost: €40k–€80k (40–60% dev hours)
+- Rationale: Third-party tools handle core AI; custom integration (APIs, ETL, logging) adds complexity
+
+**Scenario 3: Custom Development**
+- Build from scratch or highly specialized architecture (e.g., fine-tuned LLM, bespoke data pipeline)
+- Development cost: €80k–€200k+ (60–100% dev hours)
+- Rationale: Full bespoke development with comprehensive testing, documentation, compliance integration
+
+**Modifiers:**
+- AI-assisted development (Copilot, Claude): +50% productivity boost → reduce estimated hours by 33%
+- Regulated sector compliance overhead (B2 red flags): +20–30% additional cost for governance, audit, traceability
+- Reference dev rate: €450/day (Spain 2025, inclusive of overhead)
+
+**Coherence Check:** For each UC, cost and timeline must align:
+- €20k UC → 4–6 weeks (minimal dev, mostly integration)
+- €50k UC → 8–12 weeks (standard tools + custom integration)
+- €150k UC → 16–24 weeks (custom dev with compliance)
+
+If cost is high but weeks is low (or vice versa), adjust estimates to reflect realistic effort.
+
 ---
 
 ## INSTRUCTIONS

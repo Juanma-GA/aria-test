@@ -12,6 +12,7 @@ export interface IUseCase extends Document {
   timeSavedPerProfile: { profileId: string; role: string; hoursPerExecution: number }[];
   estimatedDevCostEur: number;
   devCostExplanation: string;
+  devRateEur?: number;
   requiredPreconditions?: {
     requiresClientIT?: boolean;
     text?: string;
@@ -97,6 +98,7 @@ const UseCaseSchema = new Schema<IUseCase>({
   timeSavedPerProfile: [TimeSavedEntrySchema],
   estimatedDevCostEur: { type: Number, default: 0 },
   devCostExplanation: { type: String, default: '' },
+  devRateEur: { type: Number, default: 450 },
   requiredPreconditions: RequiredPreconditionsSchema,
   estimatedImplWeeks: { type: Number, default: 0 },
   status: { type: String, enum: ['eligible', 'blocked', 'pending_review'], default: 'eligible' },
