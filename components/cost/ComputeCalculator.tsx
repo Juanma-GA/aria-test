@@ -275,24 +275,29 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
               <div className="grid md:grid-cols-12 gap-2 items-end">
                 <NumField
                   label="Conc. users / GPU"
+                  tooltip="Concurrent users each GPU can serve simultaneously (vendor benchmark). Auto-filled from GPU catalog."
                   value={b.concurrentUsersPerGpuSnapshot ?? 0}
                   onChange={v => update({ concurrentUsersPerGpuSnapshot: Math.max(0, v), maxConcurrentUsersSupported: Math.max(0, (b.nGpus ?? 1) * Math.max(0, v)) })}
                   cols={3}
                 />
                 <NumField
                   label="Max concurrent (HW)"
-                  value={b.maxConcurrentUsersSupported ?? calc.derivedMaxConcurrentUsers}
-                  onChange={v => update({ maxConcurrentUsersSupported: Math.max(0, v) })}
+                  tooltip="Total concurrent users supported by all GPUs. Calculated: CONC. USERS/GPU × nGPUs. Read-only."
+                  value={(b.nGpus ?? 1) * (b.concurrentUsersPerGpuSnapshot ?? 0)}
+                  onChange={() => {}}
+                  disabled={true}
                   cols={3}
                 />
                 <NumField
                   label="Peak concurrent (case)"
+                  tooltip="Max simultaneous users of THIS use case at peak load."
                   value={b.peakConcurrentUsers ?? 0}
                   onChange={v => update({ peakConcurrentUsers: Math.max(0, v) })}
                   cols={3}
                 />
                 <NumField
                   label="Peak time / window"
+                  tooltip={`% of the Operating Window with peak load. E.g. ${Math.round((b.peakUsageFractionOfWindow ?? 25) * (calc.windowHoursPerYear / 100))}h/yr of peak usage for this UC.`}
                   value={b.peakUsageFractionOfWindow ?? 25}
                   onChange={v => update({ peakUsageFractionOfWindow: Math.max(0, Math.min(100, v)) })}
                   cols={3}
@@ -356,16 +361,20 @@ const COL_SPAN: Record<number, string> = {
   5: 'md:col-span-5', 6: 'md:col-span-6',
 };
 
-function NumField({ label, value, onChange, cols = 2, suffix = '', step = 1 }: {
-  label: string; value?: number; onChange: (v: number) => void; cols?: number; suffix?: string; step?: number;
+function NumField({ label, value, onChange, cols = 2, suffix = '', step = 1, tooltip, disabled }: {
+  label: string; value?: number; onChange: (v: number) => void; cols?: number; suffix?: string; step?: number; tooltip?: string; disabled?: boolean;
 }) {
   return (
     <div className={COL_SPAN[cols] ?? 'md:col-span-2'}>
-      <label className="text-[10px] uppercase tracking-wide text-muted">{label}</label>
+      <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted">
+        {label}
+        {tooltip && <span title={tooltip} className="cursor-help text-[11px]">ⓘ</span>}
+      </label>
       <div className="relative">
         <input
           type="number" min={0} step={step}
-          className="form-input text-xs tabular-nums pr-6"
+          disabled={disabled}
+          className={`form-input text-xs tabular-nums pr-6 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
           value={value ?? 0}
           onChange={e => onChange(Number(e.target.value) || 0)}
         />
