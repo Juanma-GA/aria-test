@@ -964,9 +964,9 @@ function SlideOver({
                         <>
                           <div className="text-amber-600 text-[11px] font-semibold">{modeLabel}</div>
                           <div className="text-[10px] text-amber-600">
-                            {mode === 'cloud_api' && `${annualReps} runs/yr × €${costPerExec}/exec cloud = €${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr`}
-                            {mode === 'on_premise' && `${annualReps} runs/yr = €${onPremCost}/yr`}
-                            {mode === 'hybrid' && `${annualReps} runs/yr × €${cloudPerExec}/exec cloud + €${onPremCost} on-prem = €${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr`}
+                            {mode === 'cloud_api' && `${cb?.annualReps ?? annualReps} reps × (${(cb?.inputTokensPerExec ?? 0).toLocaleString('de-DE')} in × €${(cb?.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M + ${(cb?.outputTokensPerExec ?? 0).toLocaleString('de-DE')} out × €${(cb?.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M) = €${Math.round(calc?.cloudCostEur ?? 0).toLocaleString('de-DE')}/yr`}
+                            {mode === 'on_premise' && `${cb?.annualReps ?? annualReps} runs/yr = €${Math.round(calc?.onPremTotalEur ?? 0).toLocaleString('de-DE')}/yr`}
+                            {mode === 'hybrid' && `${cb?.annualReps ?? annualReps} reps × (${(cb?.inputTokensPerExec ?? 0).toLocaleString('de-DE')} in × €${(cb?.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M + ${(cb?.outputTokensPerExec ?? 0).toLocaleString('de-DE')} out × €${(cb?.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M) cloud + €${Math.round(calc?.onPremTotalEur ?? 0).toLocaleString('de-DE')} on-prem = €${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr`}
                           </div>
                         </>
                       );
