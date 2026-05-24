@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { getDevelopedTools } from '@/lib/references';
 
 export async function POST(
   req: NextRequest,
@@ -31,6 +32,9 @@ export async function POST(
     const b1 = (process as any).b1 ?? {};
     const b2 = (process as any).b2 ?? {};
     const b3 = (process as any).b3 ?? {};
+
+    const isTechpubs = (process as any).department === 'Technical Publications';
+    const developedTools = isTechpubs ? await getDevelopedTools() : '';
 
     // Build profiles summary
     const profilesSummary = (b1.profiles ?? [])
@@ -124,6 +128,13 @@ For estimatedImplWeeks: total weeks from kickoff to production including integra
 For devCostExplanation: 2-3 sentences justifying the cost, mentioning main cost drivers and compliance overhead if regulated sector.
 
 User has set Impl. Time to ${estimatedImplWeeks} weeks. If provided (> 0), use this as the fixed weeks value and only recalculate estimatedDevCostEur to be coherent with it: estimatedDevCostEur = ${estimatedImplWeeks} × 5 × ${devRateEur} × nDevs
+
+${isTechpubs && developedTools ? `## ATEXIS DEVELOPED TOOLS (configuration only — 20-30% dev cost)
+${developedTools}
+
+If the UC description or requiredPreconditions mentions any tool
+listed above, apply 20-30% cost factor instead of full development cost.
+` : ''}
 
 ## USE CASE (Phase 1)
 Description: ${description}

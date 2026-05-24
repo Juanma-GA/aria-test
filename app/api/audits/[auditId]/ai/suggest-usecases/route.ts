@@ -3,9 +3,9 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
-import { getStateOfTheArt } from '@/lib/references';
+import { getStateOfTheArt, getDevelopedTools } from '@/lib/references';
 
-const SYSTEM_PROMPT = (techpubsKnowledgeBase: string, isTechpubs: boolean) => `You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.).
+const SYSTEM_PROMPT = (techpubsKnowledgeBase: string, developedTools: string, isTechpubs: boolean) => `You are an expert AI consultant at ATEXIS, specializing in AI adoption assessment for ILS processes in regulated industrial sectors (defence, aerospace, naval, railway, etc.).
 
 Your goal is to propose concrete, actionable AI use cases tailored to the process being audited. Read B1 (process context), B2 (sovereignty constraints), and B3 (activities) carefully.
 
@@ -137,6 +137,11 @@ export async function POST(
       stateOfTheArt = await getStateOfTheArt();
     }
 
+    let developedTools = '';
+    if (isTechpubs) {
+      developedTools = await getDevelopedTools();
+    }
+
     const prompt = `
 ## B1 — PROCESS CONTEXT
 Process: ${process.name || 'Unnamed'}
@@ -181,6 +186,13 @@ ${activitiesSummary}
 
 If cost is high but weeks is low (or vice versa), adjust estimates to reflect realistic effort.
 
+${isTechpubs ? `## ATEXIS DEVELOPED TOOLS (configuration only — 20-30% dev cost)
+${developedTools}
+
+Any UC that uses tools listed above requires only configuration and
+integration — NOT custom development. Apply 20-30% cost factor.
+` : ''}
+
 ---
 
 ## INSTRUCTIONS
@@ -217,7 +229,7 @@ Return ONLY valid JSON array, no explanation.`;
     const text = await callMistral([{ role: 'user', content: prompt }], {
       maxTokens: isTechpubs ? 14000 : 3000,
       temperature: 0.4,
-      systemPrompt: SYSTEM_PROMPT(stateOfTheArt, isTechpubs),
+      systemPrompt: SYSTEM_PROMPT(stateOfTheArt, developedTools, isTechpubs),
     });
 
     console.log('[SUGGEST-USECASES] Raw LLM response:\n', text);
