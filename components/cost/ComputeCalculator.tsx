@@ -337,7 +337,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
             <span className="text-text">
               <span className="text-muted text-[11px] mr-1">Annual recurring compute</span>
               <span className="font-semibold text-base tabular-nums">{fmt.format(calc.totalEur)} €</span>
-              {b.mode === 'hybrid' && (
+              {b.mode === 'on_premise' && (
                 <span className="text-muted text-[10px] ml-1">({Math.round(calc.onPremFraction * 100)}% on-prem)</span>
               )}
             </span>
