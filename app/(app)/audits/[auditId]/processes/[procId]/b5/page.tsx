@@ -951,11 +951,26 @@ function SlideOver({
                     <div className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}>
                       {roi.computeCostPerYear > 0 ? `€${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}` : '—'}
                     </div>
-                    {roi.computeCostPerYear > 0 && (
-                      <div className="text-amber-600">
-                        €{(roi.computeCostPerYear / Math.max(annualReps, 1)).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})}/exec
-                      </div>
-                    )}
+                    {roi.computeCostPerYear > 0 && (() => {
+                      const cb = (form as any).computeBreakdown;
+                      const calc = computeAnnualCompute(cb ?? null);
+                      const mode = cb?.mode ?? '';
+                      const modeLabel = mode === 'cloud_api' ? 'Cloud API' : mode === 'on_premise' ? 'On-premise' : mode === 'hybrid' ? 'Hybrid' : '';
+                      const costPerExec = (roi.computeCostPerYear / Math.max(annualReps, 1)).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1});
+                      const cloudPerExec = calc ? (calc.cloudCostEur / Math.max(annualReps, 1)).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1}) : '0,0';
+                      const onPremCost = calc ? Math.round(calc.onPremTotalEur).toLocaleString('de-DE') : '0';
+
+                      return (
+                        <>
+                          <div className="text-amber-600 text-[11px] font-semibold">{modeLabel}</div>
+                          <div className="text-[10px] text-amber-600">
+                            {mode === 'cloud_api' && `${annualReps} runs/yr × €${costPerExec}/exec cloud = €${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr`}
+                            {mode === 'on_premise' && `${annualReps} runs/yr = €${onPremCost}/yr`}
+                            {mode === 'hybrid' && `${annualReps} runs/yr × €${cloudPerExec}/exec cloud + €${onPremCost} on-prem = €${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr`}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                   <div className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}>
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Net Annual Saving</div>
