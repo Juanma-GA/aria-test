@@ -505,18 +505,8 @@ function SlideOver({
       if (!recalcRes.ok) throw new Error('Recalculation failed');
       const result = await recalcRes.json();
 
-      const consolidated = (result.timeSavedPerProfile ?? []).reduce(
-        (acc: any[], entry: any) => {
-          const existing = acc.find(e => e.profileId === entry.profileId);
-          if (existing) existing.hoursPerExecution += entry.hoursPerExecution;
-          else acc.push({ ...entry });
-          return acc;
-        }, []
-      );
-
       setForm(f => ({
         ...f,
-        timeSavedPerProfile: consolidated,
         estimatedDevCostEur: result.estimatedDevCostEur ?? f.estimatedDevCostEur,
         estimatedImplWeeks: result.estimatedImplWeeks ?? f.estimatedImplWeeks,
         devCostExplanation: result.devCostExplanation ?? f.devCostExplanation,
