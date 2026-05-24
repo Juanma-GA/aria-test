@@ -25,7 +25,7 @@ const EMPTY_AI: Partial<CatalogEntry> = {
 };
 const EMPTY_GPU: Partial<CatalogEntry> = {
   kind: 'gpu', name: '', isActive: true,
-  tdpW: 0, vramGb: 0, priceEur: 0, notes: '',
+  tdpW: 0, vramGb: 0, priceEur: 0, concurrentUsersPerGpu: 0, notes: '',
 };
 
 const fmtDate = (d?: Date | string) =>
@@ -321,6 +321,7 @@ export default function CatalogAdminPage() {
                 <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Name</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">VRAM</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">TDP</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Conc. users</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Price</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">AI updated</th>
                 <th className="px-3 py-3" />
@@ -332,6 +333,7 @@ export default function CatalogAdminPage() {
                   <td className="px-3 py-2 font-medium text-text">{g.name}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{g.vramGb ? `${g.vramGb} GB` : '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{g.tdpW ? `${g.tdpW} W` : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{g.concurrentUsersPerGpu ? g.concurrentUsersPerGpu.toString() : '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{g.priceEur ? `€${g.priceEur.toLocaleString()}` : '—'}</td>
                   <td className="px-3 py-2 text-xs text-muted" title={g.aiRationale}>{fmtDate(g.aiUpdatedAt)}</td>
                   <td className="px-3 py-2"><RowActions item={g} onEdit={openEdit} onToggle={toggleActive} onDelete={setDeleteTarget} /></td>
@@ -503,6 +505,10 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
             <div>
               <label className="form-label">TDP (W)</label>
               <input type="number" min={0} className="form-input tabular-nums" value={form.tdpW ?? 0} onChange={e => set({ tdpW: Number(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="form-label">Concurrent users / GPU</label>
+              <input type="number" min={0} className="form-input tabular-nums" value={form.concurrentUsersPerGpu ?? 0} onChange={e => set({ concurrentUsersPerGpu: Number(e.target.value) || 0 })} placeholder="estimated capacity" />
             </div>
             <div>
               <label className="form-label">Unit price (€)</label>
