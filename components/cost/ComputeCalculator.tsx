@@ -14,7 +14,7 @@ import { Cpu, Cloud, Server, Calculator, ChevronDown, ChevronRight } from 'lucid
 import type { CatalogEntry, ComputeBreakdown, AIModelDeploymentMode } from '@/lib/types';
 import { computeAnnualCompute } from '@/lib/calculations';
 
-const fmt = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+const fmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
 
 const MODE_TABS: { key: AIModelDeploymentMode; label: string; Icon: typeof Cloud; hint: string }[] = [
   { key: 'cloud_api',  label: 'Cloud API',  Icon: Cloud,  hint: 'Token-based vendor pricing.' },
