@@ -19,6 +19,7 @@ interface GpuEntry {
   tdpW?: number;
   vramGb?: number;
   priceEur?: number;
+  concurrentUsersPerGpu?: number;
   notes?: string;
 }
 
@@ -105,6 +106,7 @@ For each GPU provide:
 - tdpW: rated TDP in watts.
 - vramGb: HBM/VRAM in GB.
 - priceEur: representative new-unit list price in EUR (use most recent figure you have).
+- concurrentUsersPerGpu: estimated number of concurrent inference users this GPU can serve for a typical LLM workload (7B-13B parameter model, FP16). Based on VRAM and compute specs.
 - notes: optional 1-line caveat (e.g. "datacenter", "workstation").
 
 Return ONLY a JSON object with this exact shape:
@@ -197,7 +199,7 @@ FORMATTING — read carefully:
         aiRationale: g.notes ?? '',
         isActive: true,
       };
-      const numFields = ['tdpW', 'vramGb', 'priceEur'] as const;
+      const numFields = ['tdpW', 'vramGb', 'priceEur', 'concurrentUsersPerGpu'] as const;
       for (const f of numFields) {
         const v = (g as any)[f];
         if (typeof v === 'number' && Number.isFinite(v) && v >= 0) fields[f] = v;
