@@ -106,8 +106,16 @@ function computeRoi(
 ): { totalHours: number; annualSaving: number; computeCostPerYear: number; netAnnualSaving: number; paybackMonths: number; savingPct: number | null } | null {
   const totalHours = timeSaved.reduce((s, e) => s + (e.hoursPerExecution ?? 0), 0);
   if (totalHours === 0 || annualReps === 0) return null;
-  const rates = b1Profiles.map(p => p.hourlyRateEur).filter(r => r > 0);
-  const avgRate = rates.length > 0 ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
+  const weightedSum = timeSaved.reduce((sum, e) => {
+    const profile = b1Profiles.find(p => p.id === e.profileId);
+    if (!profile || !profile.hourlyRateEur) return sum;
+    return sum + (profile.count ?? 1) * profile.hourlyRateEur;
+  }, 0);
+  const totalCount = timeSaved.reduce((sum, e) => {
+    const profile = b1Profiles.find(p => p.id === e.profileId);
+    return sum + (profile?.count ?? 1);
+  }, 0);
+  const avgRate = totalCount > 0 ? weightedSum / totalCount : 0;
   if (avgRate === 0) return null;
   const annualSaving = totalHours * avgRate * annualReps;
   const netAnnualSaving = Math.max(annualSaving - computeCostPerYear, 0);
