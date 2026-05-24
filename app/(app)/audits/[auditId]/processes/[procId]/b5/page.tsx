@@ -504,6 +504,8 @@ function SlideOver({
       );
       if (!recalcRes.ok) throw new Error('Recalculation failed');
       const result = await recalcRes.json();
+      console.log('[RECALC ONLY] result:', JSON.stringify(result, null, 2));
+      console.log('[RECALC ONLY] form.timeSavedPerProfile before:', JSON.stringify(form.timeSavedPerProfile, null, 2));
 
       setForm(f => ({
         ...f,
