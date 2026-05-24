@@ -275,14 +275,14 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
               <div className="grid md:grid-cols-12 gap-2 items-end">
                 <NumField
                   label="Conc. users / GPU"
-                  tooltip="Concurrent users each GPU can serve simultaneously (vendor benchmark). Auto-filled from GPU catalog."
+                  tooltip={`${b.concurrentUsersPerGpuSnapshot ?? 0} concurrent users each ${b.gpuNameSnapshot ?? 'GPU'} can serve simultaneously (vendor benchmark). Auto-filled from GPU catalog. Can be overridden manually, but not recommended.`}
                   value={b.concurrentUsersPerGpuSnapshot ?? 0}
                   onChange={v => update({ concurrentUsersPerGpuSnapshot: Math.max(0, v), maxConcurrentUsersSupported: Math.max(0, (b.nGpus ?? 1) * Math.max(0, v)) })}
                   cols={3}
                 />
                 <NumField
                   label="Max concurrent (HW)"
-                  tooltip="Total concurrent users supported by all GPUs. Calculated: CONC. USERS/GPU × nGPUs. Read-only."
+                  tooltip={`Total concurrent users supported by all GPUs. Calculated: ${b.concurrentUsersPerGpuSnapshot ?? 0} CONC. USERS/GPU × ${b.nGpus ?? 1} GPUs = ${(b.concurrentUsersPerGpuSnapshot ?? 0) * (b.nGpus ?? 1)} total. Read-only.`}
                   value={(b.nGpus ?? 1) * (b.concurrentUsersPerGpuSnapshot ?? 0)}
                   onChange={() => {}}
                   disabled={true}
@@ -297,7 +297,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                 />
                 <NumField
                   label="Peak time / window"
-                  tooltip={`% of the Operating Window with peak load. E.g. ${Math.round((b.peakUsageFractionOfWindow ?? 25) * (calc.windowHoursPerYear / 100))}h/yr of peak usage for this UC.`}
+                  tooltip={`% of the Operating Window during which this UC runs at peak load. With your current window of ${calc.windowHoursPerYear}h/yr, setting ${b.peakUsageFractionOfWindow ?? 25}% means this UC peaks for ${Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100)}h/yr — the remaining ${calc.windowHoursPerYear - Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100)}h/yr the hardware is shared with other workloads or idle.`}
                   value={b.peakUsageFractionOfWindow ?? 25}
                   onChange={v => update({ peakUsageFractionOfWindow: Math.max(0, Math.min(100, v)) })}
                   cols={3}
