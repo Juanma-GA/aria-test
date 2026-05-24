@@ -823,11 +823,11 @@ function SlideOver({
                 </div>
                 <div>
                   <label className="form-label">Nº Developers</label>
-                  <input type="number" min={1} className="form-input"
+                  <input type="number" min={0.1} step={0.1} className="form-input"
                     disabled={!isPhase2Visible}
                     value={form.nDevs ?? 1}
                     onChange={e => {
-                      const newValue = parseInt(e.target.value) || 1;
+                      const newValue = parseFloat(e.target.value) || 1;
                       set('nDevs', newValue);
                       set('estimatedDevCostEur', (form.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * newValue);
                     }} />
