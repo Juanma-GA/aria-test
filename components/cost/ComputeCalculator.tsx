@@ -14,8 +14,7 @@ import { Cpu, Cloud, Server, Calculator, ChevronDown, ChevronRight } from 'lucid
 import type { CatalogEntry, ComputeBreakdown, AIModelDeploymentMode } from '@/lib/types';
 import { computeAnnualCompute } from '@/lib/calculations';
 
-const fmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
-console.log('[FMT TEST]', new Intl.NumberFormat('es-ES').format(1678), new Intl.NumberFormat('de-DE').format(1678));
+const fmt = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
 
 const MODE_TABS: { key: AIModelDeploymentMode; label: string; Icon: typeof Cloud; hint: string }[] = [
   { key: 'cloud_api',  label: 'Cloud API',  Icon: Cloud,  hint: 'Token-based vendor pricing.' },
@@ -175,12 +174,12 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                     <option value="" disabled>Pick a model…</option>
                     {models.map(m => (
                       <option key={m._id} value={m._id}>
-                        {m.name}{m.vendor ? ` (${m.vendor})` : ''} — €{(m.pricePerMInputTokens ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(m.pricePerMOutputTokens ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
+                        {m.name}{m.vendor ? ` (${m.vendor})` : ''} — €{(m.pricePerMInputTokens ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(m.pricePerMOutputTokens ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
                       </option>
                     ))}
                     {b.modelId && !models.find(m => m._id === b.modelId) && (
                       <option value={b.modelId} disabled>
-                        {b.modelNameSnapshot ?? '(archived)'} — archived (€{(b.modelPriceInSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(b.modelPriceOutSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
+                        {b.modelNameSnapshot ?? '(archived)'} — archived (€{(b.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(b.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
                       </option>
                     )}
                   </select>
@@ -190,8 +189,8 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                 <NumField label="Out tokens / exec" value={b.outputTokensPerExec} onChange={v => update({ outputTokensPerExec: v })}  cols={2} />
               </div>
               <p className="text-[10px] text-muted">
-                {fmt.format(b.annualReps ?? 0)} reps × ({fmt.format(b.inputTokensPerExec ?? 0)} in × €{(b.modelPriceInSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
-                {' '}+ {fmt.format(b.outputTokensPerExec ?? 0)} out × €{(b.modelPriceOutSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
+                {fmt.format(b.annualReps ?? 0)} reps × ({fmt.format(b.inputTokensPerExec ?? 0)} in × €{(b.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
+                {' '}+ {fmt.format(b.outputTokensPerExec ?? 0)} out × €{(b.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
                 {' '}= <span className="font-semibold text-text">{fmt.format(calc.cloudCostEur)} €/yr cloud</span>
               </p>
               {b.annualRepsManuallyEdited && b3AnnualReps && b3AnnualReps !== b.annualReps && (
@@ -215,7 +214,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                     <option value="" disabled>Pick a GPU…</option>
                     {gpus.map(g => (
                       <option key={g._id} value={g._id}>
-                        {g.name} — {g.vramGb ?? '?'}GB · {g.tdpW ?? '?'}W · €{(g.priceEur ?? 0).toLocaleString('es-ES')}
+                        {g.name} — {g.vramGb ?? '?'}GB · {g.tdpW ?? '?'}W · €{(g.priceEur ?? 0).toLocaleString('de-DE')}
                       </option>
                     ))}
                     {b.gpuId && !gpus.find(g => g._id === b.gpuId) && (

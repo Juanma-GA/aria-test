@@ -854,7 +854,7 @@ function SlideOver({
                   <div className="flex justify-end items-center pt-1 border-t border-border">
                     <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
                     <span className="text-sm font-bold text-text">
-                      €{devCostComputed.toLocaleString('es-ES')}
+                      €{devCostComputed.toLocaleString('de-DE')}
                     </span>
                   </div>
                 );
@@ -932,7 +932,7 @@ function SlideOver({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-green-50 border border-green-200 rounded p-2">
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Gross Annual Saving</div>
-                    <div className="font-bold text-green-700 text-sm">€{Math.round(roi.annualSaving).toLocaleString('es-ES')}</div>
+                    <div className="font-bold text-green-700 text-sm">€{Math.round(roi.annualSaving).toLocaleString('de-DE')}</div>
                     <div className="text-green-600">{roi.totalHours}h/run × {annualReps} runs/yr</div>
                     {roi.savingPct !== null && (
                       <div className="mt-1 font-semibold text-green-700">{roi.savingPct}% of targeted activities</div>
@@ -941,7 +941,7 @@ function SlideOver({
                   <div className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}>
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Compute Cost/yr</div>
                     <div className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}>
-                      {roi.computeCostPerYear > 0 ? `€${Math.round(roi.computeCostPerYear).toLocaleString('es-ES')}` : '—'}
+                      {roi.computeCostPerYear > 0 ? `€${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}` : '—'}
                     </div>
                     {roi.computeCostPerYear > 0 && (
                       <div className="text-amber-600">
@@ -952,17 +952,17 @@ function SlideOver({
                   <div className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}>
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Net Annual Saving</div>
                     <div className={`font-bold text-base ${roi.netAnnualSaving > 0 ? 'text-teal-700' : 'text-red-600'}`}>
-                      €{Math.round(roi.netAnnualSaving).toLocaleString('es-ES')}
+                      €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}
                     </div>
                     {roi.computeCostPerYear > 0 && (
-                      <div className="text-[10px] text-muted">Gross €{Math.round(roi.annualSaving).toLocaleString('es-ES')} − Compute €{Math.round(roi.computeCostPerYear).toLocaleString('es-ES')}</div>
+                      <div className="text-[10px] text-muted">Gross €{Math.round(roi.annualSaving).toLocaleString('de-DE')} − Compute €{Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}</div>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-red-50 border border-red-200 rounded p-2">
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Dev Cost (one-time)</div>
-                    <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString('es-ES')}</div>
+                    <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}</div>
                     {(form.estimatedImplWeeks ?? 0) > 0 && (
                       <div className="text-red-600">{form.estimatedImplWeeks} weeks impl.</div>
                     )}
@@ -1018,10 +1018,10 @@ function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: UseCase; b1Prof
     <div className="text-xs space-y-0.5">
       <div className="flex items-center gap-1 text-green-600">
         <TrendingUp size={10} />
-        <span className="font-medium">Net: €{Math.round(roi.netAnnualSaving).toLocaleString('es-ES')}/yr</span>
+        <span className="font-medium">Net: €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr</span>
       </div>
       {roi.computeCostPerYear > 0 && (
-        <div className="text-amber-600">Compute: −€{Math.round(roi.computeCostPerYear).toLocaleString('es-ES')}/yr</div>
+        <div className="text-amber-600">Compute: −€{Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr</div>
       )}
       {roi.savingPct !== null && (
         <div className="text-muted">{roi.savingPct}% of targeted activities</div>
