@@ -426,7 +426,7 @@ function SlideOver({
               aiTypes: data.aiTypes,
               targetActivities: data.targetActivities,
               requiredPreconditions: data.requiredPreconditions,
-              devRateEur: data.devRateEur ?? 450,
+              devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
               score: { dimensions: dims },
             }),
           }
@@ -737,34 +737,32 @@ function SlideOver({
               ))}
             </div>
 
-            {/* Dev cost + impl weeks (same row) */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="form-label">Dev Cost — Man-Hours (€)</label>
-                <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedDevCostEur ?? 0}
-                  onChange={e => set('estimatedDevCostEur', parseFloat(e.target.value) || 0)} />
-              </div>
+            {/* Impl. Time, Dev Rate, Dev Cost (3 columns) */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="form-label">Impl. Time (weeks)</label>
                 <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedImplWeeks ?? 0}
                   onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
               </div>
-            </div>
-
-            {/* Dev Rate Reference */}
-            <div>
-              <label className="form-label">Dev Rate Reference (€/day)</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                disabled={!isPhase2Visible}
-                value={form.devRateEur ?? 450}
-                onChange={e => set('devRateEur', parseFloat(e.target.value) || 450)}
-              />
-              <span className="text-xs text-muted mt-1 block">
-                Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
-              </span>
+              <div>
+                <label className="form-label">Dev Rate Reference (€/day)</label>
+                <input
+                  type="number"
+                  min={0}
+                  className="form-input"
+                  disabled={!isPhase2Visible}
+                  value={form.devRateEur ?? 450}
+                  onChange={e => set('devRateEur', parseFloat(e.target.value) || 450)}
+                />
+                <span className="text-xs text-muted mt-1 block">
+                  Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
+                </span>
+              </div>
+              <div>
+                <label className="form-label">Dev Cost — Man-Hours (€)</label>
+                <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedDevCostEur ?? 0}
+                  onChange={e => set('estimatedDevCostEur', parseFloat(e.target.value) || 0)} />
+              </div>
             </div>
 
             {/* Dev Cost Explanation */}
