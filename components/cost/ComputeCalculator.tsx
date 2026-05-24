@@ -325,13 +325,6 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
             </div>
           )}
 
-          {/* Override warning (visible in hybrid mode only) */}
-          {b.annualRepsManuallyEdited && b3AnnualReps && b3AnnualReps !== b.annualReps && b.mode === 'hybrid' && (
-            <div className="bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 p-2">
-              <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 value ({b3AnnualReps ?? 0}).
-            </div>
-          )}
-
           {/* Total + clear */}
           <div className="flex items-center justify-between text-xs border-t border-border pt-2">
             <button
