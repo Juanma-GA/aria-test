@@ -13,6 +13,7 @@ export interface IUseCase extends Document {
   estimatedDevCostEur: number;
   devCostExplanation: string;
   devRateEur?: number;
+  nDevs?: number;
   requiredPreconditions?: {
     requiresClientIT?: boolean;
     text?: string;
@@ -99,6 +100,7 @@ const UseCaseSchema = new Schema<IUseCase>({
   estimatedDevCostEur: { type: Number, default: 0 },
   devCostExplanation: { type: String, default: '' },
   devRateEur: { type: Number, default: 450 },
+  nDevs: { type: Number, default: 1 },
   requiredPreconditions: RequiredPreconditionsSchema,
   estimatedImplWeeks: { type: Number, default: 0 },
   status: { type: String, enum: ['eligible', 'blocked', 'pending_review'], default: 'eligible' },

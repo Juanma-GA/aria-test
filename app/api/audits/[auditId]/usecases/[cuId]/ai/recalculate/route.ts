@@ -16,7 +16,7 @@ export async function POST(
     if (!isAccessGranted(access)) return access;
 
     const body = await req.json();
-    const { description, aiTypes, targetActivities, requiredPreconditions, devRateEur, estimatedImplWeeks } = body;
+    const { description, aiTypes, targetActivities, requiredPreconditions, devRateEur, estimatedImplWeeks, nDevs } = body;
 
     // Fetch UseCase and Process
     const useCase = await UseCase.findOne({ auditId, _id: cuId }).lean();
@@ -127,7 +127,9 @@ For estimatedImplWeeks: total weeks from kickoff to production including integra
 
 For devCostExplanation: 2-3 sentences justifying the cost, mentioning main cost drivers and compliance overhead if regulated sector.
 
-User has set Impl. Time to ${estimatedImplWeeks} weeks. If provided (> 0), use this as the fixed weeks value and only recalculate estimatedDevCostEur to be coherent with it: estimatedDevCostEur = ${estimatedImplWeeks} × 5 × ${devRateEur} × nDevs
+User has set Impl. Time to ${estimatedImplWeeks} weeks. If provided (> 0), use this as the fixed weeks value and only recalculate estimatedDevCostEur to be coherent with it: estimatedDevCostEur = ${estimatedImplWeeks} × 5 × ${devRateEur} × ${nDevs}
+
+nDevs reference: ${nDevs} developers
 
 ${isTechpubs && developedTools ? `## ATEXIS DEVELOPED TOOLS (configuration only — 20-30% dev cost)
 ${developedTools}

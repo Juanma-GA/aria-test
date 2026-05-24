@@ -88,6 +88,7 @@ function emptyForm(processId: string): Partial<UseCase> & { aiTypes: AIType[]; t
     estimatedDevCostEur: 0,
     devCostExplanation: '',
     devRateEur: 450,
+    nDevs: 1,
     estimatedImplWeeks: 0,
     requiredPreconditions: { requiresClientIT: false, text: '' },
     computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
@@ -426,6 +427,7 @@ function SlideOver({
               requiredPreconditions: data.requiredPreconditions,
               devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
               estimatedImplWeeks: form.estimatedImplWeeks ?? data.estimatedImplWeeks ?? 0,
+              nDevs: form.nDevs ?? data.nDevs ?? 1,
               score: { dimensions: dims },
             }),
           }
@@ -495,6 +497,7 @@ function SlideOver({
             requiredPreconditions: form.requiredPreconditions,
             devRateEur: form.devRateEur ?? 450,
             estimatedImplWeeks: form.estimatedImplWeeks ?? 0,
+            nDevs: form.nDevs ?? 1,
             score: { dimensions: dims },
           }),
         }
@@ -805,21 +808,40 @@ function SlideOver({
                 </div>
               )}
 
-              {/* Fields row (2 columns) */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Fields row (3 columns) */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="form-label">Impl. Time (weeks)</label>
                   <input type="number" min={0} className="form-input"
                     disabled={!isPhase2Visible}
                     value={form.estimatedImplWeeks ?? 0}
-                    onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
+                    onChange={e => {
+                      const newValue = parseInt(e.target.value) || 0;
+                      set('estimatedImplWeeks', newValue);
+                      set('estimatedDevCostEur', newValue * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1));
+                    }} />
+                </div>
+                <div>
+                  <label className="form-label">Nº Developers</label>
+                  <input type="number" min={1} className="form-input"
+                    disabled={!isPhase2Visible}
+                    value={form.nDevs ?? 1}
+                    onChange={e => {
+                      const newValue = parseInt(e.target.value) || 1;
+                      set('nDevs', newValue);
+                      set('estimatedDevCostEur', (form.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * newValue);
+                    }} />
                 </div>
                 <div>
                   <label className="form-label">Dev Rate Reference (€/day)</label>
                   <input type="number" min={0} className="form-input"
                     disabled={!isPhase2Visible}
                     value={form.devRateEur ?? 450}
-                    onChange={e => set('devRateEur', parseFloat(e.target.value) || 450)} />
+                    onChange={e => {
+                      const newValue = parseFloat(e.target.value) || 450;
+                      set('devRateEur', newValue);
+                      set('estimatedDevCostEur', (form.estimatedImplWeeks ?? 0) * 5 * newValue * (form.nDevs ?? 1));
+                    }} />
                   <span className="text-xs text-muted mt-1 block">
                     Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
                   </span>
@@ -835,13 +857,18 @@ function SlideOver({
                   onChange={e => set('devCostExplanation', e.target.value)} />
               </div>
 
-              {/* Footer — Dev Cost estimate (read-only display) */}
-              <div className="flex justify-end items-center pt-1 border-t border-border">
-                <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
-                <span className="text-sm font-bold text-text">
-                  €{(form.estimatedDevCostEur ?? 0).toLocaleString()}
-                </span>
-              </div>
+              {/* Footer — Dev Cost estimate (computed from weeks × 5 × rate × devs) */}
+              {(() => {
+                const devCostComputed = (form.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+                return (
+                  <div className="flex justify-end items-center pt-1 border-t border-border">
+                    <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
+                    <span className="text-sm font-bold text-text">
+                      €{devCostComputed.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })()}
 
             </div>
 
@@ -1494,6 +1521,7 @@ export default function B5Page() {
                           estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
                           devCostExplanation: s.devCostExplanation ?? '',
                           devRateEur: 450,
+                          nDevs: 1,
                           requiredPreconditions: {
                             requiresClientIT: s.requiredPreconditions?.requiresClientIT ?? false,
                             text: [
