@@ -792,7 +792,7 @@ function SlideOver({
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text">
-                  <span>🔧</span> Dev Cost calculator
+                  <span>🔧</span> Dev Cost (man-hour) calculator
                 </div>
                 <button
                   onClick={handleRecalculateOnly}
