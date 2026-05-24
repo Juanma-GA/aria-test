@@ -945,7 +945,7 @@ function SlideOver({
                     </div>
                     {roi.computeCostPerYear > 0 && (
                       <div className="text-amber-600">
-                        €{(roi.computeCostPerYear / Math.max(annualReps, 1)).toFixed(3)}/exec
+                        €{(roi.computeCostPerYear / Math.max(annualReps, 1)).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})}/exec
                       </div>
                     )}
                   </div>
@@ -970,7 +970,7 @@ function SlideOver({
                   {roi.paybackMonths > 0 && (
                     <div className="bg-slate-100 border border-border rounded p-2">
                       <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Payback Period</div>
-                      <div className="font-bold text-text text-sm">{roi.paybackMonths.toFixed(1)} months</div>
+                      <div className="font-bold text-text text-sm">{roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</div>
                       <div className="text-muted">on net saving</div>
                     </div>
                   )}
@@ -1027,7 +1027,7 @@ function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: UseCase; b1Prof
         <div className="text-muted">{roi.savingPct}% of targeted activities</div>
       )}
       {roi.paybackMonths > 0 && (
-        <div className="text-muted">Payback: {roi.paybackMonths.toFixed(1)} mo</div>
+        <div className="text-muted">Payback: {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} mo</div>
       )}
     </div>
   );
