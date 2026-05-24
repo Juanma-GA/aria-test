@@ -956,9 +956,6 @@ function SlideOver({
                       const calc = computeAnnualCompute(cb ?? null);
                       const mode = cb?.mode ?? '';
                       const modeLabel = mode === 'cloud_api' ? 'Cloud API' : mode === 'on_premise' ? 'On-premise' : mode === 'hybrid' ? 'Hybrid' : '';
-                      const costPerExec = (roi.computeCostPerYear / Math.max(annualReps, 1)).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1});
-                      const cloudPerExec = calc ? (calc.cloudCostEur / Math.max(annualReps, 1)).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1}) : '0,0';
-                      const onPremCost = calc ? Math.round(calc.onPremTotalEur).toLocaleString('de-DE') : '0';
 
                       return (
                         <>
@@ -1561,7 +1558,6 @@ export default function B5Page() {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(body),
                         });
-                        // TODO: apply same consolidation after role→profileId mapping in recalculate response
                       }
                       await load();
                       setGenerateModal(false);
