@@ -181,6 +181,7 @@ export interface UseCase {
   estimatedDevCostEur: number;
   devCostExplanation: string;
   devRateEur?: number;
+  nDevs?: number;
   requiredPreconditions?: {
     requiresClientIT?: boolean;
     text?: string;

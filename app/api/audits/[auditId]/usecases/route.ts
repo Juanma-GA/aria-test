@@ -132,6 +132,7 @@ export async function POST(
       estimatedDevCostEur: body.estimatedDevCostEur || 0,
       devCostExplanation: body.devCostExplanation || '',
       devRateEur: body.devRateEur ?? 450,
+      nDevs: body.nDevs ?? 1,
       estimatedImplWeeks: body.estimatedImplWeeks || 0,
       status,
       notes: body.notes || '',
