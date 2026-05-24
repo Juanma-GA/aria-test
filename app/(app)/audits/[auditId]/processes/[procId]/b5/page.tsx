@@ -140,6 +140,7 @@ function SlideOver({
   const [analyzingSOV, setAnalyzingSOV] = useState(false);
   const [refreshingCompute, setRefreshingCompute] = useState(false);
   const [computeRationale, setComputeRationale] = useState('');
+  const [devCostRationale, setDevCostRationale] = useState('');
   const [isPhase2Visible, setIsPhase2Visible] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
@@ -485,6 +486,53 @@ function SlideOver({
     finally { setSaving(false); }
   };
 
+  const handleRecalculateOnly = async () => {
+    if (!editUC?._id) return;
+    setIsRecalculating(true);
+    try {
+      const recalcRes = await fetch(
+        `/api/audits/${auditId}/usecases/${editUC._id}/ai/recalculate`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: form.description,
+            targetActivities: form.targetActivities,
+            requiredPreconditions: form.requiredPreconditions,
+            devRateEur: form.devRateEur ?? 450,
+            estimatedImplWeeks: form.estimatedImplWeeks ?? 0,
+            score: { dimensions: dims },
+          }),
+        }
+      );
+      if (!recalcRes.ok) throw new Error('Recalculation failed');
+      const result = await recalcRes.json();
+
+      const consolidated = (result.timeSavedPerProfile ?? []).reduce(
+        (acc: any[], entry: any) => {
+          const existing = acc.find(e => e.profileId === entry.profileId);
+          if (existing) existing.hoursPerExecution += entry.hoursPerExecution;
+          else acc.push({ ...entry });
+          return acc;
+        }, []
+      );
+
+      setForm(f => ({
+        ...f,
+        timeSavedPerProfile: consolidated,
+        estimatedDevCostEur: result.estimatedDevCostEur ?? f.estimatedDevCostEur,
+        estimatedImplWeeks: result.estimatedImplWeeks ?? f.estimatedImplWeeks,
+        devCostExplanation: result.devCostExplanation ?? f.devCostExplanation,
+      }));
+      setDevCostRationale(result.devCostExplanation ?? '');
+    } catch {
+      // silent fail — user can retry
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   const handleSave_Phase2 = async () => {
     setSaving(true);
     try {
@@ -738,39 +786,70 @@ function SlideOver({
               ))}
             </div>
 
-            {/* Impl. Time, Dev Rate, Dev Cost (3 columns) */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="form-label">Impl. Time (weeks)</label>
-                <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedImplWeeks ?? 0}
-                  onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
+            {/* Dev Cost Calculator Box */}
+            <div className="border border-border rounded p-4 space-y-3">
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                  <span>🔧</span> Dev Cost calculator
+                </div>
+                <button
+                  onClick={handleRecalculateOnly}
+                  disabled={isRecalculating || !isPhase2Visible}
+                  className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                >
+                  {isRecalculating ? <Spinner size="sm" /> : <RefreshCw size={11} />}
+                  {isRecalculating ? 'Recalculating…' : 'Recalculate (AI)'}
+                </button>
               </div>
+
+              {/* Rationale message */}
+              {devCostRationale && (
+                <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+                  <Bot size={11} className="mt-0.5 flex-shrink-0" />
+                  <span>{devCostRationale}</span>
+                </div>
+              )}
+
+              {/* Fields row (2 columns) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Impl. Time (weeks)</label>
+                  <input type="number" min={0} className="form-input"
+                    disabled={!isPhase2Visible}
+                    value={form.estimatedImplWeeks ?? 0}
+                    onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <label className="form-label">Dev Rate Reference (€/day)</label>
+                  <input type="number" min={0} className="form-input"
+                    disabled={!isPhase2Visible}
+                    value={form.devRateEur ?? 450}
+                    onChange={e => set('devRateEur', parseFloat(e.target.value) || 450)} />
+                  <span className="text-xs text-muted mt-1 block">
+                    Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
+                  </span>
+                </div>
+              </div>
+
+              {/* Dev Cost Explanation */}
               <div>
-                <label className="form-label">Dev Rate Reference (€/day)</label>
-                <input
-                  type="number"
-                  min={0}
-                  className="form-input"
-                  disabled={!isPhase2Visible}
-                  value={form.devRateEur ?? 450}
-                  onChange={e => set('devRateEur', parseFloat(e.target.value) || 450)}
-                />
-                <span className="text-xs text-muted mt-1 block">
-                  Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
+                <label className="form-label">Dev Cost Explanation</label>
+                <textarea rows={2} className="form-textarea" disabled={!isPhase2Visible}
+                  placeholder="Briefly explain the cost estimate…"
+                  value={form.devCostExplanation || ''}
+                  onChange={e => set('devCostExplanation', e.target.value)} />
+              </div>
+
+              {/* Footer — Dev Cost estimate (read-only display) */}
+              <div className="flex justify-end items-center pt-1 border-t border-border">
+                <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
+                <span className="text-sm font-bold text-text">
+                  €{(form.estimatedDevCostEur ?? 0).toLocaleString()}
                 </span>
               </div>
-              <div>
-                <label className="form-label">Dev Cost — Man-Hours (€)</label>
-                <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedDevCostEur ?? 0}
-                  onChange={e => set('estimatedDevCostEur', parseFloat(e.target.value) || 0)} />
-              </div>
-            </div>
 
-            {/* Dev Cost Explanation */}
-            <div>
-              <label className="form-label">Dev Cost Explanation</label>
-              <textarea rows={2} className="form-textarea" disabled={!isPhase2Visible} placeholder="Briefly explain the cost estimate…"
-                value={form.devCostExplanation || ''} onChange={e => set('devCostExplanation', e.target.value)} />
             </div>
 
             {/* Compute Cost Simulator */}
