@@ -103,7 +103,7 @@ function computeRoi(
   annualReps: number,
   targetHours: number,
   computeCostPerYear: number = 0,
-): { totalHours: number; annualSaving: number; computeCostPerYear: number; netAnnualSaving: number; paybackMonths: number; savingPct: number | null } | null {
+): { totalHours: number; annualSaving: number; computeCostPerYear: number; netAnnualSaving: number; paybackMonths: number; savingPct: number | null; avgRate: number; targetHours: number } | null {
   const totalHours = timeSaved.reduce((s, e) => s + (e.hoursPerExecution ?? 0), 0);
   if (totalHours === 0 || annualReps === 0) return null;
   const weightedSum = timeSaved.reduce((sum, e) => {
@@ -121,7 +121,7 @@ function computeRoi(
   const netAnnualSaving = Math.max(annualSaving - computeCostPerYear, 0);
   const paybackMonths = devCost > 0 && netAnnualSaving > 0 ? (devCost / netAnnualSaving) * 12 : 0;
   const savingPct = targetHours > 0 ? Math.round((totalHours / targetHours) * 100) : null;
-  return { totalHours, annualSaving, computeCostPerYear, netAnnualSaving, paybackMonths, savingPct };
+  return { totalHours, annualSaving, computeCostPerYear, netAnnualSaving, paybackMonths, savingPct, avgRate, targetHours };
 }
 
 function SlideOver({
@@ -941,9 +941,9 @@ function SlideOver({
                   <div className="bg-green-50 border border-green-200 rounded p-2">
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Gross Annual Saving</div>
                     <div className="font-bold text-green-700 text-sm">€{Math.round(roi.annualSaving).toLocaleString('de-DE')}</div>
-                    <div className="text-green-600">{roi.totalHours}h/run × {annualReps} runs/yr</div>
+                    <div className="text-green-600">{roi.totalHours}h/run × €{roi.avgRate.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})}/h avg × {annualReps} runs/yr</div>
                     {roi.savingPct !== null && (
-                      <div className="mt-1 font-semibold text-green-700">{roi.savingPct}% of targeted activities</div>
+                      <div className="mt-1 font-semibold text-green-700">{roi.savingPct}% of targeted activities ({roi.totalHours}h saved / {roi.targetHours}h total)</div>
                     )}
                   </div>
                   <div className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}>
