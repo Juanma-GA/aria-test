@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 export const metadata: Metadata = {
   title: 'ARIA – AI Readiness & Impact Audit',
   description: 'AI Readiness & Impact Audit platform for enterprise AI governance.',
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
