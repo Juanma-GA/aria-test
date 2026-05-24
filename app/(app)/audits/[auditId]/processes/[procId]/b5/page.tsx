@@ -427,6 +427,7 @@ function SlideOver({
               targetActivities: data.targetActivities,
               requiredPreconditions: data.requiredPreconditions,
               devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
+              estimatedImplWeeks: form.estimatedImplWeeks ?? data.estimatedImplWeeks ?? 0,
               score: { dimensions: dims },
             }),
           }
