@@ -174,12 +174,12 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                     <option value="" disabled>Pick a model…</option>
                     {models.map(m => (
                       <option key={m._id} value={m._id}>
-                        {m.name}{m.vendor ? ` (${m.vendor})` : ''} — €{(m.pricePerMInputTokens ?? 0).toFixed(2)}/€{(m.pricePerMOutputTokens ?? 0).toFixed(2)}/M
+                        {m.name}{m.vendor ? ` (${m.vendor})` : ''} — €{(m.pricePerMInputTokens ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(m.pricePerMOutputTokens ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
                       </option>
                     ))}
                     {b.modelId && !models.find(m => m._id === b.modelId) && (
                       <option value={b.modelId} disabled>
-                        {b.modelNameSnapshot ?? '(archived)'} — archived (€{b.modelPriceInSnapshot ?? 0}/€{b.modelPriceOutSnapshot ?? 0}/M)
+                        {b.modelNameSnapshot ?? '(archived)'} — archived (€{(b.modelPriceInSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(b.modelPriceOutSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
                       </option>
                     )}
                   </select>
@@ -189,13 +189,13 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                 <NumField label="Out tokens / exec" value={b.outputTokensPerExec} onChange={v => update({ outputTokensPerExec: v })}  cols={2} />
               </div>
               <p className="text-[10px] text-muted">
-                {fmt.format(b.annualReps ?? 0)} reps × ({fmt.format(b.inputTokensPerExec ?? 0)} in × €{(b.modelPriceInSnapshot ?? 0).toFixed(2)}/M
-                {' '}+ {fmt.format(b.outputTokensPerExec ?? 0)} out × €{(b.modelPriceOutSnapshot ?? 0).toFixed(2)}/M)
+                {fmt.format(b.annualReps ?? 0)} reps × ({fmt.format(b.inputTokensPerExec ?? 0)} in × €{(b.modelPriceInSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
+                {' '}+ {fmt.format(b.outputTokensPerExec ?? 0)} out × €{(b.modelPriceOutSnapshot ?? 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
                 {' '}= <span className="font-semibold text-text">{fmt.format(calc.cloudCostEur)} €/yr cloud</span>
               </p>
               {b.annualRepsManuallyEdited && b3AnnualReps && b3AnnualReps !== b.annualReps && (
                 <div className="bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 p-2">
-                  <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 value ({b3AnnualReps ?? 0}).
+                  <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 value ({fmt.format(b3AnnualReps ?? 0)}).
                 </div>
               )}
             </div>
@@ -275,14 +275,14 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
               <div className="grid md:grid-cols-12 gap-2 items-end">
                 <NumField
                   label="Conc. users / GPU"
-                  tooltip={`${b.concurrentUsersPerGpuSnapshot ?? 0} concurrent users each ${b.gpuNameSnapshot ?? 'GPU'} can serve simultaneously (vendor benchmark). Auto-filled from GPU catalog. Can be overridden manually, but not recommended.`}
+                  tooltip={`${fmt.format(b.concurrentUsersPerGpuSnapshot ?? 0)} concurrent users each ${b.gpuNameSnapshot ?? 'GPU'} can serve simultaneously (vendor benchmark). Auto-filled from GPU catalog. Can be overridden manually, but not recommended.`}
                   value={b.concurrentUsersPerGpuSnapshot ?? 0}
                   onChange={v => update({ concurrentUsersPerGpuSnapshot: Math.max(0, v), maxConcurrentUsersSupported: Math.max(0, (b.nGpus ?? 1) * Math.max(0, v)) })}
                   cols={3}
                 />
                 <NumField
                   label="Max concurrent (HW)"
-                  tooltip={`Total concurrent users supported by all GPUs. Calculated: ${b.concurrentUsersPerGpuSnapshot ?? 0} CONC. USERS/GPU × ${b.nGpus ?? 1} GPUs = ${(b.concurrentUsersPerGpuSnapshot ?? 0) * (b.nGpus ?? 1)} total. Read-only.`}
+                  tooltip={`Total concurrent users supported by all GPUs. Calculated: ${fmt.format(b.concurrentUsersPerGpuSnapshot ?? 0)} CONC. USERS/GPU × ${fmt.format(b.nGpus ?? 1)} GPUs = ${fmt.format((b.concurrentUsersPerGpuSnapshot ?? 0) * (b.nGpus ?? 1))} total. Read-only.`}
                   value={(b.nGpus ?? 1) * (b.concurrentUsersPerGpuSnapshot ?? 0)}
                   onChange={() => {}}
                   disabled={true}
@@ -297,7 +297,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                 />
                 <NumField
                   label="Peak time / window"
-                  tooltip={`% of the Operating Window during which this UC runs at peak load. With your current window of ${calc.windowHoursPerYear}h/yr, setting ${b.peakUsageFractionOfWindow ?? 25}% means this UC peaks for ${Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100)}h/yr — the remaining ${calc.windowHoursPerYear - Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100)}h/yr the hardware is shared with other workloads or idle.`}
+                  tooltip={`% of the Operating Window during which this UC runs at peak load. With your current window of ${fmt.format(calc.windowHoursPerYear)}h/yr, setting ${b.peakUsageFractionOfWindow ?? 25}% means this UC peaks for ${fmt.format(Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100))}h/yr — the remaining ${fmt.format(calc.windowHoursPerYear - Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100))}h/yr the hardware is shared with other workloads or idle.`}
                   value={b.peakUsageFractionOfWindow ?? 25}
                   onChange={v => update({ peakUsageFractionOfWindow: Math.max(0, Math.min(100, v)) })}
                   cols={3}
