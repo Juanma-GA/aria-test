@@ -214,7 +214,7 @@ export function ComputeCalculator({ breakdown, onChange, title = 'Compute calcul
                     <option value="" disabled>Pick a GPU…</option>
                     {gpus.map(g => (
                       <option key={g._id} value={g._id}>
-                        {g.name} — {g.vramGb ?? '?'}GB · {g.tdpW ?? '?'}W · €{(g.priceEur ?? 0).toLocaleString()}
+                        {g.name} — {g.vramGb ?? '?'}GB · {g.tdpW ?? '?'}W · €{(g.priceEur ?? 0).toLocaleString('es-ES')}
                       </option>
                     ))}
                     {b.gpuId && !gpus.find(g => g._id === b.gpuId) && (
