@@ -87,6 +87,7 @@ function emptyForm(processId: string): Partial<UseCase> & { aiTypes: AIType[]; t
     timeSavedPerProfile: [],
     estimatedDevCostEur: 0,
     devCostExplanation: '',
+    devRateEur: 450,
     estimatedImplWeeks: 0,
     requiredPreconditions: { requiresClientIT: false, text: '' },
     computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
@@ -425,6 +426,7 @@ function SlideOver({
               aiTypes: data.aiTypes,
               targetActivities: data.targetActivities,
               requiredPreconditions: data.requiredPreconditions,
+              devRateEur: data.devRateEur ?? 450,
               score: { dimensions: dims },
             }),
           }
@@ -747,6 +749,22 @@ function SlideOver({
                 <input type="number" min={0} className="form-input" disabled={!isPhase2Visible} value={form.estimatedImplWeeks ?? 0}
                   onChange={e => set('estimatedImplWeeks', parseInt(e.target.value) || 0)} />
               </div>
+            </div>
+
+            {/* Dev Rate Reference */}
+            <div>
+              <label className="form-label">Dev Rate Reference (€/day)</label>
+              <input
+                type="number"
+                min={0}
+                className="form-input"
+                disabled={!isPhase2Visible}
+                value={form.devRateEur ?? 450}
+                onChange={e => set('devRateEur', parseFloat(e.target.value) || 450)}
+              />
+              <span className="text-xs text-muted mt-1 block">
+                Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
+              </span>
             </div>
 
             {/* Dev Cost Explanation */}
@@ -1403,6 +1421,7 @@ export default function B5Page() {
                           timeSavedPerProfile: consolidated,
                           estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
                           devCostExplanation: s.devCostExplanation ?? '',
+                          devRateEur: 450,
                           requiredPreconditions: {
                             requiresClientIT: s.requiredPreconditions?.requiresClientIT ?? false,
                             text: [

@@ -131,6 +131,7 @@ export async function POST(
       timeSavedPerProfile: body.timeSavedPerProfile || [],
       estimatedDevCostEur: body.estimatedDevCostEur || 0,
       devCostExplanation: body.devCostExplanation || '',
+      devRateEur: body.devRateEur ?? 450,
       estimatedImplWeeks: body.estimatedImplWeeks || 0,
       status,
       notes: body.notes || '',

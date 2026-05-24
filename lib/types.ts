@@ -180,6 +180,7 @@ export interface UseCase {
   timeSavedPerProfile: TimeSavedEntry[];
   estimatedDevCostEur: number;
   devCostExplanation: string;
+  devRateEur?: number;
   requiredPreconditions?: {
     requiresClientIT?: boolean;
     text?: string;
