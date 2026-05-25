@@ -22,40 +22,39 @@ interface SearchResult {
   searchedWeb?: boolean;
 }
 
-async function searchDuckDuckGo(query: string): Promise<string> {
+async function searchTavily(query: string): Promise<string> {
   try {
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&t=aria-catalog`;
-    const res = await fetch(url, {
+    const apiKey = process.env.TAVILY_API_KEY;
+    if (!apiKey) return '';
+
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
       headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; aria-catalog/1.0)',
+        'Content-Type': 'application/json',
       },
-      signal: AbortSignal.timeout(5000),
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: query,
+        search_depth: 'basic',
+        max_results: 5,
+        include_answer: true,
+      }),
+      signal: AbortSignal.timeout(8000),
     });
+
     if (!res.ok) return '';
     const data = await res.json();
 
     const parts: string[] = [];
 
-    // Abstract (main summary)
-    if (data.AbstractText) parts.push(`Summary: ${data.AbstractText}`);
+    if (data.answer) parts.push(`Summary: ${data.answer}`);
 
-    // Related topics
-    if (data.RelatedTopics?.length > 0) {
-      const topics = data.RelatedTopics
+    if (data.results?.length > 0) {
+      const results = data.results
         .slice(0, 3)
-        .filter((t: any) => t.Text)
-        .map((t: any) => t.Text);
-      if (topics.length > 0) parts.push(`Related: ${topics.join(' | ')}`);
-    }
-
-    // Infobox (structured data like specs)
-    if (data.Infobox?.content?.length > 0) {
-      const info = data.Infobox.content
-        .slice(0, 5)
-        .map((item: any) => `${item.label}: ${item.value}`)
-        .join(', ');
-      parts.push(`Specs: ${info}`);
+        .map((r: any) => `[${r.title}]\n${r.url}\n${r.content?.slice(0, 200)}`)
+        .join('\n\n');
+      if (results) parts.push(results);
     }
 
     return parts.join('\n') || '';
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest) {
       kind === 'ai_model'
         ? `${query} AI model pricing specs API`
         : `${query} GPU specs price VRAM`;
-    const webResults = await searchDuckDuckGo(searchQuery);
+    const webResults = await searchTavily(searchQuery);
 
     const prompt =
       kind === 'ai_model'
