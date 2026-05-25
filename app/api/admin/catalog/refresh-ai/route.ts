@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Catalog } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
+import { searchTavily } from '@/lib/tavily';
 
 interface AIModelSuggestion {
   name: string;
@@ -59,6 +60,11 @@ export async function POST(req: NextRequest) {
     const gpus = items.filter(i => i.kind === 'gpu');
 
     const today = new Date().toISOString().slice(0, 10);
+    const tavilyResults = await searchTavily(
+      'latest AI models GPU pricing specs 2026 ' +
+      aiModels.map(m => m.name).slice(0, 5).join(' ')
+    );
+
     const prompt = `You MUST search the web RIGHT NOW to get the latest specs and prices
 for each item listed below.
 Do NOT rely on your training data — it may be outdated.
@@ -67,7 +73,10 @@ Search first, then return updated data.
 
 You are a market analyst maintaining a catalog of LLMs and AI inference hardware. Today is ${today}. Update the public-knowledge specs and current list prices for each item below.
 
-DATA SOURCE PRIORITY (read carefully):
+${tavilyResults ? `## CURRENT MARKET DATA (from web search):
+${tavilyResults}
+
+` : ''}DATA SOURCE PRIORITY (read carefully):
 - If you have access to web search, USE IT to fetch the latest publicly-available specs and prices from the vendor's official pricing page or product page first. Prefer official vendor sources over third-party aggregators.
 - Without web access, use your most recent training-data knowledge and note in the rationale when a value may be stale (e.g. "as of Q3 2024").
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Catalog } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
+import { searchTavily } from '@/lib/tavily';
 
 interface AIModelEntry {
   name: string;
@@ -63,6 +64,14 @@ export async function POST(req: NextRequest) {
     const archiveResiduals = searchParams.get('archiveResiduals') === 'true';
 
     const today = new Date().toISOString().slice(0, 10);
+
+    const tavilyResults = await searchTavily(
+      'latest AI models LLM pricing 2026 OpenAI Anthropic Mistral Google DeepSeek'
+    );
+    const gpuTavilyResults = await searchTavily(
+      'latest GPU inference hardware pricing 2026 NVIDIA AMD Intel'
+    );
+
     const prompt = `You MUST search the web RIGHT NOW to get the latest AI models and GPU specs.
 Do NOT rely on your training data — it may be outdated.
 Use official vendor pages as primary source:
@@ -72,6 +81,12 @@ Use official vendor pages as primary source:
 Search first, then return the data.
 
 You are a market analyst maintaining the canonical catalog of currently-relevant AI models and inference hardware for an enterprise consultancy. Today is ${today}. Return the COMPLETE current market list as of today, EXCLUDING residual / deprecated / niche entries.
+
+${tavilyResults ? `## CURRENT MARKET DATA (from web search, use as primary source):
+${tavilyResults}` : ''}
+
+${gpuTavilyResults ? `## CURRENT GPU MARKET DATA:
+${gpuTavilyResults}` : ''}
 
 DATA SOURCE PRIORITY (read carefully):
 - If you have access to web search, USE IT to fetch the latest publicly-available specs and prices from vendor pages (mistral.ai/pricing, openai.com/api/pricing, anthropic.com/api, ai.google.dev/pricing, deepseek.com, qwen pricing, xai.com, nvidia.com, amd.com, intel.com), tech news, or pricing aggregators. Prefer the official vendor page when available.
