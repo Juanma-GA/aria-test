@@ -480,7 +480,7 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
         });
         setSearchResult({
           success: true,
-          message: `✓ Found: ${found.name} — fields auto-filled. Review before saving.`,
+          message: `Found in catalog: ${found.name} — fields auto-filled. Review before saving.`,
         });
         return;
       }
@@ -509,9 +509,14 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
 
       // Auto-fill from LLM result
       onChange({ ...form, ...aiData });
+
+      const source = aiData.searchedWeb
+        ? 'Found via AI (web search)'
+        : 'Found via AI';
+
       setSearchResult({
         success: true,
-        message: `✓ Found: ${aiData.name} — fields auto-filled. Review before saving.`,
+        message: `${source}: ${aiData.name} — fields auto-filled. Review before saving.`,
       });
     } catch (err) {
       setSearchResult({ success: false, message: 'Search error. Fill manually.' });
@@ -550,7 +555,7 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
               searchResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
             }`}
           >
-            {searchResult.success ? '✓ ' : '⚠ '} {searchResult.message}
+            {searchResult.message}
           </div>
         )}
       </div>
