@@ -225,7 +225,7 @@ Each object must have EXACTLY these fields:
 Return ONLY valid JSON array, no explanation.`;
 
     const text = await callMistral([{ role: 'user', content: prompt }], {
-      maxTokens: isTechpubs ? 14000 : 3000,
+      maxTokens: isTechpubs ? 14000 : 6000,
       temperature: 0.4,
       systemPrompt: SYSTEM_PROMPT(stateOfTheArt, developedTools, isTechpubs),
     });

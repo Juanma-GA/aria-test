@@ -46,8 +46,6 @@ const CatalogStatsSchema = new Schema<ICatalogStats>(
   { timestamps: false }
 );
 
-CatalogStatsSchema.index({ type: 1 });
-
 export const CatalogStats =
   mongoose.models.CatalogStats ||
   mongoose.model<ICatalogStats>('CatalogStats', CatalogStatsSchema);
