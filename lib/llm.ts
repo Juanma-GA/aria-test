@@ -63,13 +63,10 @@ export async function callMistral(
       return (data.choices?.[0]?.message?.content ?? '') as string;
     }
     // 4xx with the tool present usually means the deployment doesn't support
-    // connectors. Log and fall through to the plain call so the feature
-    // degrades gracefully instead of hard-failing.
+    // connectors. Fall through to the plain call so the feature degrades
+    // gracefully instead of hard-failing.
     if (res.status >= 400 && res.status < 500) {
-      const errText = await res.text();
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[LLM] web_search tool rejected, falling back to plain call');
-      }
+      // Tool not supported, fall back to plain call
     } else {
       const errText = await res.text();
       throw new Error(`Mistral API error: ${errText}`);

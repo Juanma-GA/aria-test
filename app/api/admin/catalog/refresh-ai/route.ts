@@ -65,9 +65,6 @@ export async function POST(req: NextRequest) {
       aiModels.map(m => m.name).slice(0, 5).join(' ')
     );
 
-    console.log('[REFRESH-AI] Tavily results length:', tavilyResults.length);
-    console.log('[REFRESH-AI] Tavily first 300 chars:', tavilyResults.slice(0, 300));
-
     const prompt = `You MUST search the web RIGHT NOW to get the latest specs and prices
 for each item listed below.
 Do NOT rely on your training data — it may be outdated.
@@ -115,7 +112,7 @@ FORMATTING — read carefully:
 
     const text = await callMistral(
       [{ role: 'user', content: prompt }],
-      { maxTokens: 8000, temperature: 0.2, webSearch: true },
+      { maxTokens: 8000, temperature: 0.2 },
     );
     const parsed = parseLLMJson<RefreshResult>(text);
 
