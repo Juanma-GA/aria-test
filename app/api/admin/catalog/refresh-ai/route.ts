@@ -115,7 +115,7 @@ FORMATTING — read carefully:
 
     const text = await callMistral(
       [{ role: 'user', content: prompt }],
-      { maxTokens: 6000, temperature: 0.2, webSearch: true },
+      { maxTokens: 8000, temperature: 0.2, webSearch: true },
     );
     const parsed = parseLLMJson<RefreshResult>(text);
 
