@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callMistral, parseLLMJson } from '@/lib/llm';
+import { parseLLMJson } from '@/lib/llm';
+
+const MISTRAL_ENDPOINT = 'https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions';
+const DEFAULT_MODEL = 'mistral-medium-latest';
 
 interface SearchRequest {
   query: string;
@@ -19,6 +22,7 @@ interface SearchResult {
   priceEur?: number;
   concurrentUsersPerGpu?: number;
   notes?: string;
+  searchedWeb?: boolean;
 }
 
 /**
@@ -32,6 +36,9 @@ export async function POST(req: NextRequest) {
     if (!query?.trim()) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
+
+    const apiKey = process.env.MISTRAL_API_KEY;
+    if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
 
     const prompt =
       kind === 'ai_model'
@@ -69,15 +76,58 @@ Rules:
 - All numeric fields must be plain numbers, no units or ranges
 - If you don't know a field with confidence, omit it`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], {
-      maxTokens: 500,
+    let text = '';
+    let searchedWeb = false;
+
+    // Step 1: Try with web_search enabled
+    const withTools = {
+      model: DEFAULT_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 500,
       temperature: 0.1,
-      webSearch: true,
+      tools: [{ type: 'web_search' }],
+      tool_choice: 'auto' as const,
+    };
+
+    const webRes = await fetch(MISTRAL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(withTools),
     });
+
+    if (webRes.ok) {
+      const data = await webRes.json();
+      text = (data.choices?.[0]?.message?.content ?? '') as string;
+      searchedWeb = true;
+    } else if (webRes.status >= 400 && webRes.status < 500) {
+      // 4xx: tool not supported, fall back to plain call
+      const plainRes = await fetch(MISTRAL_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: DEFAULT_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 500,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!plainRes.ok) {
+        const errText = await plainRes.text();
+        throw new Error(`Mistral API error: ${errText}`);
+      }
+
+      const data = await plainRes.json();
+      text = (data.choices?.[0]?.message?.content ?? '') as string;
+      searchedWeb = false;
+    } else {
+      const errText = await webRes.text();
+      throw new Error(`Mistral API error: ${errText}`);
+    }
 
     const result = parseLLMJson<SearchResult>(text);
 
-    return NextResponse.json(result || {});
+    return NextResponse.json({ ...result, searchedWeb });
   } catch (err) {
     console.error('[API] catalog search-ai', err);
     const message = err instanceof Error ? err.message : 'Search failed';
