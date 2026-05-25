@@ -82,6 +82,8 @@ export async function POST(req: NextRequest) {
     const body: SearchRequest = await req.json();
     const { query, kind } = body;
 
+    console.log('[SEARCH-AI] Starting search for:', body.query, body.kind);
+
     if (!query?.trim()) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
@@ -91,6 +93,9 @@ export async function POST(req: NextRequest) {
         ? `${query} AI model pricing specs API`
         : `${query} GPU specs price VRAM`;
     const webResults = await searchDuckDuckGo(searchQuery);
+
+    console.log('[SEARCH-AI] DuckDuckGo results length:', webResults.length);
+    console.log('[SEARCH-AI] DuckDuckGo first 200 chars:', webResults.slice(0, 200));
 
     const prompt =
       kind === 'ai_model'
@@ -167,8 +172,7 @@ Rules:
 
     return NextResponse.json({ ...result, searchedWeb });
   } catch (err) {
-    console.error('[API] catalog search-ai', err);
-    const message = err instanceof Error ? err.message : 'Search failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[SEARCH-AI] Full error:', err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
