@@ -36,9 +36,12 @@ export async function POST(req: NextRequest) {
 
     const prompt =
       kind === 'ai_model'
-        ? `Search the web for the latest specs and pricing for: "${query}"
-Use official vendor pages as primary source (e.g. mistral.ai/pricing, openai.com/api/pricing, anthropic.com/api).
-You are a market analyst. Return the specs in this format:
+        ? `You MUST search the web RIGHT NOW to get the latest specs and pricing for: "${query}".
+Do NOT rely on your training data — it may be outdated.
+Use official vendor pages as primary source (mistral.ai/pricing,
+openai.com/api/pricing, anthropic.com/api, ai.google.dev/pricing,
+deepseek.com, xai.com).
+Search first, then return the data in this format:
 
 Return ONLY valid JSON with these fields (omit if unknown):
 { "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "notes": "..." }
@@ -53,9 +56,10 @@ Rules:
 - notes: optional 1-line caveat
 - All numeric fields must be plain numbers, no units or ranges
 - If you don't know a field with confidence, omit it`
-        : `Search the web for the latest specs and pricing for: "${query}"
-Use official vendor pages as primary source (e.g. nvidia.com, amd.com, intel.com).
-You are a market analyst. Return the specs in this format:
+        : `You MUST search the web RIGHT NOW to get the latest specs and pricing for: "${query}".
+Do NOT rely on your training data — it may be outdated.
+Use official vendor pages as primary source (nvidia.com, amd.com, intel.com).
+Search first, then return the data in this format:
 
 Return ONLY valid JSON with these fields (omit if unknown):
 { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "notes": "..." }
