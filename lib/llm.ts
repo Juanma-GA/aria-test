@@ -67,7 +67,9 @@ export async function callMistral(
     // degrades gracefully instead of hard-failing.
     if (res.status >= 400 && res.status < 500) {
       const errText = await res.text();
-      console.warn('[LLM] web_search tool rejected, falling back to plain call:', errText.slice(0, 200));
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[LLM] web_search tool rejected, falling back to plain call');
+      }
     } else {
       const errText = await res.text();
       throw new Error(`Mistral API error: ${errText}`);
