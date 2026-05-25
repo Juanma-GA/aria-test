@@ -24,51 +24,41 @@ interface SearchResult {
 
 async function searchDuckDuckGo(query: string): Promise<string> {
   try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&t=aria-catalog`;
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; research-bot/1.0)',
-        'Accept': 'text/html',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; aria-catalog/1.0)',
       },
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return '';
-    const html = await res.text();
+    const data = await res.json();
 
-    // Extract text snippets from search results
-    // DuckDuckGo HTML results have class "result__snippet"
-    const snippets: string[] = [];
-    const titleRegex = /class="result__title"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/g;
-    const snippetRegex = /class="result__snippet"[^>]*>([\s\S]*?)<\/div>/g;
-    const urlRegex = /class="result__url"[^>]*>\s*([^\s<]+)/g;
+    const parts: string[] = [];
 
-    let titleMatch, snippetMatch, urlMatch;
-    const titles: string[] = [];
-    const urls: string[] = [];
+    // Abstract (main summary)
+    if (data.AbstractText) parts.push(`Summary: ${data.AbstractText}`);
 
-    while ((titleMatch = titleRegex.exec(html)) !== null && titles.length < 5) {
-      titles.push(titleMatch[1].replace(/&amp;/g, '&').trim());
-    }
-    while ((urlMatch = urlRegex.exec(html)) !== null && urls.length < 5) {
-      urls.push(urlMatch[1].trim());
-    }
-    while ((snippetMatch = snippetRegex.exec(html)) !== null && snippets.length < 5) {
-      const text = snippetMatch[1]
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&#x27;/g, "'")
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (text.length > 20) snippets.push(text);
+    // Related topics
+    if (data.RelatedTopics?.length > 0) {
+      const topics = data.RelatedTopics
+        .slice(0, 3)
+        .filter((t: any) => t.Text)
+        .map((t: any) => t.Text);
+      if (topics.length > 0) parts.push(`Related: ${topics.join(' | ')}`);
     }
 
-    // Build context string
-    const results = titles
-      .map((title, i) => `[${i + 1}] ${title}\n${urls[i] ?? ''}\n${snippets[i] ?? ''}`)
-      .join('\n\n');
+    // Infobox (structured data like specs)
+    if (data.Infobox?.content?.length > 0) {
+      const info = data.Infobox.content
+        .slice(0, 5)
+        .map((item: any) => `${item.label}: ${item.value}`)
+        .join(', ');
+      parts.push(`Specs: ${info}`);
+    }
 
-    return results || '';
+    return parts.join('\n') || '';
   } catch {
     return '';
   }
