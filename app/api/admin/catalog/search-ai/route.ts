@@ -82,8 +82,6 @@ export async function POST(req: NextRequest) {
     const body: SearchRequest = await req.json();
     const { query, kind } = body;
 
-    console.log('[SEARCH-AI] Starting search for:', body.query, body.kind);
-
     if (!query?.trim()) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
@@ -93,9 +91,6 @@ export async function POST(req: NextRequest) {
         ? `${query} AI model pricing specs API`
         : `${query} GPU specs price VRAM`;
     const webResults = await searchDuckDuckGo(searchQuery);
-
-    console.log('[SEARCH-AI] DuckDuckGo results length:', webResults.length);
-    console.log('[SEARCH-AI] DuckDuckGo first 200 chars:', webResults.slice(0, 200));
 
     const prompt =
       kind === 'ai_model'
@@ -167,7 +162,13 @@ Rules:
       webSearch: true,
     });
 
-    const result = parseLLMJson<SearchResult>(text);
+    let result: SearchResult = {};
+    try {
+      result = parseLLMJson<SearchResult>(text);
+    } catch {
+      // If JSON parsing fails, return empty result
+      // UI will show "Not found" instead of error
+    }
     const searchedWeb = webResults.length > 0;
 
     return NextResponse.json({ ...result, searchedWeb });
