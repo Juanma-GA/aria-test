@@ -75,6 +75,46 @@
 
 ## Recent Changes Made in This Session
 
+### Catalog Management Features ✅
+- ✅ **Search AI with Tavily Web Search**:
+  - `app/api/admin/catalog/search-ai/route.ts` — Search for specs via LLM with web context
+  - Conditional prompts: "search web" only when Tavily returns results
+  - Graceful JSON parse failure (returns empty result on error, not 500)
+  - `lib/tavily.ts` — Shared `searchTavily()` helper for all catalog endpoints
+  - Extracts answer + top 3 results from Tavily API with 8-second timeout
+
+- ✅ **Sync from AI with Tavily Context**:
+  - `app/api/admin/catalog/sync-from-ai/route.ts` — Sync canonical market list
+  - Searches Tavily for both AI models and GPU market data
+  - Injects web results into prompt as primary source
+  - Creates/updates entries by normalized name, optionally archives residuals
+
+- ✅ **Refresh Existing with Tavily Context**:
+  - `app/api/admin/catalog/refresh-ai/route.ts` — Refresh existing entries only
+  - Searches Tavily for specs of catalog items being refreshed
+  - Split tracking: `aiModelsUpdated` and `gpusUpdated` separate counts
+  - Increased maxTokens from 6000 → 8000 to handle Tavily context
+
+- ✅ **Last Sync/Refresh Status Persistence**:
+  - `lib/models/CatalogStats.ts` — New MongoDB model for operation history
+  - Fields: type, executedAt, webSearchOk, creation/update counts
+  - Upsert pattern: only latest entry per type (sync/refresh)
+  - `app/api/admin/catalog/stats/route.ts` — GET endpoint for status display
+  - `app/(app)/admin/catalog/page.tsx` — Displays status below buttons:
+    - Last Sync: date, web search ✅/⚠️, counts (AI created/updated, GPUs)
+    - Last Refresh: date, web search ✅/⚠️, update counts
+    - "Never executed" if not yet run; "⚠️ unavailable" if Tavily failed
+
+- ✅ **Route Handler Fixes**:
+  - `app/api/admin/catalog/[entryId]/route.ts` — Fixed DELETE/PATCH/GET with await params
+  - Next.js 15 params are Promises; must `await params` before use
+  - Modal title now dynamic: uses `form.kind` not `tab` for correct "Edit/New AI/GPU"
+
+- ✅ **Configuration**:
+  - `TAVILY_API_KEY` added to `.env.example` (required for web search)
+  - `.env.local` needs: `TAVILY_API_KEY=your_key_here`
+  - Export CatalogStats in `lib/models/index.ts`
+
 ### B5 Modal Enhancements ✅
 - ✅ **FIX 1 RESOLVED**: Target Steps checkboxes now pre-check correctly
   - `targetActivities` array correctly mapped on modal open
