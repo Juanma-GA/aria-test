@@ -13,17 +13,13 @@ export interface LLMOptions {
   maxTokens?: number;
   temperature?: number;
   /**
-   * Enable Mistral's built-in `web_search` connector with auto tool choice.
-   * Model may or may not use the tool based on the query.
+   * Enable Mistral's built-in `web_search` connector. When supported by the
+   * deployment the model can issue live searches before answering — useful for
+   * "fetch current market data" use cases (catalog refresh / sync).
+   * If the deployment doesn't accept the connectors field, we transparently
+   * retry without it so the call doesn't fail on older endpoints.
    */
   webSearch?: boolean;
-  /**
-   * Force web search tool usage (tool_choice: forced).
-   * Uses the latest web_search_20250305 tool format with explicit tool selection.
-   * Guarantees the model will attempt web search for every query.
-   * If the deployment doesn't support this, falls back gracefully.
-   */
-  forceWebSearch?: boolean;
   /**
    * Optional system prompt to prepend to the messages array.
    * Provides instruction context for the model's behavior.
@@ -51,20 +47,11 @@ export async function callMistral(
   };
 
   // First attempt: with the web_search connector if requested.
-  if (options.webSearch || options.forceWebSearch) {
-    const toolConfig = options.forceWebSearch
-      ? {
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          tool_choice: { type: 'tool', name: 'web_search' },
-        }
-      : {
-          tools: [{ type: 'web_search' }],
-          tool_choice: 'auto',
-        };
-
+  if (options.webSearch) {
     const withTools = {
       ...baseBody,
-      ...toolConfig,
+      tools: [{ type: 'web_search' }],
+      tool_choice: 'auto',
     };
     const res = await fetch(MISTRAL_ENDPOINT, {
       method: 'POST',

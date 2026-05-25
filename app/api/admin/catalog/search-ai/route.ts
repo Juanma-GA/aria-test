@@ -77,12 +77,12 @@ Rules:
       text = await callMistral([{ role: 'user', content: prompt }], {
         maxTokens: 500,
         temperature: 0.1,
-        forceWebSearch: true,
+        webSearch: true,
       });
       searchedWeb = true;
     } catch (err) {
-      // If forced web search fails, try without it
-      console.warn('[API] forced web search failed, retrying without', err);
+      // If web search fails, try without it
+      console.warn('[API] web search failed, retrying without', err);
       text = await callMistral([{ role: 'user', content: prompt }], {
         maxTokens: 500,
         temperature: 0.1,
