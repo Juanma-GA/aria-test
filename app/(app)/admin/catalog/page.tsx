@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Pencil, Trash2, Power, PowerOff, Cpu, Bot, Sparkles, RefreshCw, DownloadCloud } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, PowerOff, Cpu, Bot, Sparkles, RefreshCw, DownloadCloud, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 import { Spinner } from '@/components/ui/Spinner';
@@ -440,9 +440,121 @@ function RowActions({ item, onEdit, onToggle, onDelete }: {
 function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange: (f: Partial<CatalogEntry>) => void }) {
   const set = (patch: Partial<CatalogEntry>) => onChange({ ...form, ...patch });
   const isAi = (form.kind ?? 'ai_model') === 'ai_model';
+  const [searchText, setSearchText] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResult, setSearchResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSearch = async () => {
+    if (!searchText.trim()) return;
+
+    setSearchLoading(true);
+    setSearchResult(null);
+
+    try {
+      // Step 1: Search existing DB entries
+      const res = await fetch(`/api/admin/catalog?kind=${form.kind ?? 'ai_model'}`);
+      const items: CatalogEntry[] = res.ok ? await res.json() : [];
+
+      const found = items.find(
+        i =>
+          i.name.toLowerCase().includes(searchText.toLowerCase()) ||
+          ('vendor' in i && i.vendor?.toLowerCase().includes(searchText.toLowerCase())),
+      );
+
+      if (found) {
+        // Auto-fill from DB entry
+        onChange({
+          ...form,
+          name: found.name,
+          vendor: found.vendor,
+          contextWindow: found.contextWindow,
+          pricePerMInputTokens: found.pricePerMInputTokens,
+          pricePerMOutputTokens: found.pricePerMOutputTokens,
+          deploymentMode: found.deploymentMode,
+          paramCountB: found.paramCountB,
+          tdpW: found.tdpW,
+          vramGb: found.vramGb,
+          priceEur: found.priceEur,
+          concurrentUsersPerGpu: found.concurrentUsersPerGpu,
+          notes: found.notes ?? '',
+        });
+        setSearchResult({
+          success: true,
+          message: `✓ Found: ${found.name} — fields auto-filled. Review before saving.`,
+        });
+        return;
+      }
+
+      // Step 2: Search via AI if not in DB
+      const aiRes = await fetch('/api/admin/catalog/search-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchText, kind: form.kind ?? 'ai_model' }),
+      });
+
+      if (!aiRes.ok) {
+        setSearchResult({ success: false, message: 'AI search failed. Fill manually.' });
+        return;
+      }
+
+      const aiData = await aiRes.json();
+
+      if (!aiData.name) {
+        setSearchResult({
+          success: false,
+          message: 'Not found in catalog or AI knowledge. Fill manually.',
+        });
+        return;
+      }
+
+      // Auto-fill from LLM result
+      onChange({ ...form, ...aiData });
+      setSearchResult({
+        success: true,
+        message: `✓ Found: ${aiData.name} — fields auto-filled. Review before saving.`,
+      });
+    } catch (err) {
+      setSearchResult({ success: false, message: 'Search error. Fill manually.' });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
+      {/* Search section */}
+      <div>
+        <label className="form-label">Search catalog or AI</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="form-input flex-1"
+            placeholder="Search model or GPU... (e.g. Claude Opus, H100)"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            disabled={searchLoading}
+          />
+          <button
+            onClick={handleSearch}
+            disabled={!searchText.trim() || searchLoading}
+            className="px-4 py-2 bg-blue-aria text-white text-sm rounded hover:bg-blue-aria/90 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {searchLoading ? <Spinner size="sm" /> : <Search size={14} />}
+            Search AI
+          </button>
+        </div>
+        {searchResult && (
+          <div
+            className={`mt-2 text-xs p-2 rounded ${
+              searchResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+            }`}
+          >
+            {searchResult.success ? '✓ ' : '⚠ '} {searchResult.message}
+          </div>
+        )}
+      </div>
+
       {!('_id' in form && form._id) && (
         <div>
           <label className="form-label">Type</label>
