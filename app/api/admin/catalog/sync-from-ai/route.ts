@@ -72,6 +72,9 @@ export async function POST(req: NextRequest) {
       'latest GPU inference hardware pricing 2026 NVIDIA AMD Intel'
     );
 
+    console.log('[SYNC-AI] Tavily AI results length:', tavilyResults.length);
+    console.log('[SYNC-AI] Tavily GPU results length:', gpuTavilyResults.length);
+
     const prompt = `You MUST search the web RIGHT NOW to get the latest AI models and GPU specs.
 Do NOT rely on your training data — it may be outdated.
 Use official vendor pages as primary source:
