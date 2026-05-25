@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseLLMJson } from '@/lib/llm';
-
-const MISTRAL_ENDPOINT = 'https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions';
-const DEFAULT_MODEL = 'mistral-medium-latest';
+import { callMistral, parseLLMJson } from '@/lib/llm';
 
 interface SearchRequest {
   query: string;
@@ -36,9 +33,6 @@ export async function POST(req: NextRequest) {
     if (!query?.trim()) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
-
-    const apiKey = process.env.MISTRAL_API_KEY;
-    if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
 
     const prompt =
       kind === 'ai_model'
@@ -76,62 +70,14 @@ Rules:
 - All numeric fields must be plain numbers, no units or ranges
 - If you don't know a field with confidence, omit it`;
 
-    let text = '';
-    let searchedWeb = false;
-    let forcedSuccess = false;
-
-    // TEST: Try forced tool_choice first
-    const forcedRes = await fetch(MISTRAL_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 500,
-        temperature: 0.1,
-        tools: [{ type: 'web_search' }],
-        tool_choice: { type: 'tool', name: 'web_search' },
-      }),
+    let text = await callMistral([{ role: 'user', content: prompt }], {
+      maxTokens: 500,
+      temperature: 0.1,
+      webSearch: true,
     });
 
-    if (forcedRes.ok) {
-      const data = await forcedRes.json();
-      text = (data.choices?.[0]?.message?.content ?? '') as string;
-      searchedWeb = true;
-      forcedSuccess = true;
-      console.log('[SEARCH-AI] web search mode: forced (supported)');
-    } else if (forcedRes.status >= 400 && forcedRes.status < 500) {
-      // Forced not supported, fall back to auto
-      console.log('[SEARCH-AI] forced tool_choice got 4xx, trying auto mode...');
-      const autoRes = await fetch(MISTRAL_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: DEFAULT_MODEL,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 500,
-          temperature: 0.1,
-          tools: [{ type: 'web_search' }],
-          tool_choice: 'auto',
-        }),
-      });
-
-      if (!autoRes.ok) {
-        const errText = await autoRes.text();
-        throw new Error(`Mistral API error (auto fallback): ${errText}`);
-      }
-
-      const data = await autoRes.json();
-      text = (data.choices?.[0]?.message?.content ?? '') as string;
-      searchedWeb = true;
-      forcedSuccess = false;
-      console.log('[SEARCH-AI] web search mode: auto (fallback)');
-    } else {
-      const errText = await forcedRes.text();
-      throw new Error(`Mistral API error (forced): ${errText}`);
-    }
-
     const result = parseLLMJson<SearchResult>(text);
+    const searchedWeb = true;
 
     return NextResponse.json({ ...result, searchedWeb });
   } catch (err) {
