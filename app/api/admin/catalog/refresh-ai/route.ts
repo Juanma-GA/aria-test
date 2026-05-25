@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Catalog } from '@/lib/models';
+import { Catalog, CatalogStats } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { searchTavily } from '@/lib/tavily';
 
@@ -117,7 +117,8 @@ FORMATTING — read carefully:
     const parsed = parseLLMJson<RefreshResult>(text);
 
     const now = new Date();
-    let updatedCount = 0;
+    let aiModelsUpdated = 0;
+    let gpusUpdated = 0;
     const skipped: string[] = [];
 
     // Update AI models
@@ -135,7 +136,7 @@ FORMATTING — read carefully:
         update.deploymentMode = sug.deploymentMode;
       }
       await Catalog.updateOne({ _id: (target as any)._id }, { $set: update });
-      updatedCount++;
+      aiModelsUpdated++;
     }
 
     // Update GPUs
@@ -149,8 +150,25 @@ FORMATTING — read carefully:
         if (typeof v === 'number' && Number.isFinite(v) && v >= 0) update[f] = v;
       }
       await Catalog.updateOne({ _id: (target as any)._id }, { $set: update });
-      updatedCount++;
+      gpusUpdated++;
     }
+
+    const updatedCount = aiModelsUpdated + gpusUpdated;
+
+    // Save refresh stats for display on admin page
+    await CatalogStats.findOneAndUpdate(
+      { type: 'refresh' },
+      {
+        type: 'refresh',
+        executedAt: new Date(),
+        webSearchOk: tavilyResults.length > 0,
+        aiModelsCreated: 0,
+        aiModelsUpdated: aiModelsUpdated,
+        gpusCreated: 0,
+        gpusUpdated: gpusUpdated,
+      },
+      { upsert: true, new: true }
+    );
 
     return NextResponse.json({
       updatedCount,

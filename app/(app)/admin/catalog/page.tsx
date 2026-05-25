@@ -51,6 +51,11 @@ export default function CatalogAdminPage() {
     globalRationale: string;
   }>(null);
 
+  const [stats, setStats] = useState<{
+    sync: { type: string; executedAt: string; webSearchOk: boolean; aiModelsCreated: number; aiModelsUpdated: number; gpusCreated: number; gpusUpdated: number } | null;
+    refresh: { type: string; executedAt: string; webSearchOk: boolean; aiModelsCreated: number; aiModelsUpdated: number; gpusCreated: number; gpusUpdated: number } | null;
+  }>({ sync: null, refresh: null });
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CatalogEntry | null>(null);
   const [form, setForm] = useState<Partial<CatalogEntry>>(EMPTY_AI);
@@ -75,7 +80,22 @@ export default function CatalogAdminPage() {
       setLoading(false);
     }
   };
-  useEffect(() => { fetchItems(); }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/admin/catalog/stats');
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      setStats(data);
+    } catch {
+      // Silently fail for stats
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+    fetchStats();
+  }, []);
 
   const visible = items.filter(i => i.kind === tab);
 
@@ -149,6 +169,7 @@ export default function CatalogAdminPage() {
       });
       toast.success(`AI refresh: ${data.updatedCount ?? 0} entries updated`);
       fetchItems();
+      fetchStats();
     } finally {
       setRefreshing(false);
     }
@@ -169,6 +190,7 @@ export default function CatalogAdminPage() {
       const archived = (data.archived?.aiModels?.length ?? 0) + (data.archived?.gpus?.length ?? 0);
       toast.success(`Sync: ${created} created, ${updated} updated${archived ? `, ${archived} archived` : ''}`);
       fetchItems();
+      fetchStats();
     } finally {
       setSyncing(false);
     }
@@ -210,6 +232,28 @@ export default function CatalogAdminPage() {
             <Plus size={15} /> New
           </button>
         </div>
+      </div>
+
+      {/* Status bar */}
+      <div className="space-y-1 text-sm text-gray-600">
+        {stats.sync && (
+          <div>
+            Last Sync: {new Date(stats.sync.executedAt).toLocaleString('de-DE')} ·
+            Web search: {stats.sync.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
+            {stats.sync.aiModelsCreated} AI created, {stats.sync.aiModelsUpdated} updated ·
+            {stats.sync.gpusCreated} GPUs created, {stats.sync.gpusUpdated} updated
+          </div>
+        )}
+        {!stats.sync && <div className="text-gray-400">Last Sync: Never executed</div>}
+
+        {stats.refresh && (
+          <div>
+            Last Refresh: {new Date(stats.refresh.executedAt).toLocaleString('de-DE')} ·
+            Web search: {stats.refresh.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
+            {stats.refresh.aiModelsUpdated} AI updated, {stats.refresh.gpusUpdated} GPUs updated
+          </div>
+        )}
+        {!stats.refresh && <div className="text-gray-400">Last Refresh: Never executed</div>}
       </div>
 
       {/* Sync result banner */}

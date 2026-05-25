@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Catalog } from '@/lib/models';
+import { Catalog, CatalogStats } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
 import { searchTavily } from '@/lib/tavily';
 
@@ -254,6 +254,21 @@ FORMATTING — read carefully:
         else summary.archived.gpus.push(e.name);
       }
     }
+
+    // Save sync stats for display on admin page
+    await CatalogStats.findOneAndUpdate(
+      { type: 'sync' },
+      {
+        type: 'sync',
+        executedAt: new Date(),
+        webSearchOk: tavilyResults.length > 0 || gpuTavilyResults.length > 0,
+        aiModelsCreated: summary.aiModels.created,
+        aiModelsUpdated: summary.aiModels.updated,
+        gpusCreated: summary.gpus.created,
+        gpusUpdated: summary.gpus.updated,
+      },
+      { upsert: true, new: true }
+    );
 
     return NextResponse.json(summary);
   } catch (err) {
