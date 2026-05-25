@@ -72,11 +72,6 @@ export async function POST(req: NextRequest) {
     const body: SearchRequest = await req.json();
     const { query, kind } = body;
 
-<<<<<<< HEAD
-    console.log('[SEARCH-AI] Starting search for:', body.query, body.kind);
-
-=======
->>>>>>> claude/relaxed-johnson-l3I5d
     if (!query?.trim()) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
@@ -87,24 +82,17 @@ export async function POST(req: NextRequest) {
         : `${query} GPU specs price VRAM`;
     const webResults = await searchDuckDuckGo(searchQuery);
 
-<<<<<<< HEAD
-    console.log('[SEARCH-AI] DuckDuckGo results length:', webResults.length);
-    console.log('[SEARCH-AI] DuckDuckGo first 200 chars:', webResults.slice(0, 200));
-
-=======
->>>>>>> claude/relaxed-johnson-l3I5d
     const prompt =
       kind === 'ai_model'
-        ? `You MUST search the web RIGHT NOW to get the latest specs and pricing for: "${query}".
+        ? webResults
+          ? `You MUST search the web RIGHT NOW to get the latest specs and pricing for: "${query}".
 Do NOT rely on your training data — it may be outdated.
 Use official vendor pages as primary source (mistral.ai/pricing,
 openai.com/api/pricing, anthropic.com/api, ai.google.dev/pricing,
 deepseek.com, xai.com).
 Search first, then return the data in this format:
 
-${
-  webResults
-    ? `## WEB SEARCH RESULTS (use these as primary source):
+## WEB SEARCH RESULTS (use these as primary source):
 ${webResults}
 
 ## YOUR TASK:
@@ -112,9 +100,7 @@ Based on the web search results above, extract and structure the data.
 If the results don't have a specific field, use your training knowledge to fill it.
 Prefer web results over training data for prices and recent specs.
 
-`
-    : ''
-}Return ONLY valid JSON with these fields (omit if unknown):
+Return ONLY valid JSON with these fields (omit if unknown):
 { "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "notes": "..." }
 
 Rules:
@@ -127,14 +113,29 @@ Rules:
 - notes: optional 1-line caveat
 - All numeric fields must be plain numbers, no units or ranges
 - If you don't know a field with confidence, omit it`
-        : `You MUST search the web RIGHT NOW to get the latest specs and pricing for: "${query}".
+          : `You are a market analyst. Return the specs for: "${query}"
+Use your training knowledge.
+
+Return ONLY valid JSON with these fields (omit if unknown):
+{ "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "notes": "..." }
+
+Rules:
+- name: canonical API/model id or marketing name
+- vendor: short vendor name (Mistral, OpenAI, Anthropic, etc.)
+- contextWindow: tokens (e.g. 128000)
+- pricePerMInputTokens / pricePerMOutputTokens: EUR per 1M tokens
+- deploymentMode: cloud_api, on_premise, or hybrid
+- paramCountB: approximate billions of parameters
+- notes: optional 1-line caveat
+- All numeric fields must be plain numbers, no units or ranges
+- If you don't know a field with confidence, omit it`
+        : webResults
+          ? `You MUST search the web RIGHT NOW to get the latest specs and pricing for: "${query}".
 Do NOT rely on your training data — it may be outdated.
 Use official vendor pages as primary source (nvidia.com, amd.com, intel.com).
 Search first, then return the data in this format:
 
-${
-  webResults
-    ? `## WEB SEARCH RESULTS (use these as primary source):
+## WEB SEARCH RESULTS (use these as primary source):
 ${webResults}
 
 ## YOUR TASK:
@@ -142,9 +143,22 @@ Based on the web search results above, extract and structure the data.
 If the results don't have a specific field, use your training knowledge to fill it.
 Prefer web results over training data for prices and recent specs.
 
-`
-    : ''
-}Return ONLY valid JSON with these fields (omit if unknown):
+Return ONLY valid JSON with these fields (omit if unknown):
+{ "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "notes": "..." }
+
+Rules:
+- name: vendor + model (e.g. "NVIDIA H100 80GB")
+- tdpW: rated TDP in watts
+- vramGb: VRAM in GB
+- priceEur: new-unit list price in EUR (convert from USD if needed)
+- concurrentUsersPerGpu: estimated concurrent users for 7B-13B FP16 workload
+- notes: optional 1-line caveat
+- All numeric fields must be plain numbers, no units or ranges
+- If you don't know a field with confidence, omit it`
+          : `You are a market analyst. Return the specs for: "${query}"
+Use your training knowledge.
+
+Return ONLY valid JSON with these fields (omit if unknown):
 { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "notes": "..." }
 
 Rules:
@@ -174,7 +188,6 @@ Rules:
 
     return NextResponse.json({ ...result, searchedWeb });
   } catch (err) {
-    console.error('[SEARCH-AI] Full error:', err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
