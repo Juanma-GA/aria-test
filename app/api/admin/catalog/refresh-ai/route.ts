@@ -59,7 +59,13 @@ export async function POST(req: NextRequest) {
     const gpus = items.filter(i => i.kind === 'gpu');
 
     const today = new Date().toISOString().slice(0, 10);
-    const prompt = `You are a market analyst maintaining a catalog of LLMs and AI inference hardware. Today is ${today}. Update the public-knowledge specs and current list prices for each item below.
+    const prompt = `You MUST search the web RIGHT NOW to get the latest specs and prices
+for each item listed below.
+Do NOT rely on your training data — it may be outdated.
+Use official vendor pages as primary source.
+Search first, then return updated data.
+
+You are a market analyst maintaining a catalog of LLMs and AI inference hardware. Today is ${today}. Update the public-knowledge specs and current list prices for each item below.
 
 DATA SOURCE PRIORITY (read carefully):
 - If you have access to web search, USE IT to fetch the latest publicly-available specs and prices from the vendor's official pricing page or product page first. Prefer official vendor sources over third-party aggregators.
