@@ -85,7 +85,7 @@ Return ONLY a JSON object with this exact shape (use the EXACT same name as inpu
     { "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "rationale": "1 sentence explaining the source/changes" }
   ],
   "gpus": [
-    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "rationale": "1 sentence explaining the source/changes" }
+    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "rationale": "1 sentence explaining the source/changes" }
   ],
   "globalRationale": "1-2 sentences on overall confidence, market shifts noted, what was omitted."
 }
@@ -128,7 +128,7 @@ FORMATTING — read carefully:
       const target = gpus.find(g => g.name === sug.name);
       if (!target) { skipped.push(`gpu:${sug.name}`); continue; }
       const update: Record<string, unknown> = { aiUpdatedAt: now, aiRationale: sug.rationale ?? '' };
-      const numFields = ['tdpW', 'vramGb', 'priceEur'] as const;
+      const numFields = ['tdpW', 'vramGb', 'priceEur', 'concurrentUsersPerGpu'] as const;
       for (const f of numFields) {
         const v = (sug as any)[f];
         if (typeof v === 'number' && Number.isFinite(v) && v >= 0) update[f] = v;

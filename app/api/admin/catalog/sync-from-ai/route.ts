@@ -115,7 +115,7 @@ Return ONLY a JSON object with this exact shape:
     { "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "notes": "..." }
   ],
   "gpus": [
-    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "notes": "..." }
+    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "notes": "..." }
   ],
   "exclusionRationale": "1 sentence on what was deliberately excluded and why.",
   "globalRationale": "1-2 sentences on overall confidence and any market shifts noted."
