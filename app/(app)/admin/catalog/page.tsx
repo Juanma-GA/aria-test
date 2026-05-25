@@ -348,7 +348,7 @@ export default function CatalogAdminPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? `Edit ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}` : `New ${TAB_CONFIG[tab].label.replace(/s$/, '')}`}
+        title={editing ? `Edit ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}` : `New ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}`}
         size="lg"
       >
         <CatalogForm form={form} onChange={setForm} />
