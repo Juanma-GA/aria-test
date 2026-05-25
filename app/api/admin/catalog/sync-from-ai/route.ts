@@ -63,7 +63,15 @@ export async function POST(req: NextRequest) {
     const archiveResiduals = searchParams.get('archiveResiduals') === 'true';
 
     const today = new Date().toISOString().slice(0, 10);
-    const prompt = `You are a market analyst maintaining the canonical catalog of currently-relevant AI models and inference hardware for an enterprise consultancy. Today is ${today}. Return the COMPLETE current market list as of today, EXCLUDING residual / deprecated / niche entries.
+    const prompt = `You MUST search the web RIGHT NOW to get the latest AI models and GPU specs.
+Do NOT rely on your training data — it may be outdated.
+Use official vendor pages as primary source:
+- AI Models: mistral.ai/pricing, openai.com/api/pricing, anthropic.com/api,
+  ai.google.dev/pricing, deepseek.com, xai.com, cohere.com
+- GPUs: nvidia.com, amd.com, intel.com
+Search first, then return the data.
+
+You are a market analyst maintaining the canonical catalog of currently-relevant AI models and inference hardware for an enterprise consultancy. Today is ${today}. Return the COMPLETE current market list as of today, EXCLUDING residual / deprecated / niche entries.
 
 DATA SOURCE PRIORITY (read carefully):
 - If you have access to web search, USE IT to fetch the latest publicly-available specs and prices from vendor pages (mistral.ai/pricing, openai.com/api/pricing, anthropic.com/api, ai.google.dev/pricing, deepseek.com, qwen pricing, xai.com, nvidia.com, amd.com, intel.com), tech news, or pricing aggregators. Prefer the official vendor page when available.
