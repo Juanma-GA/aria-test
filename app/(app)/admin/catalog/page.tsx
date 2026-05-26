@@ -266,7 +266,7 @@ export default function CatalogAdminPage() {
     setSyncSummary(null);
     try {
       const url = `/api/admin/catalog/sync-from-ai${archiveResiduals ? '?archiveResiduals=true' : ''}`;
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl(url), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
