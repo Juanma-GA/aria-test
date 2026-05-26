@@ -16,7 +16,7 @@ interface SuggestedMilestone {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string; indId: string }> }
+  { params }: { params: Promise<{ auditId: string; indId: string }> },
 ) {
   try {
     await dbConnect();
@@ -25,7 +25,11 @@ export async function POST(
     if (!isAccessGranted(access)) return access;
 
     const ind = await Industrialization.findOne({ auditId, _id: indId });
-    if (!ind) return NextResponse.json({ error: 'Industrialization not found' }, { status: 404 });
+    if (!ind)
+      return NextResponse.json(
+        { error: 'Industrialization not found' },
+        { status: 404 },
+      );
 
     const [poc, useCase, audit] = await Promise.all([
       POC.findById(ind.pocId).lean(),
@@ -33,10 +37,19 @@ export async function POST(
       Audit.findById(auditId).lean(),
     ]);
 
-    const start = ind.plan?.startDate ? new Date(ind.plan.startDate) : new Date();
-    const target = ind.plan?.targetGoLiveDate ? new Date(ind.plan.targetGoLiveDate) : null;
+    const start = ind.plan?.startDate
+      ? new Date(ind.plan.startDate)
+      : new Date();
+    const target = ind.plan?.targetGoLiveDate
+      ? new Date(ind.plan.targetGoLiveDate)
+      : null;
     const durationDays = target
-      ? Math.max(7, Math.round((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
+      ? Math.max(
+          7,
+          Math.round(
+            (target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+          ),
+        )
       : 180;
     const durationMonths = Math.max(1, Math.round(durationDays / 30));
 
@@ -68,11 +81,17 @@ Return ONLY a JSON object with this exact shape:
 
 daysFromStart must be a number between 0 and ${durationDays}. Order chronologically. effortHours must be a positive integer. Notes MUST be single-line strings — do not use literal newlines, tabs or carriage returns inside any string value.`;
 
-    const text = await callMistral([{ role: 'user', content: prompt }], { maxTokens: 1000, temperature: 0.4 });
+    const text = await callMistral([{ role: 'user', content: prompt }], {
+      maxTokens: 1000,
+      temperature: 0.4,
+    });
     const parsed = parseLLMJson<{ milestones: SuggestedMilestone[] }>(text);
 
     const milestones = (parsed.milestones ?? []).map((m) => {
-      const days = Math.max(0, Math.min(durationDays, Math.round(m.daysFromStart ?? 0)));
+      const days = Math.max(
+        0,
+        Math.min(durationDays, Math.round(m.daysFromStart ?? 0)),
+      );
       const due = new Date(start);
       due.setDate(due.getDate() + days);
       return {
@@ -94,6 +113,9 @@ daysFromStart must be a number between 0 and ${durationDays}. Order chronologica
     return NextResponse.json({ industrialization: ind.toObject(), milestones });
   } catch (err) {
     console.error('[API]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

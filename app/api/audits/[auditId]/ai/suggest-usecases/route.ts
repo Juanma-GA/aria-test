@@ -75,11 +75,12 @@ export type AITypeValue = 'generative_llm' | 'extraction_nlp' | 'classification_
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   try {
     await dbConnect();
-    const { auditId } = await params;
+    const params = await Promise.resolve(context.params);
+    const { auditId } = params;
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
@@ -87,7 +88,10 @@ export async function POST(
     const { processId } = body;
 
     if (!processId) {
-      return NextResponse.json({ error: 'processId is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'processId is required' },
+        { status: 400 },
+      );
     }
 
     const [audit, process] = await Promise.all([
@@ -257,12 +261,15 @@ Return ONLY valid JSON array, no explanation.`;
         }
       }
     } catch (err) {
-      console.error("[SUGGEST-USECASES] Parse error:", err);
+      console.error('[SUGGEST-USECASES] Parse error:', err);
     }
 
     return NextResponse.json({ suggestions });
   } catch (err) {
-    console.error("[API]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('[API]', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

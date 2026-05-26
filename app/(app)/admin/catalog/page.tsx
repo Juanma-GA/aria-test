@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Pencil, Trash2, Power, PowerOff, Cpu, Bot, Sparkles, RefreshCw, DownloadCloud, Search } from 'lucide-react';
+import { apiUrl } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 import { Spinner } from '@/components/ui/Spinner';
@@ -15,13 +16,20 @@ type Tab = 'ai_model' | 'gpu';
 
 const TAB_CONFIG: Record<Tab, { label: string; Icon: typeof Bot }> = {
   ai_model: { label: 'AI Models', Icon: Bot },
-  gpu:      { label: 'GPUs',      Icon: Cpu },
+  gpu: { label: 'GPUs', Icon: Cpu },
 };
 
 const EMPTY_AI: Partial<CatalogEntry> = {
-  kind: 'ai_model', name: '', vendor: '', isActive: true,
-  contextWindow: 0, pricePerMInputTokens: 0, pricePerMOutputTokens: 0,
-  deploymentMode: 'cloud_api', paramCountB: 0, notes: '',
+  kind: 'ai_model',
+  name: '',
+  vendor: '',
+  isActive: true,
+  contextWindow: 0,
+  pricePerMInputTokens: 0,
+  pricePerMOutputTokens: 0,
+  deploymentMode: 'cloud_api',
+  paramCountB: 0,
+  notes: '',
 };
 const EMPTY_GPU: Partial<CatalogEntry> = {
   kind: 'gpu', name: '', isActive: true,
@@ -29,7 +37,15 @@ const EMPTY_GPU: Partial<CatalogEntry> = {
 };
 
 const fmtDate = (d?: Date | string) =>
-  d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  d
+    ? new Date(d).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
 
 export default function CatalogAdminPage() {
   const router = useRouter();
@@ -42,10 +58,14 @@ export default function CatalogAdminPage() {
   const [syncing, setSyncing] = useState(false);
   const [archiveResiduals, setArchiveResiduals] = useState(false);
   const [confirmSync, setConfirmSync] = useState(false);
-  const [refreshSummary, setRefreshSummary] = useState<{ updated: number; skipped: string[]; rationale: string } | null>(null);
+  const [refreshSummary, setRefreshSummary] = useState<{
+    updated: number;
+    skipped: string[];
+    rationale: string;
+  } | null>(null);
   const [syncSummary, setSyncSummary] = useState<null | {
     aiModels: { created: number; updated: number; skipped: string[] };
-    gpus:     { created: number; updated: number; skipped: string[] };
+    gpus: { created: number; updated: number; skipped: string[] };
     archived: { aiModels: string[]; gpus: string[] };
     exclusionRationale: string;
     globalRationale: string;
@@ -71,7 +91,7 @@ export default function CatalogAdminPage() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/catalog');
+      const res = await fetch(apiUrl('/api/admin/catalog'));
       if (!res.ok) throw new Error('Failed');
       setItems(await res.json());
     } catch {
@@ -97,7 +117,7 @@ export default function CatalogAdminPage() {
     fetchStats();
   }, []);
 
-  const visible = items.filter(i => i.kind === tab);
+  const visible = items.filter((i) => i.kind === tab);
 
   const openCreate = () => {
     setEditing(null);
@@ -112,15 +132,31 @@ export default function CatalogAdminPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name?.trim()) { toast.error('Name is required'); return; }
+    if (!form.name?.trim()) {
+      toast.error('Name is required');
+      return;
+    }
     setSaving(true);
     try {
       const res = editing
-        ? await fetch(`/api/admin/catalog/${editing._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-        : await fetch('/api/admin/catalog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+        ? await fetch(apiUrl(`/api/admin/catalog/${editing._id}`), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+          })
+        : await fetch(apiUrl('/api/admin/catalog'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+          });
       const data = await res.json();
-      if (!res.ok) { toast.error(data.error ?? 'Save failed'); return; }
-      toast.success(editing ? 'Catalog entry updated' : 'Catalog entry created');
+      if (!res.ok) {
+        toast.error(data.error ?? 'Save failed');
+        return;
+      }
+      toast.success(
+        editing ? 'Catalog entry updated' : 'Catalog entry created',
+      );
       setModalOpen(false);
       fetchItems();
     } finally {
@@ -129,13 +165,16 @@ export default function CatalogAdminPage() {
   };
 
   const toggleActive = async (item: CatalogEntry) => {
-    const res = await fetch(`/api/admin/catalog/${item._id}`, {
+    const res = await fetch(apiUrl(`/api/admin/catalog/${item._id}`), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: !item.isActive }),
     });
     const data = await res.json();
-    if (!res.ok) { toast.error(data.error ?? 'Update failed'); return; }
+    if (!res.ok) {
+      toast.error(data.error ?? 'Update failed');
+      return;
+    }
     toast.success(item.isActive ? 'Archived' : 'Re-activated');
     fetchItems();
   };
@@ -144,9 +183,15 @@ export default function CatalogAdminPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/catalog/${deleteTarget._id}`, { method: 'DELETE' });
+      const res = await fetch(
+        apiUrl(`/api/admin/catalog/${deleteTarget._id}`),
+        { method: 'DELETE' },
+      );
       const data = await res.json();
-      if (!res.ok) { toast.error(data.error ?? 'Delete failed'); return; }
+      if (!res.ok) {
+        toast.error(data.error ?? 'Delete failed');
+        return;
+      }
       toast.success('Deleted');
       setDeleteTarget(null);
       fetchItems();
@@ -159,9 +204,15 @@ export default function CatalogAdminPage() {
     setRefreshing(true);
     setRefreshSummary(null);
     try {
-      const res = await fetch('/api/admin/catalog/refresh-ai', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const res = await fetch(apiUrl('/api/admin/catalog/refresh-ai'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
       const data = await res.json();
-      if (!res.ok) { toast.error(data.error ?? 'Refresh failed'); return; }
+      if (!res.ok) {
+        toast.error(data.error ?? 'Refresh failed');
+        return;
+      }
       setRefreshSummary({
         updated: data.updatedCount ?? 0,
         skipped: data.skipped ?? [],
@@ -181,14 +232,24 @@ export default function CatalogAdminPage() {
     setSyncSummary(null);
     try {
       const url = `/api/admin/catalog/sync-from-ai${archiveResiduals ? '?archiveResiduals=true' : ''}`;
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
       const data = await res.json();
-      if (!res.ok) { toast.error(data.error ?? 'Sync failed'); return; }
+      if (!res.ok) {
+        toast.error(data.error ?? 'Sync failed');
+        return;
+      }
       setSyncSummary(data);
       const created = (data.aiModels?.created ?? 0) + (data.gpus?.created ?? 0);
       const updated = (data.aiModels?.updated ?? 0) + (data.gpus?.updated ?? 0);
-      const archived = (data.archived?.aiModels?.length ?? 0) + (data.archived?.gpus?.length ?? 0);
-      toast.success(`Sync: ${created} created, ${updated} updated${archived ? `, ${archived} archived` : ''}`);
+      const archived =
+        (data.archived?.aiModels?.length ?? 0) +
+        (data.archived?.gpus?.length ?? 0);
+      toast.success(
+        `Sync: ${created} created, ${updated} updated${archived ? `, ${archived} archived` : ''}`,
+      );
       fetchItems();
       fetchStats();
     } finally {
@@ -197,16 +258,23 @@ export default function CatalogAdminPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text">Model & Hardware Catalog</h1>
+          <h1 className="text-xl font-semibold text-text">
+            Model & Hardware Catalog
+          </h1>
           <p className="text-sm text-muted mt-0.5">
-            LLMs and GPU specs / prices used by the industrialization compute calculator. Refresh with AI to fetch current public specs.
+            LLMs and GPU specs / prices used by the industrialization compute
+            calculator. Refresh with AI to fetch current public specs.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -228,7 +296,10 @@ export default function CatalogAdminPage() {
             {refreshing ? <Spinner size="sm" /> : <RefreshCw size={13} />}
             Refresh existing
           </button>
-          <button onClick={openCreate} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors">
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors"
+          >
             <Plus size={15} /> New
           </button>
         </div>
@@ -262,29 +333,60 @@ export default function CatalogAdminPage() {
           <Sparkles size={14} className="text-blue-aria mt-0.5 shrink-0" />
           <div className="flex-1 text-[12px] text-text leading-snug space-y-1">
             <p>
-              <span className="font-semibold">Catalog synced from AI.</span>{' '}
-              AI models — <span className="font-semibold">{syncSummary.aiModels.created}</span> created,{' '}
-              <span className="font-semibold">{syncSummary.aiModels.updated}</span> updated.
-              {' · '}GPUs — <span className="font-semibold">{syncSummary.gpus.created}</span> created,{' '}
-              <span className="font-semibold">{syncSummary.gpus.updated}</span> updated.
-              {(syncSummary.archived.aiModels.length + syncSummary.archived.gpus.length) > 0 && (
-                <> {' · '}Archived as residual: <span className="font-semibold">{syncSummary.archived.aiModels.length + syncSummary.archived.gpus.length}</span></>
+              <span className="font-semibold">Catalog synced from AI.</span> AI
+              models —{' '}
+              <span className="font-semibold">
+                {syncSummary.aiModels.created}
+              </span>{' '}
+              created,{' '}
+              <span className="font-semibold">
+                {syncSummary.aiModels.updated}
+              </span>{' '}
+              updated.
+              {' · '}GPUs —{' '}
+              <span className="font-semibold">{syncSummary.gpus.created}</span>{' '}
+              created,{' '}
+              <span className="font-semibold">{syncSummary.gpus.updated}</span>{' '}
+              updated.
+              {syncSummary.archived.aiModels.length +
+                syncSummary.archived.gpus.length >
+                0 && (
+                <>
+                  {' '}
+                  {' · '}Archived as residual:{' '}
+                  <span className="font-semibold">
+                    {syncSummary.archived.aiModels.length +
+                      syncSummary.archived.gpus.length}
+                  </span>
+                </>
               )}
             </p>
             {syncSummary.exclusionRationale && (
-              <p className="text-muted"><span className="font-semibold text-text">Exclusions:</span> {syncSummary.exclusionRationale}</p>
+              <p className="text-muted">
+                <span className="font-semibold text-text">Exclusions:</span>{' '}
+                {syncSummary.exclusionRationale}
+              </p>
             )}
             {syncSummary.globalRationale && (
               <p className="text-muted">{syncSummary.globalRationale}</p>
             )}
             {syncSummary.archived.aiModels.length > 0 && (
-              <p className="text-muted text-[11px]">Archived models: {syncSummary.archived.aiModels.join(', ')}</p>
+              <p className="text-muted text-[11px]">
+                Archived models: {syncSummary.archived.aiModels.join(', ')}
+              </p>
             )}
             {syncSummary.archived.gpus.length > 0 && (
-              <p className="text-muted text-[11px]">Archived GPUs: {syncSummary.archived.gpus.join(', ')}</p>
+              <p className="text-muted text-[11px]">
+                Archived GPUs: {syncSummary.archived.gpus.join(', ')}
+              </p>
             )}
           </div>
-          <button onClick={() => setSyncSummary(null)} className="text-muted hover:text-text text-[11px]">dismiss</button>
+          <button
+            onClick={() => setSyncSummary(null)}
+            className="text-muted hover:text-text text-[11px]"
+          >
+            dismiss
+          </button>
         </div>
       )}
 
@@ -294,18 +396,34 @@ export default function CatalogAdminPage() {
           <div className="flex-1 text-[12px] text-text leading-snug">
             <p>
               <span className="font-semibold">AI refresh complete.</span>{' '}
-              {refreshSummary.updated} entr{refreshSummary.updated === 1 ? 'y' : 'ies'} updated
-              {refreshSummary.skipped.length > 0 && <> · {refreshSummary.skipped.length} skipped (name not in catalog: {refreshSummary.skipped.slice(0, 3).join(', ')}{refreshSummary.skipped.length > 3 ? '…' : ''})</>}.
+              {refreshSummary.updated} entr
+              {refreshSummary.updated === 1 ? 'y' : 'ies'} updated
+              {refreshSummary.skipped.length > 0 && (
+                <>
+                  {' '}
+                  · {refreshSummary.skipped.length} skipped (name not in
+                  catalog: {refreshSummary.skipped.slice(0, 3).join(', ')}
+                  {refreshSummary.skipped.length > 3 ? '…' : ''})
+                </>
+              )}
+              .
             </p>
-            {refreshSummary.rationale && <p className="mt-1 text-muted">{refreshSummary.rationale}</p>}
+            {refreshSummary.rationale && (
+              <p className="mt-1 text-muted">{refreshSummary.rationale}</p>
+            )}
           </div>
-          <button onClick={() => setRefreshSummary(null)} className="text-muted hover:text-text text-[11px]">dismiss</button>
+          <button
+            onClick={() => setRefreshSummary(null)}
+            className="text-muted hover:text-text text-[11px]"
+          >
+            dismiss
+          </button>
         </div>
       )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
-        {(Object.keys(TAB_CONFIG) as Tab[]).map(t => {
+        {(Object.keys(TAB_CONFIG) as Tab[]).map((t) => {
           const cfg = TAB_CONFIG[t];
           const Icon = cfg.Icon;
           return (
@@ -313,10 +431,13 @@ export default function CatalogAdminPage() {
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
-                tab === t ? 'border-blue-aria text-blue-aria' : 'border-transparent text-muted hover:text-text'
+                tab === t
+                  ? 'border-blue-aria text-blue-aria'
+                  : 'border-transparent text-muted hover:text-text'
               }`}
             >
-              <Icon size={13} /> {cfg.label} ({items.filter(i => i.kind === t).length})
+              <Icon size={13} /> {cfg.label} (
+              {items.filter((i) => i.kind === t).length})
             </button>
           );
         })}
@@ -325,35 +446,81 @@ export default function CatalogAdminPage() {
       <div className="card overflow-hidden p-0">
         {visible.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted">
-            No {TAB_CONFIG[tab].label.toLowerCase()} yet. Click <em>New</em> or <em>Refresh with AI</em> to seed entries.
+            No {TAB_CONFIG[tab].label.toLowerCase()} yet. Click <em>New</em> or{' '}
+            <em>Refresh with AI</em> to seed entries.
           </p>
         ) : tab === 'ai_model' ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-smoke">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Name</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Vendor</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Ctx</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">€/M in</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">€/M out</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Params</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Mode</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">AI updated</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Name
+                </th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Vendor
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Ctx
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  €/M in
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  €/M out
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Params
+                </th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Mode
+                </th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  AI updated
+                </th>
                 <th className="px-3 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {visible.map(m => (
-                <tr key={m._id} className={`hover:bg-smoke/50 ${m.isActive ? '' : 'opacity-60'}`}>
+              {visible.map((m) => (
+                <tr
+                  key={m._id}
+                  className={`hover:bg-smoke/50 ${m.isActive ? '' : 'opacity-60'}`}
+                >
                   <td className="px-3 py-2 font-medium text-text">{m.name}</td>
                   <td className="px-3 py-2 text-muted">{m.vendor ?? '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{m.contextWindow ? m.contextWindow.toLocaleString() : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{m.pricePerMInputTokens != null ? `€${m.pricePerMInputTokens.toFixed(2)}` : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{m.pricePerMOutputTokens != null ? `€${m.pricePerMOutputTokens.toFixed(2)}` : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{m.paramCountB ? `${m.paramCountB}B` : '—'}</td>
-                  <td className="px-3 py-2 text-xs text-muted">{m.deploymentMode ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs text-muted" title={m.aiRationale}>{fmtDate(m.aiUpdatedAt)}</td>
-                  <td className="px-3 py-2"><RowActions item={m} onEdit={openEdit} onToggle={toggleActive} onDelete={setDeleteTarget} /></td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {m.contextWindow ? m.contextWindow.toLocaleString() : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {m.pricePerMInputTokens != null
+                      ? `€${m.pricePerMInputTokens.toFixed(2)}`
+                      : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {m.pricePerMOutputTokens != null
+                      ? `€${m.pricePerMOutputTokens.toFixed(2)}`
+                      : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {m.paramCountB ? `${m.paramCountB}B` : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted">
+                    {m.deploymentMode ?? '—'}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-xs text-muted"
+                    title={m.aiRationale}
+                  >
+                    {fmtDate(m.aiUpdatedAt)}
+                  </td>
+                  <td className="px-3 py-2">
+                    <RowActions
+                      item={m}
+                      onEdit={openEdit}
+                      onToggle={toggleActive}
+                      onDelete={setDeleteTarget}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -372,8 +539,11 @@ export default function CatalogAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {visible.map(g => (
-                <tr key={g._id} className={`hover:bg-smoke/50 ${g.isActive ? '' : 'opacity-60'}`}>
+              {visible.map((g) => (
+                <tr
+                  key={g._id}
+                  className={`hover:bg-smoke/50 ${g.isActive ? '' : 'opacity-60'}`}
+                >
                   <td className="px-3 py-2 font-medium text-text">{g.name}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{g.vramGb ? `${g.vramGb} GB` : '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{g.tdpW ? `${g.tdpW} W` : '—'}</td>
@@ -397,8 +567,18 @@ export default function CatalogAdminPage() {
       >
         <CatalogForm form={form} onChange={setForm} />
         <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">
-          <button onClick={() => setModalOpen(false)} className="btn-secondary" disabled={saving}>Cancel</button>
-          <button onClick={handleSave} className="btn-primary flex items-center gap-2" disabled={saving}>
+          <button
+            onClick={() => setModalOpen(false)}
+            className="btn-secondary"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="btn-primary flex items-center gap-2"
+            disabled={saving}
+          >
             {saving && <Spinner size="sm" />}
             {editing ? 'Save changes' : 'Create entry'}
           </button>
@@ -425,28 +605,47 @@ export default function CatalogAdminPage() {
       >
         <div className="space-y-4 text-sm text-text">
           <p>
-            The AI will return the canonical current market list of LLMs and inference GPUs (residual / deprecated entries deliberately excluded).
-            Existing entries with a matching name are <em>updated</em>; missing entries are <em>created</em>. Snapshots already recorded in industrializations are not affected.
+            The AI will return the canonical current market list of LLMs and
+            inference GPUs (residual / deprecated entries deliberately
+            excluded). Existing entries with a matching name are{' '}
+            <em>updated</em>; missing entries are <em>created</em>. Snapshots
+            already recorded in industrializations are not affected.
           </p>
           <label className="flex items-start gap-2 text-xs text-text border border-border rounded p-3 bg-smoke/40">
             <input
               type="checkbox"
               checked={archiveResiduals}
-              onChange={e => setArchiveResiduals(e.target.checked)}
+              onChange={(e) => setArchiveResiduals(e.target.checked)}
               className="mt-0.5"
             />
             <span>
-              <span className="font-medium">Archive entries the AI did not return.</span><br />
+              <span className="font-medium">
+                Archive entries the AI did not return.
+              </span>
+              <br />
               <span className="text-muted">
-                Active rows that aren't in the AI list will be marked archived (soft-hide from dropdowns).
-                Industrializations referencing them keep their snapshotted price/specs. Manual rows you've added intentionally
-                will also be archived if the AI didn't include them — leave unchecked unless you want a hard reset to the AI list.
+                Active rows that aren't in the AI list will be marked archived
+                (soft-hide from dropdowns). Industrializations referencing them
+                keep their snapshotted price/specs. Manual rows you've added
+                intentionally will also be archived if the AI didn't include
+                them — leave unchecked unless you want a hard reset to the AI
+                list.
               </span>
             </span>
           </label>
           <div className="flex justify-end gap-3">
-            <button onClick={() => setConfirmSync(false)} className="btn-secondary" disabled={syncing}>Cancel</button>
-            <button onClick={handleSyncFromAi} className="btn-primary flex items-center gap-2" disabled={syncing}>
+            <button
+              onClick={() => setConfirmSync(false)}
+              className="btn-secondary"
+              disabled={syncing}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSyncFromAi}
+              className="btn-primary flex items-center gap-2"
+              disabled={syncing}
+            >
               {syncing && <Spinner size="sm" />}
               <DownloadCloud size={13} /> Run sync
             </button>
@@ -457,7 +656,12 @@ export default function CatalogAdminPage() {
   );
 }
 
-function RowActions({ item, onEdit, onToggle, onDelete }: {
+function RowActions({
+  item,
+  onEdit,
+  onToggle,
+  onDelete,
+}: {
   item: CatalogEntry;
   onEdit: (i: CatalogEntry) => void;
   onToggle: (i: CatalogEntry) => void;
@@ -465,23 +669,43 @@ function RowActions({ item, onEdit, onToggle, onDelete }: {
 }) {
   return (
     <div className="flex items-center justify-end gap-1">
-      {item.isActive
-        ? <Badge variant="green">active</Badge>
-        : <Badge variant="slate">archived</Badge>}
-      <button onClick={() => onToggle(item)} className="p-1.5 rounded text-muted hover:text-blue-aria hover:bg-blue-aria/10" title={item.isActive ? 'Archive' : 'Re-activate'}>
+      {item.isActive ? (
+        <Badge variant="green">active</Badge>
+      ) : (
+        <Badge variant="slate">archived</Badge>
+      )}
+      <button
+        onClick={() => onToggle(item)}
+        className="p-1.5 rounded text-muted hover:text-blue-aria hover:bg-blue-aria/10"
+        title={item.isActive ? 'Archive' : 'Re-activate'}
+      >
         {item.isActive ? <PowerOff size={14} /> : <Power size={14} />}
       </button>
-      <button onClick={() => onEdit(item)} className="p-1.5 rounded text-muted hover:text-blue-aria hover:bg-blue-aria/10" title="Edit">
+      <button
+        onClick={() => onEdit(item)}
+        className="p-1.5 rounded text-muted hover:text-blue-aria hover:bg-blue-aria/10"
+        title="Edit"
+      >
         <Pencil size={14} />
       </button>
-      <button onClick={() => onDelete(item)} className="p-1.5 rounded text-muted hover:text-red-500 hover:bg-red-50" title="Delete">
+      <button
+        onClick={() => onDelete(item)}
+        className="p-1.5 rounded text-muted hover:text-red-500 hover:bg-red-50"
+        title="Delete"
+      >
         <Trash2 size={14} />
       </button>
     </div>
   );
 }
 
-function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange: (f: Partial<CatalogEntry>) => void }) {
+function CatalogForm({
+  form,
+  onChange,
+}: {
+  form: Partial<CatalogEntry>;
+  onChange: (f: Partial<CatalogEntry>) => void;
+}) {
   const set = (patch: Partial<CatalogEntry>) => onChange({ ...form, ...patch });
   const isAi = (form.kind ?? 'ai_model') === 'ai_model';
   const [searchText, setSearchText] = useState('');
@@ -608,7 +832,7 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
         <div>
           <label className="form-label">Type</label>
           <div className="flex gap-2">
-            {(['ai_model', 'gpu'] as const).map(k => (
+            {(['ai_model', 'gpu'] as const).map((k) => (
               <button
                 key={k}
                 onClick={() => set({ kind: k })}
@@ -622,19 +846,37 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
       )}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
-          <label className="form-label">Name <span className="text-red-sov">*</span></label>
-          <input className="form-input" value={form.name ?? ''} onChange={e => set({ name: e.target.value })} placeholder={isAi ? 'e.g. mistral-large-latest' : 'e.g. NVIDIA H100 80GB'} />
+          <label className="form-label">
+            Name <span className="text-red-sov">*</span>
+          </label>
+          <input
+            className="form-input"
+            value={form.name ?? ''}
+            onChange={(e) => set({ name: e.target.value })}
+            placeholder={
+              isAi ? 'e.g. mistral-large-latest' : 'e.g. NVIDIA H100 80GB'
+            }
+          />
         </div>
 
         {isAi ? (
           <>
             <div>
               <label className="form-label">Vendor</label>
-              <input className="form-input" value={form.vendor ?? ''} onChange={e => set({ vendor: e.target.value })} placeholder="Mistral / OpenAI / Meta…" />
+              <input
+                className="form-input"
+                value={form.vendor ?? ''}
+                onChange={(e) => set({ vendor: e.target.value })}
+                placeholder="Mistral / OpenAI / Meta…"
+              />
             </div>
             <div>
               <label className="form-label">Deployment</label>
-              <select className="form-input" value={form.deploymentMode ?? 'cloud_api'} onChange={e => set({ deploymentMode: e.target.value as any })}>
+              <select
+                className="form-input"
+                value={form.deploymentMode ?? 'cloud_api'}
+                onChange={(e) => set({ deploymentMode: e.target.value as any })}
+              >
                 <option value="cloud_api">cloud_api</option>
                 <option value="on_premise">on_premise</option>
                 <option value="hybrid">hybrid</option>
@@ -642,30 +884,77 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
             </div>
             <div>
               <label className="form-label">Context window (tokens)</label>
-              <input type="number" min={0} className="form-input tabular-nums" value={form.contextWindow ?? 0} onChange={e => set({ contextWindow: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                className="form-input tabular-nums"
+                value={form.contextWindow ?? 0}
+                onChange={(e) =>
+                  set({ contextWindow: Number(e.target.value) || 0 })
+                }
+              />
             </div>
             <div>
               <label className="form-label">Active params (B)</label>
-              <input type="number" min={0} step={0.1} className="form-input tabular-nums" value={form.paramCountB ?? 0} onChange={e => set({ paramCountB: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                className="form-input tabular-nums"
+                value={form.paramCountB ?? 0}
+                onChange={(e) =>
+                  set({ paramCountB: Number(e.target.value) || 0 })
+                }
+              />
             </div>
             <div>
               <label className="form-label">€ / M input tokens</label>
-              <input type="number" min={0} step={0.01} className="form-input tabular-nums" value={form.pricePerMInputTokens ?? 0} onChange={e => set({ pricePerMInputTokens: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="form-input tabular-nums"
+                value={form.pricePerMInputTokens ?? 0}
+                onChange={(e) =>
+                  set({ pricePerMInputTokens: Number(e.target.value) || 0 })
+                }
+              />
             </div>
             <div>
               <label className="form-label">€ / M output tokens</label>
-              <input type="number" min={0} step={0.01} className="form-input tabular-nums" value={form.pricePerMOutputTokens ?? 0} onChange={e => set({ pricePerMOutputTokens: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="form-input tabular-nums"
+                value={form.pricePerMOutputTokens ?? 0}
+                onChange={(e) =>
+                  set({ pricePerMOutputTokens: Number(e.target.value) || 0 })
+                }
+              />
             </div>
           </>
         ) : (
           <>
             <div>
               <label className="form-label">VRAM (GB)</label>
-              <input type="number" min={0} className="form-input tabular-nums" value={form.vramGb ?? 0} onChange={e => set({ vramGb: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                className="form-input tabular-nums"
+                value={form.vramGb ?? 0}
+                onChange={(e) => set({ vramGb: Number(e.target.value) || 0 })}
+              />
             </div>
             <div>
               <label className="form-label">TDP (W)</label>
-              <input type="number" min={0} className="form-input tabular-nums" value={form.tdpW ?? 0} onChange={e => set({ tdpW: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                className="form-input tabular-nums"
+                value={form.tdpW ?? 0}
+                onChange={(e) => set({ tdpW: Number(e.target.value) || 0 })}
+              />
             </div>
             <div>
               <label className="form-label">Concurrent users / GPU</label>
@@ -673,23 +962,43 @@ function CatalogForm({ form, onChange }: { form: Partial<CatalogEntry>; onChange
             </div>
             <div>
               <label className="form-label">Unit price (€)</label>
-              <input type="number" min={0} className="form-input tabular-nums" value={form.priceEur ?? 0} onChange={e => set({ priceEur: Number(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min={0}
+                className="form-input tabular-nums"
+                value={form.priceEur ?? 0}
+                onChange={(e) => set({ priceEur: Number(e.target.value) || 0 })}
+              />
             </div>
           </>
         )}
 
         <div className="col-span-2">
           <label className="form-label">Notes</label>
-          <textarea className="form-textarea" rows={2} value={form.notes ?? ''} onChange={e => set({ notes: e.target.value })} />
+          <textarea
+            className="form-textarea"
+            rows={2}
+            value={form.notes ?? ''}
+            onChange={(e) => set({ notes: e.target.value })}
+          />
         </div>
         <label className="col-span-2 flex items-center gap-2 text-xs text-text">
-          <input type="checkbox" checked={form.isActive ?? true} onChange={e => set({ isActive: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={form.isActive ?? true}
+            onChange={(e) => set({ isActive: e.target.checked })}
+          />
           Active (visible in compute-calculator dropdowns)
         </label>
         {form.aiRationale && (
           <div className="col-span-2 text-[11px] text-blue-aria bg-blue-pale/40 border border-blue-aria/20 rounded p-2 flex items-start gap-1">
             <Sparkles size={11} className="mt-0.5 shrink-0" />
-            <div><span className="font-semibold">Last AI refresh ({fmtDate(form.aiUpdatedAt)}):</span> {form.aiRationale}</div>
+            <div>
+              <span className="font-semibold">
+                Last AI refresh ({fmtDate(form.aiUpdatedAt)}):
+              </span>{' '}
+              {form.aiRationale}
+            </div>
           </div>
         )}
       </div>

@@ -3,7 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Pencil, X, Clock, TrendingUp, Archive, Trash2, Users, Crown, Edit3, Eye } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  X,
+  Clock,
+  TrendingUp,
+  Archive,
+  Trash2,
+  Users,
+  Crown,
+  Edit3,
+  Eye,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,6 +24,8 @@ import { BlockProgressBar } from '@/components/layout/BlockProgressBar';
 import { TeamEditModal } from '@/components/audit-team/TeamEditModal';
 import { useAuditAccess } from '@/context/AuditAccessContext';
 import type { AuditTeamRole } from '@/lib/models/Audit';
+import { apiUrl } from '@/lib/utils';
+
 import type {
   AuditStatus,
   SectorType,
@@ -63,8 +77,16 @@ interface ProcessSummary {
   metrics?: ProcessMetrics;
 }
 
-const SECTOR_VARIANTS: Record<SectorType, 'red' | 'blue' | 'teal' | 'amber' | 'slate'> = {
-  defence: 'red', aerospace: 'blue', naval: 'teal', railway: 'amber', internal: 'slate', other: 'slate',
+const SECTOR_VARIANTS: Record<
+  SectorType,
+  'red' | 'blue' | 'teal' | 'amber' | 'slate'
+> = {
+  defence: 'red',
+  aerospace: 'blue',
+  naval: 'teal',
+  railway: 'amber',
+  internal: 'slate',
+  other: 'slate',
 };
 
 const SECTORS: { value: SectorType; label: string }[] = [
@@ -80,21 +102,33 @@ const STATUS_VARIANTS: Record<AuditStatus, 'slate' | 'green' | 'amber' | 'blue'>
   draft: 'slate', active: 'green', review: 'amber', completed: 'blue',
 };
 
-const PROCESS_STATUS_VARIANTS: Record<ProcessStatus, 'slate' | 'blue' | 'green' | 'amber'> = {
-  pending: 'slate', in_audit: 'blue', completed: 'green', paused: 'amber',
+const PROCESS_STATUS_VARIANTS: Record<
+  ProcessStatus,
+  'slate' | 'blue' | 'green' | 'amber'
+> = {
+  pending: 'slate',
+  in_audit: 'blue',
+  completed: 'green',
+  paused: 'amber',
 };
 
 const PRIORITY_VARIANTS: Record<Priority, 'red' | 'amber' | 'slate'> = {
-  high: 'red', medium: 'amber', low: 'slate',
+  high: 'red',
+  medium: 'amber',
+  low: 'slate',
 };
 
-function getLeadName(lead: { _id: string; name: string } | string | undefined): string {
+function getLeadName(
+  lead: { _id: string; name: string } | string | undefined,
+): string {
   if (!lead) return '—';
   if (typeof lead === 'string') return lead;
   return lead.name ?? '—';
 }
 
-function getSovereigntyVariant(idx: number | null): 'green' | 'amber' | 'red' | 'slate' {
+function getSovereigntyVariant(
+  idx: number | null,
+): 'green' | 'amber' | 'red' | 'slate' {
   if (idx === null) return 'slate';
   if (idx >= 4.0) return 'green';
   if (idx >= 2.0) return 'amber';
@@ -102,10 +136,20 @@ function getSovereigntyVariant(idx: number | null): 'green' | 'amber' | 'red' | 
 }
 
 const EMPTY_COMPLETION: BlockCompletion = {
-  b1: false, b2: false, b3: false, b5: false, b6: false, b7: false,
+  b1: false,
+  b2: false,
+  b3: false,
+  b5: false,
+  b6: false,
+  b7: false,
 };
 
-const AUDIT_STATUSES: AuditStatus[] = ['draft', 'active', 'review', 'completed'];
+const AUDIT_STATUSES: AuditStatus[] = [
+  'draft',
+  'active',
+  'review',
+  'completed',
+];
 
 export default function AuditPage() {
   const params = useParams();
@@ -128,24 +172,36 @@ export default function AuditPage() {
 
   // Team
   const [teamModalOpen, setTeamModalOpen] = useState(false);
-  const [teamSummary, setTeamSummary] = useState<Array<{ userId: string; role: AuditTeamRole; user: { name: string; email: string } | null }>>([]);
+  const [teamSummary, setTeamSummary] = useState<
+    Array<{
+      userId: string;
+      role: AuditTeamRole;
+      user: { name: string; email: string } | null;
+    }>
+  >([]);
   const access = useAuditAccess();
 
   const loadTeam = async () => {
     try {
-      const r = await fetch(`/api/audits/${auditId}/team`, { credentials: 'include' });
+      const r = await fetch(apiUrl(`/api/audits/${auditId}/team`), {
+        credentials: 'include',
+      });
       if (!r.ok) return;
       const data = await r.json();
       setTeamSummary(Array.isArray(data?.team) ? data.team : []);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
-  useEffect(() => { if (auditId) loadTeam(); }, [auditId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (auditId) loadTeam();
+  }, [auditId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`/api/audits/${auditId}`);
+        const res = await fetch(apiUrl(`/api/audits/${auditId}`));
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data = await res.json();
         setAudit(data);
@@ -155,7 +211,9 @@ export default function AuditPage() {
           project: data.project || '',
           sector: data.sector || 'aerospace',
           startDate: data.startDate ? data.startDate.slice(0, 10) : '',
-          targetEndDate: data.targetEndDate ? data.targetEndDate.slice(0, 10) : '',
+          targetEndDate: data.targetEndDate
+            ? data.targetEndDate.slice(0, 10)
+            : '',
         });
       } catch (e: any) {
         setError(e.message ?? 'Failed to load audit');
@@ -170,15 +228,17 @@ export default function AuditPage() {
     if (!audit || newStatus === audit.status) return;
     setSavingStatus(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error('Failed');
       const updated = await res.json();
-      setAudit((prev) => prev ? { ...prev, status: updated.status } : prev);
-    } catch { /* ignore */ } finally {
+      setAudit((prev) => (prev ? { ...prev, status: updated.status } : prev));
+    } catch {
+      /* ignore */
+    } finally {
       setSavingStatus(false);
     }
   };
@@ -187,14 +247,14 @@ export default function AuditPage() {
     if (!editForm.name.trim() || !editForm.client.trim()) return;
     setSavingEdit(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
       });
       if (res.ok) {
         const updated = await res.json();
-        setAudit((prev) => prev ? { ...prev, ...updated } : prev);
+        setAudit((prev) => (prev ? { ...prev, ...updated } : prev));
         setEditOpen(false);
       }
     } finally {
@@ -205,7 +265,7 @@ export default function AuditPage() {
   const handleArchive = async () => {
     setArchiving(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isArchived: true }),
@@ -224,7 +284,9 @@ export default function AuditPage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/audits/${auditId}`, { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/api/audits/${auditId}`), {
+        method: 'DELETE',
+      });
       if (!res.ok) throw new Error('Failed');
       toast.success('Audit deleted');
       setDeleteModalOpen(false);
@@ -237,7 +299,11 @@ export default function AuditPage() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-20"><Spinner size="lg" className="text-blue-aria" /></div>;
+    return (
+      <div className="flex justify-center py-20">
+        <Spinner size="lg" className="text-blue-aria" />
+      </div>
+    );
   }
 
   if (error || !audit) {
@@ -254,8 +320,13 @@ export default function AuditPage() {
       <div className="bg-white border border-border rounded-sm p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0 space-y-3">
-            <h1 className="font-display text-2xl font-bold text-text leading-tight">{audit.name}</h1>
-            <p className="text-sm text-muted">{audit.client}{audit.project ? ` · ${audit.project}` : ''}</p>
+            <h1 className="font-display text-2xl font-bold text-text leading-tight">
+              {audit.name}
+            </h1>
+            <p className="text-sm text-muted">
+              {audit.client}
+              {audit.project ? ` · ${audit.project}` : ''}
+            </p>
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={SECTOR_VARIANTS[audit.sector]}>
@@ -270,11 +341,15 @@ export default function AuditPage() {
               ) : (
                 <select
                   value={audit.status}
-                  onChange={(e) => handleStatusChange(e.target.value as AuditStatus)}
+                  onChange={(e) =>
+                    handleStatusChange(e.target.value as AuditStatus)
+                  }
                   className="text-xs border border-border rounded-sm px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-aria"
                 >
                   {AUDIT_STATUSES.map((s) => (
-                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                    <option key={s} value={s}>
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </option>
                   ))}
                 </select>
               )}
@@ -284,12 +359,27 @@ export default function AuditPage() {
             </div>
 
             <div className="flex flex-wrap gap-4 text-xs text-muted">
-              <span>Lead: <span className="text-text font-medium">{getLeadName(audit.leadConsultant)}</span></span>
+              <span>
+                Lead:{' '}
+                <span className="text-text font-medium">
+                  {getLeadName(audit.leadConsultant)}
+                </span>
+              </span>
               {audit.startDate && (
-                <span>Start: <span className="text-text font-medium">{new Date(audit.startDate).toLocaleDateString()}</span></span>
+                <span>
+                  Start:{' '}
+                  <span className="text-text font-medium">
+                    {new Date(audit.startDate).toLocaleDateString()}
+                  </span>
+                </span>
               )}
               {audit.targetEndDate && (
-                <span>Target: <span className="text-text font-medium">{new Date(audit.targetEndDate).toLocaleDateString()}</span></span>
+                <span>
+                  Target:{' '}
+                  <span className="text-text font-medium">
+                    {new Date(audit.targetEndDate).toLocaleDateString()}
+                  </span>
+                </span>
               )}
             </div>
           </div>
@@ -325,18 +415,33 @@ export default function AuditPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Processes', value: audit.processCount ?? audit.processes?.length ?? 0 },
+          {
+            label: 'Processes',
+            value: audit.processCount ?? audit.processes?.length ?? 0,
+          },
           { label: 'Use Cases', value: audit.useCaseCount ?? 0 },
           { label: 'POCs', value: audit.pocCount ?? 0 },
-          { label: 'Industrializations', value: audit.industrializationCount ?? 0 },
+          {
+            label: 'Industrializations',
+            value: audit.industrializationCount ?? 0,
+          },
           {
             label: 'People Impacted',
-            value: audit.processes?.reduce((s, p) => s + (p.peopleCount ?? 0), 0) ?? 0,
+            value:
+              audit.processes?.reduce((s, p) => s + (p.peopleCount ?? 0), 0) ??
+              0,
           },
         ].map((s, i) => (
-          <div key={i} className="bg-white border border-border rounded-sm p-4 flex flex-col gap-1">
-            <span className="text-xs text-muted font-medium uppercase tracking-wide">{s.label}</span>
-            <span className="font-display text-2xl font-bold text-text">{s.value}</span>
+          <div
+            key={i}
+            className="bg-white border border-border rounded-sm p-4 flex flex-col gap-1"
+          >
+            <span className="text-xs text-muted font-medium uppercase tracking-wide">
+              {s.label}
+            </span>
+            <span className="font-display text-2xl font-bold text-text">
+              {s.value}
+            </span>
           </div>
         ))}
       </div>
@@ -346,8 +451,12 @@ export default function AuditPage() {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-blue-aria" />
-            <h2 className="font-display font-semibold text-base text-text">Team</h2>
-            <span className="text-xs text-muted">— {teamSummary.length} member{teamSummary.length === 1 ? '' : 's'}</span>
+            <h2 className="font-display font-semibold text-base text-text">
+              Team
+            </h2>
+            <span className="text-xs text-muted">
+              — {teamSummary.length} member{teamSummary.length === 1 ? '' : 's'}
+            </span>
           </div>
           <button
             onClick={() => setTeamModalOpen(true)}
@@ -361,14 +470,34 @@ export default function AuditPage() {
           <p className="text-xs text-muted">No team members loaded yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {teamSummary.map(m => {
-              const RoleIcon = m.role === 'owner' ? Crown : m.role === 'editor' ? Edit3 : Eye;
-              const variant: 'green' | 'blue' | 'slate' = m.role === 'owner' ? 'green' : m.role === 'editor' ? 'blue' : 'slate';
+            {teamSummary.map((m) => {
+              const RoleIcon =
+                m.role === 'owner' ? Crown : m.role === 'editor' ? Edit3 : Eye;
+              const variant: 'green' | 'blue' | 'slate' =
+                m.role === 'owner'
+                  ? 'green'
+                  : m.role === 'editor'
+                    ? 'blue'
+                    : 'slate';
               return (
-                <span key={m.userId} className="inline-flex items-center gap-1.5 px-2 py-1 border border-border rounded-sm text-xs bg-smoke/40">
-                  <RoleIcon size={11} className={m.role === 'owner' ? 'text-green-sov' : m.role === 'editor' ? 'text-blue-aria' : 'text-muted'} />
+                <span
+                  key={m.userId}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 border border-border rounded-sm text-xs bg-smoke/40"
+                >
+                  <RoleIcon
+                    size={11}
+                    className={
+                      m.role === 'owner'
+                        ? 'text-green-sov'
+                        : m.role === 'editor'
+                          ? 'text-blue-aria'
+                          : 'text-muted'
+                    }
+                  />
                   <span className="font-medium">{m.user?.name ?? '—'}</span>
-                  <Badge variant={variant} className="text-[9px] py-0">{m.role}</Badge>
+                  <Badge variant={variant} className="text-[9px] py-0">
+                    {m.role}
+                  </Badge>
                 </span>
               );
             })}
@@ -397,9 +526,11 @@ export default function AuditPage() {
 
       {/* Process grid */}
       <div>
-        <h2 className="font-display font-semibold text-base text-text mb-3">Processes</h2>
+        <h2 className="font-display font-semibold text-base text-text mb-3">
+          Processes
+        </h2>
 
-        {(!audit.processes || audit.processes.length === 0) ? (
+        {!audit.processes || audit.processes.length === 0 ? (
           <div className="bg-white border border-border rounded-sm p-10 text-center">
             <p className="text-muted text-sm">No processes yet.</p>
             <Link
@@ -421,17 +552,29 @@ export default function AuditPage() {
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="amber">{proc.procId}</Badge>
                   <Badge variant={PRIORITY_VARIANTS[proc.priority]}>
-                    {proc.priority.charAt(0).toUpperCase() + proc.priority.slice(1)}
+                    {proc.priority.charAt(0).toUpperCase() +
+                      proc.priority.slice(1)}
                   </Badge>
                 </div>
 
                 {/* Name */}
-                <h3 className="font-display font-semibold text-sm text-text leading-snug">{proc.name}</h3>
+                <h3 className="font-display font-semibold text-sm text-text leading-snug">
+                  {proc.name}
+                </h3>
 
                 {/* Department + Responsible + People */}
                 <div className="space-y-0.5">
-                  {proc.department && <p className="text-xs text-muted">Dept: <span className="text-text">{proc.department}</span></p>}
-                  {proc.responsible && <p className="text-xs text-muted">Resp: <span className="text-text">{proc.responsible}</span></p>}
+                  {proc.department && (
+                    <p className="text-xs text-muted">
+                      Dept: <span className="text-text">{proc.department}</span>
+                    </p>
+                  )}
+                  {proc.responsible && (
+                    <p className="text-xs text-muted">
+                      Resp:{' '}
+                      <span className="text-text">{proc.responsible}</span>
+                    </p>
+                  )}
                   {(proc.peopleCount ?? 0) > 0 && (
                     <p className="text-xs font-semibold text-blue-aria">
                       👥 {proc.peopleCount} people impacted
@@ -441,50 +584,63 @@ export default function AuditPage() {
 
                 {/* Status */}
                 <Badge variant={PROCESS_STATUS_VARIANTS[proc.status]}>
-                  {proc.status.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  {proc.status
+                    .replace('_', ' ')
+                    .replace(/\b\w/g, (c) => c.toUpperCase())}
                 </Badge>
 
                 {/* Sovereignty index */}
                 {proc.sovereigntyIndex !== null && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted">Sovereignty:</span>
-                    <Badge variant={getSovereigntyVariant(proc.sovereigntyIndex)}>
+                    <Badge
+                      variant={getSovereigntyVariant(proc.sovereigntyIndex)}
+                    >
                       {proc.sovereigntyIndex.toFixed(1)}
                     </Badge>
                   </div>
                 )}
 
                 {/* Savings highlight */}
-                {proc.metrics && (proc.metrics.totalTimeSavedHoursPerRun > 0 || proc.metrics.projectedAnnualSavingEur > 0) && (
-                  <div className="bg-green-sov-light rounded px-2 py-1.5 space-y-1">
-                    <div className="flex items-center gap-3 text-xs">
-                      {proc.metrics.totalTimeSavedHoursPerRun > 0 && (
-                        <span className="flex items-center gap-1 text-green-700 font-medium">
-                          <Clock size={11} />
-                          {proc.metrics.totalTimeSavedHoursPerRun}h/run saved
-                        </span>
-                      )}
-                      {proc.metrics.projectedAnnualSavingEur > 0 && (
-                        <span className="flex items-center gap-1 text-green-700">
-                          <TrendingUp size={11} />
-                          €{proc.metrics.projectedAnnualSavingEur.toLocaleString()}/yr
-                        </span>
+                {proc.metrics &&
+                  (proc.metrics.totalTimeSavedHoursPerRun > 0 ||
+                    proc.metrics.projectedAnnualSavingEur > 0) && (
+                    <div className="bg-green-sov-light rounded px-2 py-1.5 space-y-1">
+                      <div className="flex items-center gap-3 text-xs">
+                        {proc.metrics.totalTimeSavedHoursPerRun > 0 && (
+                          <span className="flex items-center gap-1 text-green-700 font-medium">
+                            <Clock size={11} />
+                            {proc.metrics.totalTimeSavedHoursPerRun}h/run saved
+                          </span>
+                        )}
+                        {proc.metrics.projectedAnnualSavingEur > 0 && (
+                          <span className="flex items-center gap-1 text-green-700">
+                            <TrendingUp size={11} />€
+                            {proc.metrics.projectedAnnualSavingEur.toLocaleString()}
+                            /yr
+                          </span>
+                        )}
+                      </div>
+                      {proc.metrics.totalHoursPerRun > 0 && (
+                        <div className="flex items-center gap-3 text-xs text-green-700/80">
+                          <span>
+                            {proc.metrics.totalHoursPerRun}h/run total
+                            {proc.metrics.totalTimeSavedHoursPerRun > 0 && (
+                              <span className="ml-1.5 font-semibold text-green-700">
+                                (
+                                {Math.round(
+                                  (proc.metrics.totalTimeSavedHoursPerRun /
+                                    proc.metrics.totalHoursPerRun) *
+                                    100,
+                                )}
+                                % time saved)
+                              </span>
+                            )}
+                          </span>
+                        </div>
                       )}
                     </div>
-                    {proc.metrics.totalHoursPerRun > 0 && (
-                      <div className="flex items-center gap-3 text-xs text-green-700/80">
-                        <span>
-                          {proc.metrics.totalHoursPerRun}h/run total
-                          {proc.metrics.totalTimeSavedHoursPerRun > 0 && (
-                            <span className="ml-1.5 font-semibold text-green-700">
-                              ({Math.round((proc.metrics.totalTimeSavedHoursPerRun / proc.metrics.totalHoursPerRun) * 100)}% time saved)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
 
                 {/* ROI metrics */}
                 {proc.metrics && (
@@ -492,20 +648,27 @@ export default function AuditPage() {
                     {proc.metrics.totalAnnualHours > 0 && (
                       <>
                         <span className="text-muted">Annual time:</span>
-                        <span className="text-text font-medium">{proc.metrics.totalAnnualHours}h</span>
+                        <span className="text-text font-medium">
+                          {proc.metrics.totalAnnualHours}h
+                        </span>
                       </>
                     )}
                     {proc.metrics.eligibleUCCount > 0 && (
                       <>
                         <span className="text-muted">Eligible UCs:</span>
-                        <span className="text-text font-medium">{proc.metrics.eligibleUCCount}</span>
+                        <span className="text-text font-medium">
+                          {proc.metrics.eligibleUCCount}
+                        </span>
                       </>
                     )}
                     {proc.metrics.roiPercent !== null && (
                       <>
                         <span className="text-muted">ROI:</span>
-                        <span className={`font-bold ${proc.metrics.roiPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {proc.metrics.roiPercent > 0 ? '+' : ''}{proc.metrics.roiPercent}%
+                        <span
+                          className={`font-bold ${proc.metrics.roiPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                        >
+                          {proc.metrics.roiPercent > 0 ? '+' : ''}
+                          {proc.metrics.roiPercent}%
                         </span>
                       </>
                     )}
@@ -554,26 +717,41 @@ export default function AuditPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-sm shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-display font-semibold text-lg text-text">Edit Audit</h2>
-              <button onClick={() => setEditOpen(false)} className="text-muted hover:text-text"><X size={18} /></button>
+              <h2 className="font-display font-semibold text-lg text-text">
+                Edit Audit
+              </h2>
+              <button
+                onClick={() => setEditOpen(false)}
+                className="text-muted hover:text-text"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="form-label">Audit Name <span className="text-red-sov">*</span></label>
+                <label className="form-label">
+                  Audit Name <span className="text-red-sov">*</span>
+                </label>
                 <input
                   className="form-input"
                   value={editForm.name}
-                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, name: e.target.value }))
+                  }
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="form-label">Client <span className="text-red-sov">*</span></label>
+                  <label className="form-label">
+                    Client <span className="text-red-sov">*</span>
+                  </label>
                   <input
                     className="form-input"
                     value={editForm.client}
-                    onChange={e => setEditForm(f => ({ ...f, client: e.target.value }))}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, client: e.target.value }))
+                    }
                   />
                 </div>
                 <div>
@@ -581,7 +759,9 @@ export default function AuditPage() {
                   <input
                     className="form-input"
                     value={editForm.project}
-                    onChange={e => setEditForm(f => ({ ...f, project: e.target.value }))}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, project: e.target.value }))
+                    }
                   />
                 </div>
               </div>
@@ -591,9 +771,18 @@ export default function AuditPage() {
                   <select
                     className="form-input"
                     value={editForm.sector}
-                    onChange={e => setEditForm(f => ({ ...f, sector: e.target.value as SectorType }))}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        sector: e.target.value as SectorType,
+                      }))
+                    }
                   >
-                    {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    {SECTORS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -604,7 +793,9 @@ export default function AuditPage() {
                     type="date"
                     className="form-input"
                     value={editForm.startDate}
-                    onChange={e => setEditForm(f => ({ ...f, startDate: e.target.value }))}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, startDate: e.target.value }))
+                    }
                   />
                 </div>
                 <div>
@@ -613,19 +804,29 @@ export default function AuditPage() {
                     type="date"
                     className="form-input"
                     value={editForm.targetEndDate}
-                    onChange={e => setEditForm(f => ({ ...f, targetEndDate: e.target.value }))}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        targetEndDate: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setEditOpen(false)} className="px-4 py-2 text-sm text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors">
+              <button
+                onClick={() => setEditOpen(false)}
+                className="px-4 py-2 text-sm text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
+              >
                 Cancel
               </button>
               <button
                 onClick={handleEditSave}
-                disabled={savingEdit || !editForm.name.trim() || !editForm.client.trim()}
+                disabled={
+                  savingEdit || !editForm.name.trim() || !editForm.client.trim()
+                }
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 disabled:opacity-50 transition-colors"
               >
                 {savingEdit && <Spinner size="sm" />}

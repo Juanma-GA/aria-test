@@ -8,11 +8,11 @@ import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ auditId: string }> }
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
 ) {
   await dbConnect();
-  const { auditId } = await params;
-  const access = await requireAuditAccess(req, auditId, 'view');
+  const params = await Promise.resolve(context.params);
+  const access = await requireAuditAccess(req, params.auditId, 'view');
   if (!isAccessGranted(access)) return access;
 
   const role = access.effectiveRole;

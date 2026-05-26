@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { apiUrl } from '@/lib/utils';
 
 type EffectiveRole = 'admin' | 'owner' | 'editor' | 'viewer';
 
@@ -20,18 +21,29 @@ const DEFAULT_ACCESS: AuditAccess = {
 
 const Context = createContext<AuditAccess>(DEFAULT_ACCESS);
 
-export function AuditAccessProvider({ auditId, children }: { auditId: string; children: React.ReactNode }) {
+export function AuditAccessProvider({
+  auditId,
+  children,
+}: {
+  auditId: string;
+  children: React.ReactNode;
+}) {
   const [access, setAccess] = useState<AuditAccess>(DEFAULT_ACCESS);
 
   useEffect(() => {
     if (!auditId) return;
     let active = true;
-    fetch(`/api/audits/${auditId}/access`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
+    fetch(apiUrl(`/api/audits/${auditId}/access`), { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
         if (!active) return;
         if (!data) {
-          setAccess({ effectiveRole: null, canEdit: false, canManageTeam: false, loading: false });
+          setAccess({
+            effectiveRole: null,
+            canEdit: false,
+            canManageTeam: false,
+            loading: false,
+          });
           return;
         }
         setAccess({
@@ -43,9 +55,16 @@ export function AuditAccessProvider({ auditId, children }: { auditId: string; ch
       })
       .catch(() => {
         if (!active) return;
-        setAccess({ effectiveRole: null, canEdit: false, canManageTeam: false, loading: false });
+        setAccess({
+          effectiveRole: null,
+          canEdit: false,
+          canManageTeam: false,
+          loading: false,
+        });
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [auditId]);
 
   return <Context.Provider value={access}>{children}</Context.Provider>;
