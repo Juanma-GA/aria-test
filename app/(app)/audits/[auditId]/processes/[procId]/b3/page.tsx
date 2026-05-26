@@ -195,19 +195,11 @@ export default function B3Page() {
   // ── AI Process Report ────────────────────────────────────────────────────────
 
   const PROCESS_REPORT_STEPS = [
-    { text: 'Analyzing process context...', startPercent: 0, endPercent: 20 },
-    {
-      text: 'Evaluating sovereignty constraints...',
-      startPercent: 20,
-      endPercent: 40,
-    },
-    {
-      text: 'Generating AI use case proposals...',
-      startPercent: 40,
-      endPercent: 75,
-    },
-    { text: 'Applying context...', startPercent: 75, endPercent: 90 },
-    { text: 'Finalizing report...', startPercent: 90, endPercent: 100 },
+    { text: "Analyzing process context...", startPercent: 0, endPercent: 20 },
+    { text: "Evaluating sovereignty constraints...", startPercent: 20, endPercent: 40 },
+    { text: "Analyzing process map and bottlenecks...", startPercent: 40, endPercent: 75 },
+    { text: "Applying context...", startPercent: 75, endPercent: 90 },
+    { text: "Finalizing report...", startPercent: 90, endPercent: 100 },
   ];
 
   // AI Report
@@ -1256,11 +1248,7 @@ ${body}
       >
         {reportLoading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <ProgressIndicator
-              steps={PROCESS_REPORT_STEPS}
-              completionTimeMs={45000}
-              showBar={true}
-            />
+            <ProgressIndicator steps={PROCESS_REPORT_STEPS} completionTimeMs={45000} showBar={false} />
           </div>
         ) : reportMarkdown ? (
           <div>

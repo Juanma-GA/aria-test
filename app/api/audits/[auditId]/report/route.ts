@@ -908,8 +908,7 @@ export async function POST(
     if (!audit)
       return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
 
-    const isTechpubs =
-      ((audit as any)?.projectType || 'techpubs') === 'techpubs';
+    const isTechpubs = (processes as any[]).some((p) => p?.department === 'Technical Publications');
 
     let basePrompt = buildPrompt(
       audit,
@@ -930,10 +929,10 @@ export async function POST(
       const techpubsSection = `## TECHPUBS KNOWLEDGE BASE
 ==========================
 
-### Estado del Arte Tecnológico
+### State of the Art Technology
 ${stateOfTheArt}
 
-### Casos de Uso para Publicaciones Técnicas
+### TechPubs Use Cases
 ${useCases}
 
 ---

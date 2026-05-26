@@ -7,14 +7,10 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
-import type {
-  Stakeholder,
-  InfluenceLevel,
-  AIAttitude,
-  ProfileEntry,
-} from '@/lib/types';
+import { DEPARTMENT_TYPES } from '@/lib/validators';
+import type { Stakeholder, InfluenceLevel, AIAttitude, ProfileEntry } from '@/lib/types';
+import type { DepartmentType } from '@/lib/models/Process';
 import { apiUrl } from '@/lib/utils';
-
 interface Suggestion {
   value: string;
   count: number;
@@ -31,6 +27,22 @@ const AI_ATTITUDE_COLORS: Record<
   blocker: 'red',
   unknown: 'slate',
 };
+
+const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
+  { value: 'Technical Publications', label: 'Technical Publications' },
+  { value: 'Training Development', label: 'Training Development' },
+  { value: 'Training Delivery', label: 'Training Delivery' },
+  { value: 'ISS', label: 'In Service Support' },
+  { value: 'LSA', label: 'LSA' },
+  { value: 'Digital', label: 'Digital' },
+  { value: 'Simulation', label: 'Simulation' },
+  { value: 'General ILS', label: 'General ILS' },
+  { value: 'Material Supply', label: 'Material Supply' },
+  { value: 'Provisioning', label: 'Provisioning' },
+  { value: 'Supply Chain', label: 'Supply Chain' },
+  { value: 'D&D Engineering', label: 'D&D Engineering' },
+  { value: 'Other', label: 'Other' },
+];
 
 function emptyStakeholder(): Stakeholder {
   return {
@@ -68,6 +80,7 @@ export default function B1Page() {
   const [auditProject, setAuditProject] = useState('');
 
   // Process-level fields
+  const [processDept, setProcessDept] = useState<DepartmentType>('Other');
   const [norms, setNorms] = useState<string[]>([]);
   const [certs, setCerts] = useState<string[]>([]);
   const [maturity, setMaturity] = useState(1);
@@ -153,64 +166,51 @@ export default function B1Page() {
 
   useEffect(() => {
     Promise.all([
-      fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-        credentials: 'include',
-      }).then((r) => r.json()),
-      fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' }).then(
-        (r) => r.json(),
-      ),
-    ])
-      .then(([procData, auditData]) => {
-        setProcessName(procData.name || '');
-        setNorms(procData.applicableNorms || []);
-        setCerts(procData.activeCertifications || []);
-        setMaturity(procData.digitalMaturityLevel || 1);
-        if (procData.b1) {
-          const {
-            stakeholders: sh = [],
-            profiles: pr = [],
-            ...rest
-          } = procData.b1;
-          setB1({
-            formalName: rest.formalName || '',
-            department: rest.department || '',
-            contractReference: rest.contractReference || '',
-            captureDate: rest.captureDate ? rest.captureDate.slice(0, 10) : '',
-            numberOfPeople: rest.numberOfPeople || 0,
-            notes: rest.notes || '',
-            clientDepartment: rest.clientDepartment || '',
-            clientResponsible: rest.clientResponsible || '',
-            technicalDirectorResponsible:
-              rest.technicalDirectorResponsible || '',
-          });
-          setStakeholders(sh);
-          setProfiles(pr);
-        }
-        setAuditClient(auditData.client || '');
-        setAuditProject(auditData.project || '');
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), { credentials: 'include' }).then(r => r.json()),
+      fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' }).then(r => r.json()),
+    ]).then(([procData, auditData]) => {
+      setProcessName(procData.name || '');
+      setProcessDept(procData.department || 'Other');
+      setNorms(procData.applicableNorms || []);
+      setCerts(procData.activeCertifications || []);
+      setMaturity(procData.digitalMaturityLevel || 1);
+      if (procData.b1) {
+        const { stakeholders: sh = [], profiles: pr = [], ...rest } = procData.b1;
+        setB1({
+          formalName: rest.formalName || '',
+          department: rest.department || '',
+          contractReference: rest.contractReference || '',
+          captureDate: rest.captureDate ? rest.captureDate.slice(0, 10) : '',
+          numberOfPeople: rest.numberOfPeople || 0,
+          notes: rest.notes || '',
+          clientDepartment: rest.clientDepartment || '',
+          clientResponsible: rest.clientResponsible || '',
+          technicalDirectorResponsible: rest.technicalDirectorResponsible || '',
+        });
+        setStakeholders(sh);
+        setProfiles(pr);
+      }
+      setAuditClient(auditData.client || '');
+      setAuditProject(auditData.project || '');
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [auditId, procId]);
 
   const handleSave = async () => {
     setSaving(true);
     setSaveError('');
     try {
-      const res = await fetch(
-        apiUrl(`/api/audits/${auditId}/processes/${procId}`),
-        {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            b1: { ...b1, stakeholders, profiles },
-            applicableNorms: norms,
-            activeCertifications: certs,
-            digitalMaturityLevel: maturity,
-          }),
-        },
-      );
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          department: processDept,
+          b1: { ...b1, stakeholders, profiles },
+          applicableNorms: norms,
+          activeCertifications: certs,
+          digitalMaturityLevel: maturity,
+        }),
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setSaveError(data.error || `Save failed (${res.status})`);
@@ -339,6 +339,21 @@ export default function B1Page() {
                 {auditProject || '—'}
               </p>
             </div>
+          </div>
+
+          <div>
+            <label className="form-label">Process Department</label>
+            <select
+              className="form-input"
+              value={processDept}
+              onChange={e => { setProcessDept(e.target.value as DepartmentType); markUnsaved(); }}
+            >
+              {DEPARTMENTS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

@@ -44,21 +44,13 @@ import {
 } from '@/components/cost/ComputeCalculator';
 import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 
-const AI_TYPE_COLORS: Record<
-  AIType,
-  'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'
-> = {
-  generative_llm: 'purple',
-  extraction_nlp: 'blue',
-  classification_ml: 'teal',
-  rag: 'blue',
-  validation: 'amber',
-  prediction: 'green',
-  intelligent_automation: 'teal',
-  agentic_ai: 'purple',
-  other: 'slate',
+const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'> = {
+  generative_llm: 'purple', extraction_nlp: 'blue', classification_ml: 'teal',
+  rag_semantic: 'blue', rag_lexical: 'blue', knowledge_graph: 'purple',
+  validation: 'amber', prediction_ml: 'green', intelligent_automation: 'teal',
+  agentic_ai_workflow: 'purple', mcp_client: 'teal', mcp_server: 'teal',
+  function_tool: 'slate', chatbot: 'blue', multimodal_vlm: 'purple', other: 'slate',
 };
-
 const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
   eligible: 'green',
   blocked: 'red',
@@ -172,8 +164,10 @@ function emptyForm(processId: string): Partial<UseCase> & {
     timeSavedPerProfile: [],
     estimatedDevCostEur: 0,
     devCostExplanation: '',
+    devRateEur: 450,
+    nDevs: 1,
     estimatedImplWeeks: 0,
-    notes: '',
+    requiredPreconditions: { requiresClientIT: false, text: '' },
     computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
     processId,
   };
@@ -186,37 +180,25 @@ function computeRoi(
   annualReps: number,
   targetHours: number,
   computeCostPerYear: number = 0,
-): {
-  totalHours: number;
-  annualSaving: number;
-  computeCostPerYear: number;
-  netAnnualSaving: number;
-  paybackMonths: number;
-  savingPct: number | null;
-} | null {
-  const totalHours = timeSaved.reduce(
-    (s, e) => s + (e.hoursPerExecution ?? 0),
-    0,
-  );
+): { totalHours: number; annualSaving: number; computeCostPerYear: number; netAnnualSaving: number; paybackMonths: number; savingPct: number | null; avgRate: number; targetHours: number } | null {
+  const totalHours = timeSaved.reduce((s, e) => s + (e.hoursPerExecution ?? 0), 0);
   if (totalHours === 0 || annualReps === 0) return null;
-  const rates = b1Profiles.map((p) => p.hourlyRateEur).filter((r) => r > 0);
-  const avgRate =
-    rates.length > 0 ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
+  const weightedSum = timeSaved.reduce((sum, e) => {
+    const profile = b1Profiles.find(p => p.id === e.profileId);
+    if (!profile || !profile.hourlyRateEur) return sum;
+    return sum + (profile.count ?? 1) * profile.hourlyRateEur;
+  }, 0);
+  const totalCount = timeSaved.reduce((sum, e) => {
+    const profile = b1Profiles.find(p => p.id === e.profileId);
+    return sum + (profile?.count ?? 1);
+  }, 0);
+  const avgRate = totalCount > 0 ? weightedSum / totalCount : 0;
   if (avgRate === 0) return null;
   const annualSaving = totalHours * avgRate * annualReps;
   const netAnnualSaving = Math.max(annualSaving - computeCostPerYear, 0);
-  const paybackMonths =
-    devCost > 0 && netAnnualSaving > 0 ? (devCost / netAnnualSaving) * 12 : 0;
-  const savingPct =
-    targetHours > 0 ? Math.round((totalHours / targetHours) * 100) : null;
-  return {
-    totalHours,
-    annualSaving,
-    computeCostPerYear,
-    netAnnualSaving,
-    paybackMonths,
-    savingPct,
-  };
+  const paybackMonths = devCost > 0 && netAnnualSaving > 0 ? (devCost / netAnnualSaving) * 12 : 0;
+  const savingPct = targetHours > 0 ? Math.round((totalHours / targetHours) * 100) : null;
+  return { totalHours, annualSaving, computeCostPerYear, netAnnualSaving, paybackMonths, savingPct, avgRate, targetHours };
 }
 
 function SlideOver({
@@ -251,12 +233,18 @@ function SlideOver({
     sovereigntyAnalysis?: string;
   };
   const [form, setForm] = useState<FormType>(emptyForm(processId));
+  const [originalForm, setOriginalForm] = useState<FormType>(emptyForm(processId));
   const [dims, setDims] = useState(emptyScore());
+  const [originalDims, setOriginalDims] = useState(emptyScore());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [analyzingSOV, setAnalyzingSOV] = useState(false);
   const [refreshingCompute, setRefreshingCompute] = useState(false);
   const [computeRationale, setComputeRationale] = useState('');
+  const [devCostRationale, setDevCostRationale] = useState('');
+  const [isPhase2Visible, setIsPhase2Visible] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
@@ -283,9 +271,10 @@ function SlideOver({
     }
 
     if (editUC) {
-      const defaultCB = emptyForm(processId)
-        .computeBreakdown as ComputeBreakdown;
-      setForm({
+      const defaultCB = emptyForm(processId).computeBreakdown as ComputeBreakdown;
+      // Backwards compatibility: requiredPreconditions.text from notes or sovereigntyAnalysis
+      const preconditionsText = (editUC as any).requiredPreconditions?.text || (editUC as any).notes || (editUC as any).sovereigntyAnalysis || '';
+      const newForm = {
         ...editUC,
         aiTypes: editUC.aiTypes?.length
           ? editUC.aiTypes
@@ -294,63 +283,100 @@ function SlideOver({
         targetActivities: editUC.targetActivities?.length
           ? editUC.targetActivities
           : (editUC as any).targetActivity
-            ? [(editUC as any).targetActivity]
-            : [],
+          ? [(editUC as any).targetActivity]
+          : [],
         computeBreakdown: {
           ...defaultCB,
           ...((editUC as any).computeBreakdown ?? {}),
+          annualReps: (editUC as any).computeBreakdown?.annualReps ?? annualReps,
+          annualRepsManuallyEdited: ((editUC as any).computeBreakdown?.annualReps ?? annualReps) !== annualReps,
         },
         requiresClientIT: requiresClientITAuto,
+        requiredPreconditions: {
+          requiresClientIT: (editUC as any).requiredPreconditions?.requiresClientIT ?? requiresClientITAuto,
+          text: preconditionsText,
+        },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
-      });
+      };
+      setForm(newForm);
+      setOriginalForm(newForm);
       if (editUC.score?.dimensions) {
         const existingDims = editUC.score.dimensions as any;
         // Re-autofill D5 unless manually edited
         if (!d5ManualRef.current) {
-          setDims({
-            ...existingDims,
-            d5_sovereigntyIndex: {
-              value: d5AutoValue,
-              justification: d5AutoJustification,
-              autoFilled: true,
-            },
-          });
+          const newDims = { ...existingDims, d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
+          setDims(newDims);
+          setOriginalDims(newDims);
         } else {
           setDims(existingDims);
+          setOriginalDims(existingDims);
         }
       } else {
-        setDims({
-          ...emptyScore(),
-          d5_sovereigntyIndex: {
-            value: d5AutoValue,
-            justification: d5AutoJustification,
-            autoFilled: true,
-          },
-        });
+        const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
+        setDims(newDims);
+        setOriginalDims(newDims);
       }
     } else {
       const base = emptyForm(processId);
       if (initialDesc) base.description = initialDesc;
       (base as any).requiresClientIT = requiresClientITAuto;
+      (base as any).requiredPreconditions = { requiresClientIT: requiresClientITAuto, text: '' };
       (base as any).sovereigntyAnalysis = '';
+      (base as any).computeBreakdown = { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '', annualReps };
       setForm(base as any);
-      setDims({
-        ...emptyScore(),
-        d5_sovereigntyIndex: {
-          value: d5AutoValue,
-          justification: d5AutoJustification,
-          autoFilled: true,
-        },
-      });
+      setOriginalForm(base as any);
+      const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
+      setDims(newDims);
+      setOriginalDims(newDims);
     }
     d1ManualRef.current = false;
     d5ManualRef.current = false;
     setError('');
     setComputeRationale('');
+    setIsPhase2Visible(false);
   }, [editUC, processId, open, initialDesc, b2Axes]);
 
-  const set = (field: string, value: unknown) =>
-    setForm((f) => ({ ...f, [field]: value }));
+  // Auto-derive timeSavedPerProfile from targetActivities changes
+  useEffect(() => {
+    if (!form.targetActivities?.length) {
+      set('timeSavedPerProfile', []);
+      return;
+    }
+
+    // Extract profiles from B3 activities matching targetActivities
+    const derivedProfiles = (form.targetActivities ?? [])
+      .flatMap(actId => {
+        const activity = activities.find(a => a.id === actId);
+        return (activity?.profileHours ?? []).map(ph => ({
+          profileId: ph.profileId,
+          role: ph.role,
+          hoursPerExecution: 0,
+        }));
+      })
+      // Merge duplicates by profileId
+      .reduce((acc, entry) => {
+        const existing = acc.find(e => e.profileId === entry.profileId);
+        if (!existing) acc.push(entry);
+        return acc;
+      }, [] as typeof form.timeSavedPerProfile);
+
+    // Preserve existing hoursPerExecution for profiles that remain
+    const merged = derivedProfiles.map(derived => {
+      const existing = form.timeSavedPerProfile?.find(
+        e => e.profileId === derived.profileId
+      );
+      return existing ?? derived;
+    });
+
+    // Only update if profiles actually changed (prevent infinite loop)
+    const currentIds = (form.timeSavedPerProfile ?? []).map(e => e.profileId).sort().join(',');
+    const mergedIds = merged.map(e => e.profileId).sort().join(',');
+    if (currentIds !== mergedIds) {
+      set('timeSavedPerProfile', merged);
+    }
+  }, [form.targetActivities, activities]);
+
+  const set = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
   const toggleAiType = (t: AIType) => {
     const current = form.aiTypes ?? [];
@@ -449,38 +475,223 @@ function SlideOver({
     }));
   }, [roi?.savingPct, roi?.totalHours, annualReps]);
 
-  const handleSave = async () => {
-    if (!form.description?.trim()) {
-      setError('Description is required.');
-      return;
+  // Detect Phase 1 changes
+  useEffect(() => {
+    try {
+      const hasPhase1Changes =
+        form.description !== originalForm.description ||
+        JSON.stringify(form.aiTypes ?? []) !== JSON.stringify(originalForm.aiTypes ?? []) ||
+        JSON.stringify(form.targetActivities ?? []) !== JSON.stringify(originalForm.targetActivities ?? []) ||
+        form.requiredPreconditions?.requiresClientIT !== originalForm.requiredPreconditions?.requiresClientIT ||
+        form.requiredPreconditions?.text !== originalForm.requiredPreconditions?.text ||
+        JSON.stringify(dims ?? {}) !== JSON.stringify(originalDims ?? {});
+
+      setPhase1ChangeDetected(hasPhase1Changes);
+    } catch (err) {
+      console.error('[Phase1ChangeDetection]', err);
+      setPhase1ChangeDetected(false);
     }
-    if (!form.aiTypes?.length) {
-      setError('Select at least one AI type.');
-      return;
-    }
+  }, [form, originalForm, dims, originalDims]);
+
+  const handleSave_Phase1 = async () => {
+    if (!form.description?.trim()) { setError('Description is required.'); return; }
+    if (!form.aiTypes?.length) { setError('Select at least one AI type.'); return; }
     setSaving(true);
     try {
       const url = editUC
         ? `/api/audits/${auditId}/usecases/${editUC._id}`
         : `/api/audits/${auditId}/usecases`;
       const method = editUC ? 'PATCH' : 'POST';
+      const bodyData = {
+        ...form,
+        processId,
+        targetActivities: form.targetActivities ?? [],
+        score: {
+          dimensions: dims ?? {},
+          scoringNotes: '',
+          scoredBy: 'consultant',
+          scoredAt: new Date().toISOString(),
+        },
+      };
+
+      let bodyStr = '';
+      try {
+        bodyStr = JSON.stringify(bodyData);
+        if (!bodyStr) throw new Error('Failed to serialize form data');
+      } catch (jsonErr) {
+        throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
+      }
+
       const res = await fetch(apiUrl(url), {
-        method,
-        credentials: 'include',
+        method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          processId,
-          targetActivities: form.targetActivities ?? [],
-          score: {
-            dimensions: dims,
-            scoringNotes: '',
-            scoredBy: 'consultant',
-            scoredAt: new Date().toISOString(),
-          },
-        }),
+        body: bodyStr,
       });
-      const data = await res.json();
+
+      let data;
+      try {
+        const text = await res.text();
+        if (!text) throw new Error('Empty response from server');
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(`Server response parse failed: ${parseErr instanceof Error ? parseErr.message : 'Invalid JSON'}`);
+      }
+
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      if (!data || !data._id) throw new Error('Invalid response from server');
+
+      // Update form with saved data in case it was a new UC
+      setForm(data);
+      setOriginalForm(data);
+      setError('');
+      setPhase1ChangeDetected(false);
+
+      // Recalculate Phase 2 with LLM
+      setIsRecalculating(true);
+      try {
+        const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${data._id}/ai/recalculate`),
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              description: data.description,
+              aiTypes: data.aiTypes,
+              targetActivities: data.targetActivities,
+              requiredPreconditions: data.requiredPreconditions,
+              devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
+              estimatedImplWeeks: form.estimatedImplWeeks ?? data.estimatedImplWeeks ?? 0,
+              nDevs: form.nDevs ?? data.nDevs ?? 1,
+              score: { dimensions: dims },
+            }),
+          }
+        );
+
+        if (!recalcRes.ok) {
+          throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
+        }
+
+        const result = await recalcRes.json();
+
+        // Map roles to profileIds and consolidate duplicates (same logic as import handler)
+        const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
+          const matched = b1Profiles.find(
+            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+          );
+          return {
+            profileId: matched?.id ?? crypto.randomUUID(),
+            role: matched?.role ?? entry.role ?? '',
+            hoursPerExecution: entry.hoursPerExecution ?? 0,
+          };
+        });
+
+        const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
+          const existing = acc.find(e => e.profileId === entry.profileId);
+          if (existing) {
+            existing.hoursPerExecution += entry.hoursPerExecution;
+          } else {
+            acc.push({ ...entry });
+          }
+          return acc;
+        }, [] as typeof mapped);
+
+        // Update form with recalculated Phase 2 values
+        setForm(f => ({
+          ...f,
+          timeSavedPerProfile: consolidated,
+          estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
+          estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
+          devCostExplanation: result.devCostExplanation ?? '',
+        }));
+
+        setIsPhase2Visible(true);
+      } catch (recalcErr) {
+        setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
+        setIsPhase2Visible(true);
+      } finally {
+        setIsRecalculating(false);
+      }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
+    finally { setSaving(false); }
+  };
+
+  const handleRecalculateOnly = async () => {
+    if (!editUC?._id) return;
+    setIsRecalculating(true);
+    try {
+      const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${editUC._id}/ai/recalculate`),
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: form.description,
+            targetActivities: form.targetActivities,
+            requiredPreconditions: form.requiredPreconditions,
+            devRateEur: form.devRateEur ?? 450,
+            estimatedImplWeeks: form.estimatedImplWeeks ?? 0,
+            nDevs: form.nDevs ?? 1,
+            score: { dimensions: dims },
+          }),
+        }
+      );
+      if (!recalcRes.ok) throw new Error('Recalculation failed');
+      const result = await recalcRes.json();
+
+      setForm(f => ({
+        ...f,
+        estimatedDevCostEur: result.estimatedDevCostEur ?? f.estimatedDevCostEur,
+        estimatedImplWeeks: result.estimatedImplWeeks ?? f.estimatedImplWeeks,
+        devCostExplanation: result.devCostExplanation ?? f.devCostExplanation,
+      }));
+      setDevCostRationale(result.devCostExplanation ?? '');
+    } catch {
+      // silent fail — user can retry
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  const handleSave_Phase2 = async () => {
+    setSaving(true);
+    try {
+      const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
+      const method = editUC ? 'PATCH' : 'POST';
+      const bodyData = {
+        ...form,
+        processId,
+        targetActivities: form.targetActivities ?? [],
+        score: {
+          dimensions: dims ?? {},
+          scoringNotes: '',
+          scoredBy: 'consultant',
+          scoredAt: new Date().toISOString(),
+        },
+      };
+
+      let bodyStr = '';
+      try {
+        bodyStr = JSON.stringify(bodyData);
+        if (!bodyStr) throw new Error('Failed to serialize form data');
+      } catch (jsonErr) {
+        throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
+      }
+
+      const res = await fetch(apiUrl(url), {
+        method, credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+      });
+
+      let data;
+      try {
+        const text = await res.text();
+        if (!text) throw new Error('Empty response from server');
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(`Server response parse failed: ${parseErr instanceof Error ? parseErr.message : 'Invalid JSON'}`);
+      }
+
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
       onSaved(data, data.status === 'blocked' && !editUC);
@@ -513,6 +724,8 @@ function SlideOver({
               {error}
             </div>
           )}
+
+          {/* === PHASE 1: AI Strategy & Sovereignty === */}
 
           {/* Description */}
           <div>
@@ -554,9 +767,9 @@ function SlideOver({
             </div>
           </div>
 
-          {/* Target Activities — checklist */}
+          {/* Target Steps — renamed from Target Activities (B3) */}
           <div>
-            <label className="form-label">Target Activities (B3)</label>
+            <label className="form-label">Target Steps</label>
             {activities.length === 0 ? (
               <p className="text-xs text-muted italic mt-1">
                 No activities defined in B3 yet.
@@ -591,298 +804,58 @@ function SlideOver({
             )}
           </div>
 
-          {/* Client IT — read-only, auto-calculated from B2 */}
-          <div className="flex items-center justify-between py-1 bg-slate-50 rounded px-2">
-            <div>
-              <span className="text-sm text-text">
-                Requires Client IT approval
-              </span>
-              <p className="text-[10px] text-muted">
-                Auto-calculated from B2 sovereignty level
-              </p>
-            </div>
-            <div
-              className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${form.requiresClientIT ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}
-            >
-              {form.requiresClientIT ? '⚠ Yes' : '✓ No'}
-            </div>
-          </div>
+          {/* Required Preconditions — NEW combined section */}
+          <div className="border-t pt-4 mt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
 
-          {/* Time saved per profile */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="form-label mb-0">Time Saved per Profile</label>
-              <button
-                onClick={addTimeSaved}
-                className="text-xs text-blue-aria hover:underline flex items-center gap-1"
-              >
-                <Plus size={12} />
-                Add profile
-              </button>
-            </div>
-            {b1Profiles.length === 0 && (
-              <p className="text-xs text-muted italic mb-2">
-                No profiles defined in B1 Context yet.
-              </p>
-            )}
-            {(form.timeSavedPerProfile ?? []).map((e, i) => (
-              <div key={i} className="flex items-center gap-2 mb-1">
-                {b1Profiles.length > 0 ? (
-                  <select
-                    className="form-input text-xs flex-1"
-                    value={e.profileId}
-                    onChange={(ev) =>
-                      updateTimeSaved(i, 'profileId', ev.target.value)
-                    }
-                  >
-                    {b1Profiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.role} ({p.count}× · €{p.hourlyRateEur}/h)
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className="form-input text-xs flex-1"
-                    placeholder="Role / profile…"
-                    value={e.role}
-                    onChange={(ev) =>
-                      updateTimeSaved(i, 'role', ev.target.value)
-                    }
-                  />
-                )}
-                <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  className="form-input text-xs w-20"
-                  placeholder="h"
-                  value={e.hoursPerExecution}
-                  onChange={(ev) =>
-                    updateTimeSaved(
-                      i,
-                      'hoursPerExecution',
-                      parseFloat(ev.target.value) || 0,
-                    )
-                  }
-                />
-                <span className="text-xs text-muted">h/run</span>
+            {/* Requires Client IT toggle switch (Yes/No) */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="text-sm text-text">
+                  Requires Client IT approval
+                </label>
+                <p className="text-[10px] text-muted">Auto-calculated from B2. You can override.</p>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => removeTimeSaved(i)}
-                  className="text-muted hover:text-red-sov"
+                  onClick={() => set('requiredPreconditions', {
+                    ...form.requiredPreconditions,
+                    requiresClientIT: !(form.requiredPreconditions?.requiresClientIT),
+                  })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    form.requiredPreconditions?.requiresClientIT ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                  role="switch"
+                  aria-checked={form.requiredPreconditions?.requiresClientIT}
                 >
-                  <Trash2 size={13} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    form.requiredPreconditions?.requiresClientIT ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
                 </button>
+                <span className="text-sm font-medium text-text w-8">
+                  {form.requiredPreconditions?.requiresClientIT ? 'Yes' : 'No'}
+                </span>
               </div>
-            ))}
-          </div>
-
-          {/* Dev cost + impl weeks */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="form-label">Dev Cost — Man-Hours (€)</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                value={form.estimatedDevCostEur ?? 0}
-                onChange={(e) =>
-                  set('estimatedDevCostEur', parseFloat(e.target.value) || 0)
-                }
-              />
             </div>
+
+            {/* Preconditions text textarea */}
             <div>
-              <label className="form-label">Impl. Time (weeks)</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                value={form.estimatedImplWeeks ?? 0}
-                onChange={(e) =>
-                  set('estimatedImplWeeks', parseInt(e.target.value) || 0)
-                }
+              <label className="form-label text-sm">Preconditions, blockers and actions needed before POC</label>
+              <textarea
+                rows={8}
+                className="form-textarea whitespace-pre-wrap"
+                placeholder="List any preconditions, data dependencies, infrastructure requirements, or blockers…"
+                value={form.requiredPreconditions?.text ?? ''}
+                onChange={(e) => set('requiredPreconditions', {
+                  ...form.requiredPreconditions,
+                  text: e.target.value,
+                })}
               />
             </div>
           </div>
-          <div>
-            <label className="form-label">Dev Cost Explanation</label>
-            <textarea
-              rows={2}
-              className="form-textarea"
-              placeholder="Briefly explain the cost estimate…"
-              value={form.devCostExplanation || ''}
-              onChange={(e) => set('devCostExplanation', e.target.value)}
-            />
-          </div>
 
-          {/* Compute Cost Simulator — unified calculator (shared with POC + Industrialization) */}
-          <div className="border border-border rounded p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text">
-                <span>🖥️</span> Compute cost calculator
-              </div>
-              <button
-                onClick={async () => {
-                  setRefreshingCompute(true);
-                  try {
-                    const res = await fetch(
-                      apiUrl('/api/ai/refresh-compute-estimates'),
-                      {
-                        method: 'POST',
-                        credentials: 'include',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          computeBreakdown:
-                            (form as any).computeBreakdown ?? {},
-                          useCaseDescription: form.description,
-                          aiTypes: form.aiTypes,
-                        }),
-                      },
-                    );
-                    const data = await res.json();
-                    if (data.estimates) {
-                      const e = data.estimates;
-                      const cb = ((form as any).computeBreakdown ??
-                        DEFAULT_COMPUTE_BREAKDOWN) as ComputeBreakdown;
-                      const next: ComputeBreakdown = {
-                        ...cb,
-                        ...(e.inputTokensPerExec != null
-                          ? { inputTokensPerExec: e.inputTokensPerExec }
-                          : {}),
-                        ...(e.outputTokensPerExec != null
-                          ? { outputTokensPerExec: e.outputTokensPerExec }
-                          : {}),
-                      };
-                      setForm((f) => ({ ...f, computeBreakdown: next }));
-                      if (e.rationale) setComputeRationale(e.rationale);
-                    }
-                  } catch {}
-                  setRefreshingCompute(false);
-                }}
-                disabled={refreshingCompute}
-                className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
-              >
-                {refreshingCompute ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <RefreshCw size={11} />
-                )}
-                {refreshingCompute ? 'Updating…' : 'Suggest token volumes (AI)'}
-              </button>
-            </div>
-            {computeRationale && (
-              <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-                <Bot size={11} className="mt-0.5 flex-shrink-0" />
-                <span>{computeRationale}</span>
-              </div>
-            )}
-            <ComputeCalculator
-              breakdown={(form as any).computeBreakdown}
-              onChange={(next) =>
-                setForm((f) => ({ ...f, computeBreakdown: next }))
-              }
-              defaultOpen
-            />
-          </div>
-
-          {/* ROI estimate */}
-          {roi && (
-            <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
-              <div className="flex items-center gap-1.5 font-semibold text-text">
-                <TrendingUp size={13} className="text-green-600" />
-                ROI Estimate
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 border border-green-200 rounded p-2">
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
-                    Gross Annual Saving
-                  </div>
-                  <div className="font-bold text-green-700 text-sm">
-                    €{Math.round(roi.annualSaving).toLocaleString()}
-                  </div>
-                  <div className="text-green-600">
-                    {roi.totalHours}h/run × {annualReps} runs/yr
-                  </div>
-                  {roi.savingPct !== null && (
-                    <div className="mt-1 font-semibold text-green-700">
-                      {roi.savingPct}% of targeted activities
-                    </div>
-                  )}
-                </div>
-                <div
-                  className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}
-                >
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
-                    Compute Cost/yr
-                  </div>
-                  <div
-                    className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}
-                  >
-                    {roi.computeCostPerYear > 0
-                      ? `€${Math.round(roi.computeCostPerYear).toLocaleString()}`
-                      : '—'}
-                  </div>
-                  {roi.computeCostPerYear > 0 && (
-                    <div className="text-amber-600">
-                      €
-                      {(
-                        roi.computeCostPerYear / Math.max(annualReps, 1)
-                      ).toFixed(3)}
-                      /exec
-                    </div>
-                  )}
-                </div>
-                <div
-                  className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}
-                >
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
-                    Net Annual Saving
-                  </div>
-                  <div
-                    className={`font-bold text-base ${roi.netAnnualSaving > 0 ? 'text-teal-700' : 'text-red-600'}`}
-                  >
-                    €{Math.round(roi.netAnnualSaving).toLocaleString()}
-                  </div>
-                  {roi.computeCostPerYear > 0 && (
-                    <div className="text-[10px] text-muted">
-                      Gross €{Math.round(roi.annualSaving).toLocaleString()} −
-                      Compute €
-                      {Math.round(roi.computeCostPerYear).toLocaleString()}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-red-50 border border-red-200 rounded p-2">
-                  <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
-                    Dev Cost (one-time)
-                  </div>
-                  <div className="font-bold text-red-700 text-sm">
-                    €{(form.estimatedDevCostEur ?? 0).toLocaleString()}
-                  </div>
-                  {(form.estimatedImplWeeks ?? 0) > 0 && (
-                    <div className="text-red-600">
-                      {form.estimatedImplWeeks} weeks impl.
-                    </div>
-                  )}
-                </div>
-                {roi.paybackMonths > 0 && (
-                  <div className="bg-slate-100 border border-border rounded p-2">
-                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">
-                      Payback Period
-                    </div>
-                    <div className="font-bold text-text text-sm">
-                      {roi.paybackMonths.toFixed(1)} months
-                    </div>
-                    <div className="text-muted">on net saving</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Inline scoring */}
-          <div className="border border-border rounded p-4 space-y-3">
+          {/* Scoring B6 (moved to end of Phase 1) */}
+          <div className="border border-border rounded p-4 space-y-3 mt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
               <div className="flex items-center gap-2">
@@ -964,81 +937,288 @@ function SlideOver({
             })}
           </div>
 
-          <div>
-            <label className="form-label">Notes</label>
-            <textarea
-              rows={6}
-              className="form-textarea"
-              value={form.notes || ''}
-              onChange={(e) => set('notes', e.target.value)}
-            />
+          {/* Save & Calculate button (Phase 1 action button) */}
+          <div className="flex gap-3">
+            <button onClick={handleSave_Phase1} disabled={isRecalculating} className="btn-primary flex-1">
+              {isRecalculating ? 'Calculating...' : 'Save & Calculate'}
+            </button>
           </div>
 
-          {/* Sovereignty Analysis */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="form-label mb-0">Sovereignty Analysis</label>
-              <button
-                onClick={async () => {
-                  setAnalyzingSOV(true);
-                  try {
-                    const res = await fetch(
-                      apiUrl(
-                        `/api/audits/${auditId}/processes/${processId}/ai/sovereignty-analysis`,
-                      ),
-                      {
-                        method: 'POST',
-                        credentials: 'include',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          useCaseDescription: form.description,
-                          aiTypes: form.aiTypes,
-                        }),
-                      },
-                    );
-                    const data = await res.json();
-                    if (data.analysis)
-                      set('sovereigntyAnalysis', data.analysis);
-                  } catch {}
-                  setAnalyzingSOV(false);
-                }}
-                disabled={analyzingSOV}
-                className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
-              >
-                {analyzingSOV ? <Spinner size="sm" /> : <Sparkles size={11} />}
-                {analyzingSOV ? 'Analyzing…' : 'Analyze with AI'}
-              </button>
+          {/* === PHASE 2: Implementation Economics & Technical (Greyed out initially) === */}
+          <div className={`transition-opacity duration-300 space-y-5 ${isPhase2Visible ? 'opacity-100 pointer-events-auto' : 'opacity-50 pointer-events-none'}`}>
+            {!isPhase2Visible && (
+              <div className="text-sm text-gray-500 p-3 bg-blue-50 rounded border border-blue-200">
+                💡 Phase 2 will be available after Phase 1 is saved and recalculated.
+              </div>
+            )}
+
+            {/* Time saved per profile */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="form-label mb-0">Time Saved per Profile</label>
+                <button onClick={addTimeSaved} disabled={!isPhase2Visible} className="text-xs text-blue-aria hover:underline flex items-center gap-1 disabled:opacity-50"><Plus size={12} />Add profile</button>
+              </div>
+              {b1Profiles.length === 0 && (
+                <p className="text-xs text-muted italic mb-2">No profiles defined in B1 Context yet.</p>
+              )}
+              {(form.timeSavedPerProfile ?? []).map((e, i) => (
+                <div key={e.profileId || i} className="flex items-center gap-2 mb-1">
+                  {b1Profiles.length > 0 ? (
+                    <select className="form-input text-xs flex-1" value={e.profileId} disabled={!isPhase2Visible}
+                      onChange={ev => updateTimeSaved(i, 'profileId', ev.target.value)}>
+                      {b1Profiles.map(p => (
+                        <option key={p.id} value={p.id}>{p.role} ({p.count}× · €{p.hourlyRateEur}/h)</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="form-input text-xs flex-1" placeholder="Role / profile…" value={e.role} disabled={!isPhase2Visible}
+                      onChange={ev => updateTimeSaved(i, 'role', ev.target.value)} />
+                  )}
+                  <input type="number" min={0} step={0.5} className="form-input text-xs w-20" placeholder="h" value={e.hoursPerExecution} disabled={!isPhase2Visible}
+                    onChange={ev => updateTimeSaved(i, 'hoursPerExecution', parseFloat(ev.target.value) || 0)} />
+                  <span className="text-xs text-muted">h/run</span>
+                  <button onClick={() => removeTimeSaved(i)} disabled={!isPhase2Visible} className="text-muted hover:text-red-sov disabled:opacity-50"><Trash2 size={13} /></button>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1">
-              <textarea
-                rows={9}
-                className="form-textarea"
-                placeholder="Describe sovereignty conditions, constraints, and compliance requirements for this use case…"
-                value={(form as any).sovereigntyAnalysis || ''}
-                onChange={(e) => set('sovereigntyAnalysis', e.target.value)}
-              />
-              {(form as any).sovereigntyAnalysis && (
-                <div className="flex items-center gap-1 text-[10px] text-blue-600">
-                  <Bot size={10} />
-                  <span>AI-generated — review and edit as needed</span>
+
+            {/* Dev Cost Calculator Box */}
+            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                  <span>🔧</span> Dev Cost (man-hour) calculator
+                </div>
+                <button
+                  onClick={handleRecalculateOnly}
+                  disabled={isRecalculating || !isPhase2Visible}
+                  className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                >
+                  {isRecalculating ? <Spinner size="sm" /> : <RefreshCw size={11} />}
+                  {isRecalculating ? 'Recalculating…' : 'Recalculate (AI)'}
+                </button>
+              </div>
+
+              {/* Rationale message */}
+              {devCostRationale && (
+                <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+                  <Bot size={11} className="mt-0.5 flex-shrink-0" />
+                  <span>{devCostRationale}</span>
                 </div>
               )}
+
+              {/* Fields row (3 columns) */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="form-label">Impl. Time (weeks)</label>
+                  <input type="number" min={0} className="form-input"
+                    disabled={!isPhase2Visible}
+                    value={form.estimatedImplWeeks ?? 0}
+                    onChange={e => {
+                      const newValue = parseInt(e.target.value) || 0;
+                      set('estimatedImplWeeks', newValue);
+                      set('estimatedDevCostEur', newValue * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1));
+                    }} />
+                </div>
+                <div>
+                  <label className="form-label">Nº Developers</label>
+                  <input type="number" min={0.1} step={0.1} className="form-input"
+                    disabled={!isPhase2Visible}
+                    value={form.nDevs ?? 1}
+                    onChange={e => {
+                      const newValue = parseFloat(e.target.value) || 1;
+                      set('nDevs', newValue);
+                      set('estimatedDevCostEur', (form.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * newValue);
+                    }} />
+                </div>
+                <div>
+                  <label className="form-label">Dev Rate Reference (€/day)</label>
+                  <input type="number" min={0} className="form-input"
+                    disabled={!isPhase2Visible}
+                    value={form.devRateEur ?? 450}
+                    onChange={e => {
+                      const newValue = parseFloat(e.target.value) || 450;
+                      set('devRateEur', newValue);
+                      set('estimatedDevCostEur', (form.estimatedImplWeeks ?? 0) * 5 * newValue * (form.nDevs ?? 1));
+                    }} />
+                  <span className="text-xs text-muted mt-1 block">
+                    Default: €450/day (AI-assisted dev, Spain 2025). Override if needed.
+                  </span>
+                </div>
+              </div>
+
+              {/* Dev Cost Explanation */}
+              <div>
+                <label className="form-label">Dev Cost Explanation</label>
+                <textarea rows={2} className="form-textarea" disabled={!isPhase2Visible}
+                  placeholder="Briefly explain the cost estimate…"
+                  value={form.devCostExplanation || ''}
+                  onChange={e => set('devCostExplanation', e.target.value)} />
+              </div>
+
+              {/* Footer — Dev Cost estimate (computed from weeks × 5 × rate × devs) */}
+              {(() => {
+                const devCostComputed = (form.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+                return (
+                  <div className="flex justify-end items-center pt-1 border-t border-border">
+                    <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
+                    <span className="text-sm font-bold text-text">
+                      €{devCostComputed.toLocaleString('de-DE')}
+                    </span>
+                  </div>
+                );
+              })()}
+
             </div>
+
+            {/* Compute Cost Simulator */}
+            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                  <span>🖥️</span> Compute cost calculator
+                </div>
+                <button
+                  onClick={async () => {
+                    setRefreshingCompute(true);
+                    try {
+                      const bodyData = {
+                        computeBreakdown: (form as any).computeBreakdown ?? {},
+                        useCaseDescription: form.description ?? '',
+                        aiTypes: form.aiTypes ?? [],
+                      };
+                      const bodyStr = JSON.stringify(bodyData) || '{}';
+
+                      const res = await fetch(apiUrl('/api/ai/refresh-compute-estimates'), {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: bodyStr,
+                      });
+                      const text = await res.text();
+                      const data = text ? JSON.parse(text) : {};
+                      if (data.estimates) {
+                        const e = data.estimates;
+                        const cb = ((form as any).computeBreakdown ?? DEFAULT_COMPUTE_BREAKDOWN) as ComputeBreakdown;
+                        const next: ComputeBreakdown = {
+                          ...cb,
+                          ...(e.inputTokensPerExec != null ? { inputTokensPerExec: e.inputTokensPerExec } : {}),
+                          ...(e.outputTokensPerExec != null ? { outputTokensPerExec: e.outputTokensPerExec } : {}),
+                        };
+                        setForm(f => ({ ...f, computeBreakdown: next }));
+                        if (e.rationale) setComputeRationale(e.rationale);
+                      }
+                    } catch (err) {
+                      console.error('[ComputeRefresh]', err);
+                    }
+                    setRefreshingCompute(false);
+                  }}
+                  disabled={refreshingCompute || !isPhase2Visible}
+                  className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                >
+                  {refreshingCompute ? <Spinner size="sm" /> : <RefreshCw size={11} />}
+                  {refreshingCompute ? 'Updating…' : 'Suggest token volumes (AI)'}
+                </button>
+              </div>
+              {computeRationale && (
+                <div className="flex items-start gap-1.5 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+                  <Bot size={11} className="mt-0.5 flex-shrink-0" /><span>{computeRationale}</span>
+                </div>
+              )}
+              <ComputeCalculator
+                breakdown={(form as any).computeBreakdown}
+                onChange={(next) => setForm(f => ({ ...f, computeBreakdown: next }))}
+                b3AnnualReps={annualReps}
+                defaultOpen
+              />
+            </div>
+
+            {/* ROI estimate */}
+            {roi && (
+              <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-semibold text-text">
+                  <TrendingUp size={13} className="text-green-600" />
+                  ROI Estimate
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-green-50 border border-green-200 rounded p-2">
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Gross Annual Saving</div>
+                    <div className="font-bold text-green-700 text-sm">€{Math.round(roi.annualSaving).toLocaleString('de-DE')}</div>
+                    <div className="text-green-600">{roi.totalHours}h/run × €{roi.avgRate.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})}/h avg × {annualReps} runs/yr</div>
+                    {roi.savingPct !== null && (
+                      <div className="mt-1 font-semibold text-green-700">{roi.savingPct}% of targeted activities ({roi.totalHours}h saved / {roi.targetHours}h total)</div>
+                    )}
+                  </div>
+                  <div className={`rounded p-2 ${roi.computeCostPerYear > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-100 border border-border'}`}>
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Compute Cost/yr</div>
+                    <div className={`font-bold text-sm ${roi.computeCostPerYear > 0 ? 'text-amber-700' : 'text-muted'}`}>
+                      {roi.computeCostPerYear > 0 ? `€${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}` : '—'}
+                    </div>
+                    {roi.computeCostPerYear > 0 && (() => {
+                      const cb = (form as any).computeBreakdown;
+                      const calc = computeAnnualCompute(cb ?? null);
+                      const mode = cb?.mode ?? '';
+                      const modeLabel = mode === 'cloud_api' ? 'Cloud API' : mode === 'on_premise' ? 'On-premise' : mode === 'hybrid' ? 'Hybrid' : '';
+
+                      return (
+                        <>
+                          <div className="text-amber-600 text-[11px] font-semibold">{modeLabel}</div>
+                          <div className="text-[10px] text-amber-600">
+                            {mode === 'cloud_api' && `${cb?.annualReps ?? annualReps} reps × (${(cb?.inputTokensPerExec ?? 0).toLocaleString('de-DE')} in × €${(cb?.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M + ${(cb?.outputTokensPerExec ?? 0).toLocaleString('de-DE')} out × €${(cb?.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M) = €${Math.round(calc?.cloudCostEur ?? 0).toLocaleString('de-DE')}/yr`}
+                            {mode === 'on_premise' && `${((calc?.occupancyShare ?? 0) * 100).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})}% occupancy (${cb?.peakConcurrentUsers ?? 0} users × ${cb?.peakUsageFractionOfWindow ?? 25}% of ${(cb?.workingHoursPerDay ?? 10) * (cb?.workingDaysPerWeek ?? 5) * (cb?.workingWeeksPerYear ?? 48).toLocaleString('de-DE')}h/yr) × (€${Math.round(calc?.hwAnnualAmortEur ?? 0).toLocaleString('de-DE')} amort + €${Math.round(calc?.hwAnnualElectricityEur ?? 0).toLocaleString('de-DE')} elec)/yr = €${Math.round(calc?.onPremTotalEur ?? 0).toLocaleString('de-DE')}/yr`}
+                            {mode === 'hybrid' && `${cb?.annualReps ?? annualReps} reps × (${(cb?.inputTokensPerExec ?? 0).toLocaleString('de-DE')} in × €${(cb?.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M + ${(cb?.outputTokensPerExec ?? 0).toLocaleString('de-DE')} out × €${(cb?.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M) cloud + €${Math.round(calc?.onPremTotalEur ?? 0).toLocaleString('de-DE')} on-prem = €${Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr`}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className={`col-span-2 rounded p-2 ${roi.netAnnualSaving > 0 ? 'bg-teal-50 border border-teal-200' : 'bg-red-50 border border-red-200'}`}>
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Net Annual Saving</div>
+                    <div className={`font-bold text-base ${roi.netAnnualSaving > 0 ? 'text-teal-700' : 'text-red-600'}`}>
+                      €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}
+                    </div>
+                    {roi.computeCostPerYear > 0 && (
+                      <div className="text-[10px] text-muted">Gross €{Math.round(roi.annualSaving).toLocaleString('de-DE')} − Compute €{Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-red-50 border border-red-200 rounded p-2">
+                    <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Dev Cost (one-time)</div>
+                    <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}</div>
+                    {(form.estimatedImplWeeks ?? 0) > 0 && (
+                      <>
+                        <div className="text-red-600">{form.estimatedImplWeeks} weeks impl.</div>
+                        <div className="text-[10px] text-red-500 mt-1">
+                          {form.estimatedImplWeeks ?? 0}w × 5d × €{(form.devRateEur ?? 450).toLocaleString('de-DE')}/day × {(form.nDevs ?? 1).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} devs = €{Math.round(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {roi.paybackMonths > 0 && (
+                    <div className="bg-slate-100 border border-border rounded p-2">
+                      <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Payback Period</div>
+                      <div className="font-bold text-text text-sm">{roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</div>
+                      <div className="text-muted">on net saving</div>
+                      <div className="text-[10px] text-muted mt-1">
+                        €{Math.round(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')} ÷ €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr × 12 = {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="p-5 border-t border-border flex gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary flex-1"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button onClick={onClose} className="btn-secondary">
-            Cancel
-          </button>
-        </div>
+        {/* === PHASE 2 FOOTER (only visible after Phase 1 saved) === */}
+        {isPhase2Visible && (
+          <div className="p-5 border-t border-border flex gap-3 bg-slate-50">
+            <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button onClick={handleSave_Phase2} disabled={saving} className="btn-primary flex-1">
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1103,14 +1283,10 @@ function UCRoi({
     <div className="text-xs space-y-0.5">
       <div className="flex items-center gap-1 text-green-600">
         <TrendingUp size={10} />
-        <span className="font-medium">
-          Net: €{Math.round(roi.netAnnualSaving).toLocaleString()}/yr
-        </span>
+        <span className="font-medium">Net: €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr</span>
       </div>
       {roi.computeCostPerYear > 0 && (
-        <div className="text-amber-600">
-          Compute: −€{Math.round(roi.computeCostPerYear).toLocaleString()}/yr
-        </div>
+        <div className="text-amber-600">Compute: −€{Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr</div>
       )}
       {roi.savingPct !== null && (
         <div className="text-muted">
@@ -1118,9 +1294,7 @@ function UCRoi({
         </div>
       )}
       {roi.paybackMonths > 0 && (
-        <div className="text-muted">
-          Payback: {roi.paybackMonths.toFixed(1)} mo
-        </div>
+        <div className="text-muted">Payback: {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} mo</div>
       )}
     </div>
   );
@@ -1165,27 +1339,41 @@ export default function B5Page() {
   useBeforeUnload(slideOver || generateModal);
 
   const load = useCallback(async () => {
-    const [procRes, ucRes] = await Promise.all([
-      fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), {
-        credentials: 'include',
-      }),
-      fetch(
-        apiUrl(
-          `/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`,
-        ),
-        { credentials: 'include' },
-      ),
-    ]);
-    const proc = await procRes.json();
-    const ucs = await ucRes.json();
-    setProcessName(proc.name || '');
-    const acts: ProcessActivity[] = proc.b3?.activities || [];
-    setActivities(acts);
-    setB1Profiles(proc.b1?.profiles || []);
-    setAnnualReps(proc.b3?.annualRepetitions ?? 0);
-    setB2Axes(proc.b2?.axes ?? {});
-    setUseCases(Array.isArray(ucs) ? ucs : []);
-    setLoading(false);
+    try {
+      const [procRes, ucRes] = await Promise.all([
+        fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), { credentials: 'include' }),
+        fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`), { credentials: 'include' }),
+      ]);
+
+      let proc = {};
+      try {
+        const procText = await procRes.text();
+        proc = procText ? JSON.parse(procText) : {};
+      } catch (err) {
+        console.error('[LoadProcess]', err);
+      }
+
+      let ucs: any[] = [];
+      try {
+        const ucsText = await ucRes.text();
+        const parsed = ucsText ? JSON.parse(ucsText) : [];
+        ucs = Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        console.error('[LoadUseCases]', err);
+      }
+
+      setProcessName(proc?.name || '');
+      const acts: ProcessActivity[] = proc?.b3?.activities || [];
+      setActivities(acts);
+      setB1Profiles(proc?.b1?.profiles || []);
+      setAnnualReps(proc?.b3?.annualRepetitions ?? 0);
+      setB2Axes(proc?.b2?.axes ?? {});
+      setUseCases(ucs);
+      setLoading(false);
+    } catch (err) {
+      console.error('[LoadPage]', err);
+      setLoading(false);
+    }
   }, [auditId, procId, showArchived]);
 
   useEffect(() => {
@@ -1237,57 +1425,65 @@ export default function B5Page() {
 
   const handleDelete = async () => {
     if (!deleteModal.uc) return;
-    const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
-    const res = await fetch(apiUrl(url), {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    if (res.ok) {
-      const id = deleteModal.uc._id;
-      setUseCases((prev) => prev.filter((u) => u._id !== id));
-      setDeleteModal({
-        open: false,
-        uc: null,
-        cascade: false,
-        pocs: 0,
-        industrializations: 0,
-      });
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 409 && data?.dependents) {
-      setDeleteModal((s) => ({
-        ...s,
-        cascade: true,
-        pocs: data.dependents.pocs ?? 0,
-        industrializations: data.dependents.industrializations ?? 0,
-        error: data.error,
-      }));
-    } else {
-      setDeleteModal((s) => ({ ...s, error: data?.error || 'Delete failed' }));
+    try {
+      const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
+      const res = await fetch(apiUrl(url), { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        const id = deleteModal.uc._id;
+        setUseCases(prev => prev.filter(u => u._id !== id));
+        setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+        return;
+      }
+
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        console.error('[DeleteParse]', parseErr);
+      }
+
+      if (res.status === 409 && data?.dependents) {
+        setDeleteModal(s => ({ ...s, cascade: true, pocs: data.dependents.pocs ?? 0, industrializations: data.dependents.industrializations ?? 0, error: data.error }));
+      } else {
+        setDeleteModal(s => ({ ...s, error: data?.error || 'Delete failed' }));
+      }
+    } catch (err) {
+      console.error('[DeleteError]', err);
+      setDeleteModal(s => ({ ...s, error: 'Delete failed' }));
     }
   };
 
   const toggleArchive = async (uc: UseCase) => {
-    const next = !uc.isArchived;
-    const res = await fetch(
-      apiUrl(`/api/audits/${auditId}/usecases/${uc._id}`),
-      {
-        method: 'PATCH',
-        credentials: 'include',
+    try {
+      const next = !uc.isArchived;
+      const bodyStr = JSON.stringify({ isArchived: next }) || '{}';
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${uc._id}`), {
+        method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isArchived: next }),
-      },
-    );
-    if (!res.ok) return;
-    const updated = await res.json();
-    setUseCases((prev) => {
-      // When the archived toggle is off, archived items should disappear; when on, active ones disappear.
-      if (showArchived ? !updated.isArchived : updated.isArchived) {
-        return prev.filter((u) => u._id !== uc._id);
+        body: bodyStr,
+      });
+      if (!res.ok) return;
+
+      let updated: any = {};
+      try {
+        const text = await res.text();
+        updated = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        console.error('[ArchiveParse]', parseErr);
+        return;
       }
-      return prev.map((u) => (u._id === uc._id ? updated : u));
-    });
+
+      setUseCases(prev => {
+        // When the archived toggle is off, archived items should disappear; when on, active ones disappear.
+        if (showArchived ? !updated.isArchived : updated.isArchived) {
+          return prev.filter(u => u._id !== uc._id);
+        }
+        return prev.map(u => u._id === uc._id ? updated : u);
+      });
+    } catch (err) {
+      console.error('[ArchiveError]', err);
+    }
   };
 
   const createPOC = (uc: UseCase) => {
@@ -1614,39 +1810,30 @@ export default function B5Page() {
                 AI will analyze the process context (B1 profiles, B2
                 sovereignty, B3 activities) and suggest AI use cases.
               </p>
-              <button
-                onClick={async () => {
-                  setGenerating(true);
-                  setSuggestions([]);
-                  setSelectedSuggestions(new Set());
-                  try {
-                    const res = await fetch(
-                      apiUrl(`/api/audits/${auditId}/ai/suggest-usecases`),
-                      {
-                        method: 'POST',
-                        credentials: 'include',
+              {suggestions.length === 0 && (
+                <button
+                  onClick={async () => {
+                    setGenerating(true);
+                    setSuggestions([]);
+                    setSelectedSuggestions(new Set());
+                    try {
+                      const res = await fetch(apiUrl(`/api/audits/${auditId}/ai/suggest-usecases`), {
+                        method: 'POST', credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ processId: procId }),
-                      },
-                    );
-                    const data = await res.json();
-                    if (data.suggestions) setSuggestions(data.suggestions);
-                  } catch {}
-                  setGenerating(false);
-                }}
-                disabled={generating}
-                className="btn-primary flex items-center gap-2"
-              >
-                {generating ? <Spinner size="sm" /> : <Bot size={14} />}
-                {generating ? (
-                  <ProgressIndicator
-                    steps={SUGGEST_USECASES_STEPS}
-                    completionTimeMs={30000}
-                  />
-                ) : (
-                  'Analyze & Suggest'
-                )}
-              </button>
+                      });
+                      const data = await res.json();
+                      if (data.suggestions) setSuggestions(data.suggestions);
+                    } catch {}
+                    setGenerating(false);
+                  }}
+                  disabled={generating}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {generating ? <Spinner size="sm" /> : <Bot size={14} />}
+                  {generating ? <ProgressIndicator steps={SUGGEST_USECASES_STEPS} completionTimeMs={30000} /> : 'Analyze & Suggest'}
+                </button>
+              )}
 
               {suggestions.length > 0 && (
                 <div className="space-y-3">
@@ -1741,29 +1928,57 @@ export default function B5Page() {
                         (i) => suggestions[i],
                       );
                       for (const s of toImport) {
-                        const score = s.score
-                          ? {
-                              dimensions: s.score,
-                              scoringNotes: '',
-                              scoredBy: 'ai',
-                              scoredAt: new Date().toISOString(),
-                            }
-                          : undefined;
+                        const score = s.score ? { dimensions: s.score, scoringNotes: '', scoredBy: 'ai', scoredAt: new Date().toISOString() } : undefined;
+                        const mappedActivityIds = (s.targetActivityNames ?? []).map((name: string) => activities.find(a => a.name === name)?.id).filter(Boolean) as string[];
+
+                        // Map roles to profileIds and consolidate duplicates
+                        const mapped = (s.timeSavedPerProfile ?? []).map(entry => {
+                          const matched = b1Profiles.find(
+                            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+                          );
+                          return {
+                            profileId: matched?.id ?? crypto.randomUUID(),
+                            role: matched?.role ?? entry.role ?? '',
+                            hoursPerExecution: entry.hoursPerExecution ?? 0,
+                          };
+                        });
+
+                        const consolidated = mapped.reduce((acc, entry) => {
+                          const existing = acc.find(e => e.profileId === entry.profileId);
+                          if (existing) {
+                            existing.hoursPerExecution += entry.hoursPerExecution;
+                          } else {
+                            acc.push({ ...entry });
+                          }
+                          return acc;
+                        }, [] as typeof mapped);
+
+                        const body = {
+                          description: s.description,
+                          aiTypes: s.aiTypes ?? [],
+                          targetActivities: mappedActivityIds,
+                          timeSavedPerProfile: consolidated,
+                          estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
+                          devCostExplanation: s.devCostExplanation ?? '',
+                          devRateEur: 450,
+                          nDevs: 1,
+                          requiredPreconditions: {
+                            requiresClientIT: s.requiredPreconditions?.requiresClientIT ?? false,
+                            text: [
+                              s.requiredPreconditions?.text ?? '',
+                              s.notes ? `---\n${s.notes}` : ''
+                            ].filter(Boolean).join('\n\n'),
+                          },
+                          estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
+                          computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, annualReps },
+                          processId: procId,
+                          score,
+                        };
+
                         await fetch(apiUrl(`/api/audits/${auditId}/usecases`), {
-                          method: 'POST',
-                          credentials: 'include',
+                          method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            description: s.description,
-                            aiTypes: s.aiTypes ?? [],
-                            targetActivities: [],
-                            timeSavedPerProfile: s.timeSavedPerProfile ?? [],
-                            estimatedDevCostEur: s.estimatedDevCostEur ?? 0,
-                            estimatedImplWeeks: s.estimatedImplWeeks ?? 0,
-                            notes: s.notes ?? '',
-                            processId: procId,
-                            score,
-                          }),
+                          body: JSON.stringify(body),
                         });
                       }
                       await load();

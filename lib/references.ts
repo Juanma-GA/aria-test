@@ -32,3 +32,11 @@ export async function getStateOfTheArt(): Promise<string> {
 export async function getUseCases(): Promise<string> {
   return readReference('techpubs-use-cases.md');
 }
+
+/**
+ * Reads the ATEXIS developed tools catalog reference file.
+ * Returns full content of developed-tools.md for TechPubs cost estimation.
+ */
+export async function getDevelopedTools(): Promise<string> {
+  return readReference('developed-tools.md');
+}

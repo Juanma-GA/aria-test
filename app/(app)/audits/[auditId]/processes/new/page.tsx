@@ -7,15 +7,33 @@ import { ArrowLeft } from 'lucide-react';
 import { TagInput } from '@/components/ui/TagInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { apiUrl } from '@/lib/utils';
+import { DEPARTMENT_TYPES } from '@/lib/validators';
 import type { Priority } from '@/lib/types';
+import type { DepartmentType } from '@/lib/models/Process';
 
 interface FormData {
   processName: string;
-  department: string;
+  department: DepartmentType;
   responsible: string;
   applicableNorms: string[];
   priority: Priority;
 }
+
+const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
+  { value: 'Technical Publications', label: 'Technical Publications' },
+  { value: 'Training Development', label: 'Training Development' },
+  { value: 'Training Delivery', label: 'Training Delivery' },
+  { value: 'ISS', label: 'In Service Support' },
+  { value: 'LSA', label: 'LSA' },
+  { value: 'Digital', label: 'Digital' },
+  { value: 'Simulation', label: 'Simulation' },
+  { value: 'General ILS', label: 'General ILS' },
+  { value: 'Material Supply', label: 'Material Supply' },
+  { value: 'Provisioning', label: 'Provisioning' },
+  { value: 'Supply Chain', label: 'Supply Chain' },
+  { value: 'D&D Engineering', label: 'D&D Engineering' },
+  { value: 'Other', label: 'Other' },
+];
 
 const PRIORITIES: { value: Priority; label: string }[] = [
   { value: 'high', label: 'High' },
@@ -35,7 +53,7 @@ export default function NewProcessPage() {
 
   const [form, setForm] = useState<FormData>({
     processName: '',
-    department: '',
+    department: 'Other',
     responsible: '',
     applicableNorms: [],
     priority: 'medium',
@@ -144,13 +162,17 @@ export default function NewProcessPage() {
             <label className="block text-sm font-medium text-text mb-1">
               Department
             </label>
-            <input
-              type="text"
+            <select
               value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              placeholder="e.g. Engineering"
-              className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
-            />
+              onChange={(e) => setForm({ ...form, department: e.target.value as DepartmentType })}
+              className="w-full border border-border rounded-sm px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-aria focus:border-transparent"
+            >
+              {DEPARTMENTS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-text mb-1">

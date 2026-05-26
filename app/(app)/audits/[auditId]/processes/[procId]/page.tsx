@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
 import { Modal } from '@/components/ui/Modal';
+import { DEPARTMENT_TYPES } from '@/lib/validators';
 import type {
   Priority,
   ProcessStatus,
@@ -29,6 +30,7 @@ import type {
   POCDecisionType,
   IndustrializationStatus,
 } from '@/lib/types';
+import type { DepartmentType } from '@/lib/models/Process';
 import { AI_TYPE_LABELS, INDUSTRIALIZATION_STATUS_LABELS } from '@/lib/types';
 import { apiUrl } from '@/lib/utils';
 import { calculateScore } from '@/lib/calculations';
@@ -131,11 +133,21 @@ const EMPTY_COMPLETION: BlockCompletion = {
 };
 
 const PRIORITIES: Priority[] = ['high', 'medium', 'low'];
-const PROCESS_STATUSES: ProcessStatus[] = [
-  'pending',
-  'in_audit',
-  'completed',
-  'paused',
+const PROCESS_STATUSES: ProcessStatus[] = ['pending', 'in_audit', 'completed', 'paused'];
+const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
+  { value: 'Technical Publications', label: 'Technical Publications' },
+  { value: 'Training Development', label: 'Training Development' },
+  { value: 'Training Delivery', label: 'Training Delivery' },
+  { value: 'ISS', label: 'In Service Support' },
+  { value: 'LSA', label: 'LSA' },
+  { value: 'Digital', label: 'Digital' },
+  { value: 'Simulation', label: 'Simulation' },
+  { value: 'General ILS', label: 'General ILS' },
+  { value: 'Material Supply', label: 'Material Supply' },
+  { value: 'Provisioning', label: 'Provisioning' },
+  { value: 'Supply Chain', label: 'Supply Chain' },
+  { value: 'D&D Engineering', label: 'D&D Engineering' },
+  { value: 'Other', label: 'Other' },
 ];
 
 const UC_STATUSES: UseCaseStatus[] = ['eligible', 'blocked', 'pending_review'];
@@ -205,13 +217,7 @@ export default function ProcessPage() {
   const [savingStatus, setSavingStatus] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({
-    name: '',
-    department: '',
-    responsible: '',
-    priority: 'medium' as Priority,
-    applicableNorms: [] as string[],
-  });
+  const [editForm, setEditForm] = useState({ name: '', department: 'Other' as DepartmentType, responsible: '', priority: 'medium' as Priority, applicableNorms: [] as string[] });
   const [saving, setSaving] = useState(false);
 
   // Row-level editing modals
@@ -963,13 +969,13 @@ export default function ProcessPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">Department</label>
-                  <input
-                    className="form-input"
-                    value={editForm.department}
-                    onChange={(e) =>
-                      setEditForm((f) => ({ ...f, department: e.target.value }))
-                    }
-                  />
+                  <select className="form-input" value={editForm.department} onChange={e => setEditForm(f => ({ ...f, department: e.target.value as DepartmentType }))}>
+                    {DEPARTMENTS.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">Responsible</label>

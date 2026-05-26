@@ -189,7 +189,7 @@ export function computeAnnualCompute(b: Partial<ComputeBreakdown> | null | undef
     onPremFraction = 1;
   } else {
     onPremFraction = Math.max(0, Math.min(100, b.onPremPct ?? 0)) / 100;
-    totalEur = cloudCostEur * (1 - onPremFraction) + onPremTotalEur * onPremFraction;
+    totalEur = cloudCostEur + onPremTotalEur;
   }
 
   return {

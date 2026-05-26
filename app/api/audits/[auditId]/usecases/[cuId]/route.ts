@@ -67,24 +67,10 @@ export async function GET(
 }
 
 const EDITABLE_FIELDS = [
-  'description',
-  'aiTypes',
-  'targetActivities',
-  'b2Compatible',
-  'requiresClientIT',
-  'timeSavedPerProfile',
-  'estimatedDevCostEur',
-  'devCostExplanation',
-  'estimatedImplWeeks',
-  'status',
-  'blockedReason',
-  'blockedAxis',
-  'unblockCondition',
-  'reviewDate',
-  'notes',
-  'computeBreakdown',
-  'sovereigntyAnalysis',
-  'isArchived',
+  'description', 'aiTypes', 'targetActivities', 'b2Compatible', 'requiresClientIT',
+  'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'devRateEur', 'estimatedImplWeeks',
+  'status', 'blockedReason', 'blockedAxis', 'unblockCondition', 'reviewDate', 'notes',
+  'computeBreakdown', 'sovereigntyAnalysis', 'isArchived', 'requiredPreconditions', 'score', 'nDevs',
 ] as const;
 
 export async function PATCH(

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Catalog } from '@/lib/models';
+import { Catalog, CatalogStats } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
+import { searchTavily } from '@/lib/tavily';
 
 interface AIModelSuggestion {
   name: string;
@@ -59,9 +60,23 @@ export async function POST(req: NextRequest) {
     const gpus = items.filter(i => i.kind === 'gpu');
 
     const today = new Date().toISOString().slice(0, 10);
-    const prompt = `You are a market analyst maintaining a catalog of LLMs and AI inference hardware. Today is ${today}. Update the public-knowledge specs and current list prices for each item below.
+    const tavilyResults = await searchTavily(
+      'latest AI models GPU pricing specs 2026 ' +
+      aiModels.map(m => m.name).slice(0, 5).join(' ')
+    );
 
-DATA SOURCE PRIORITY (read carefully):
+    const prompt = `You MUST search the web RIGHT NOW to get the latest specs and prices
+for each item listed below.
+Do NOT rely on your training data — it may be outdated.
+Use official vendor pages as primary source.
+Search first, then return updated data.
+
+You are a market analyst maintaining a catalog of LLMs and AI inference hardware. Today is ${today}. Update the public-knowledge specs and current list prices for each item below.
+
+${tavilyResults ? `## CURRENT MARKET DATA (from web search):
+${tavilyResults}
+
+` : ''}DATA SOURCE PRIORITY (read carefully):
 - If you have access to web search, USE IT to fetch the latest publicly-available specs and prices from the vendor's official pricing page or product page first. Prefer official vendor sources over third-party aggregators.
 - Without web access, use your most recent training-data knowledge and note in the rationale when a value may be stale (e.g. "as of Q3 2024").
 
@@ -85,7 +100,7 @@ Return ONLY a JSON object with this exact shape (use the EXACT same name as inpu
     { "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "rationale": "1 sentence explaining the source/changes" }
   ],
   "gpus": [
-    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "rationale": "1 sentence explaining the source/changes" }
+    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "rationale": "1 sentence explaining the source/changes" }
   ],
   "globalRationale": "1-2 sentences on overall confidence, market shifts noted, what was omitted."
 }
@@ -97,12 +112,13 @@ FORMATTING — read carefully:
 
     const text = await callMistral(
       [{ role: 'user', content: prompt }],
-      { maxTokens: 2000, temperature: 0.2, webSearch: true },
+      { maxTokens: 8000, temperature: 0.2 },
     );
     const parsed = parseLLMJson<RefreshResult>(text);
 
     const now = new Date();
-    let updatedCount = 0;
+    let aiModelsUpdated = 0;
+    let gpusUpdated = 0;
     const skipped: string[] = [];
 
     // Update AI models
@@ -120,7 +136,7 @@ FORMATTING — read carefully:
         update.deploymentMode = sug.deploymentMode;
       }
       await Catalog.updateOne({ _id: (target as any)._id }, { $set: update });
-      updatedCount++;
+      aiModelsUpdated++;
     }
 
     // Update GPUs
@@ -128,14 +144,31 @@ FORMATTING — read carefully:
       const target = gpus.find(g => g.name === sug.name);
       if (!target) { skipped.push(`gpu:${sug.name}`); continue; }
       const update: Record<string, unknown> = { aiUpdatedAt: now, aiRationale: sug.rationale ?? '' };
-      const numFields = ['tdpW', 'vramGb', 'priceEur'] as const;
+      const numFields = ['tdpW', 'vramGb', 'priceEur', 'concurrentUsersPerGpu'] as const;
       for (const f of numFields) {
         const v = (sug as any)[f];
         if (typeof v === 'number' && Number.isFinite(v) && v >= 0) update[f] = v;
       }
       await Catalog.updateOne({ _id: (target as any)._id }, { $set: update });
-      updatedCount++;
+      gpusUpdated++;
     }
+
+    const updatedCount = aiModelsUpdated + gpusUpdated;
+
+    // Save refresh stats for display on admin page
+    await CatalogStats.findOneAndUpdate(
+      { type: 'refresh' },
+      {
+        type: 'refresh',
+        executedAt: new Date(),
+        webSearchOk: tavilyResults.length > 0,
+        aiModelsCreated: 0,
+        aiModelsUpdated: aiModelsUpdated,
+        gpusCreated: 0,
+        gpusUpdated: gpusUpdated,
+      },
+      { upsert: true, new: true }
+    );
 
     return NextResponse.json({
       updatedCount,

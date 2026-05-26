@@ -20,6 +20,11 @@ export interface LLMOptions {
    * retry without it so the call doesn't fail on older endpoints.
    */
   webSearch?: boolean;
+  /**
+   * Optional system prompt to prepend to the messages array.
+   * Provides instruction context for the model's behavior.
+   */
+  systemPrompt?: string;
 }
 
 export async function callMistral(
@@ -29,9 +34,14 @@ export async function callMistral(
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('MISTRAL_API_KEY no configurada en .env.local');
 
+  // Prepend system prompt if provided
+  const allMessages = options.systemPrompt
+    ? [{ role: 'system', content: options.systemPrompt }, ...messages]
+    : messages;
+
   const baseBody: Record<string, unknown> = {
     model: options.model ?? DEFAULT_MODEL,
-    messages,
+    messages: allMessages,
     max_tokens: options.maxTokens ?? 2048,
     temperature: options.temperature ?? 0.3,
   };
@@ -53,11 +63,10 @@ export async function callMistral(
       return (data.choices?.[0]?.message?.content ?? '') as string;
     }
     // 4xx with the tool present usually means the deployment doesn't support
-    // connectors. Log and fall through to the plain call so the feature
-    // degrades gracefully instead of hard-failing.
+    // connectors. Fall through to the plain call so the feature degrades
+    // gracefully instead of hard-failing.
     if (res.status >= 400 && res.status < 500) {
-      const errText = await res.text();
-      console.warn('[LLM] web_search tool rejected, falling back to plain call:', errText.slice(0, 200));
+      // Tool not supported, fall back to plain call
     } else {
       const errText = await res.text();
       throw new Error(`Mistral API error: ${errText}`);

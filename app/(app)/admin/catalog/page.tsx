@@ -2,19 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plus, Pencil, Trash2, Power, PowerOff, Cpu, Bot, Sparkles, RefreshCw, DownloadCloud, Search } from 'lucide-react';
 import { apiUrl } from '@/lib/utils';
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Power,
-  PowerOff,
-  Cpu,
-  Bot,
-  Sparkles,
-  RefreshCw,
-  DownloadCloud,
-} from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
 import { Spinner } from '@/components/ui/Spinner';
@@ -43,13 +32,8 @@ const EMPTY_AI: Partial<CatalogEntry> = {
   notes: '',
 };
 const EMPTY_GPU: Partial<CatalogEntry> = {
-  kind: 'gpu',
-  name: '',
-  isActive: true,
-  tdpW: 0,
-  vramGb: 0,
-  priceEur: 0,
-  notes: '',
+  kind: 'gpu', name: '', isActive: true,
+  tdpW: 0, vramGb: 0, priceEur: 0, concurrentUsersPerGpu: 0, notes: '',
 };
 
 const fmtDate = (d?: Date | string) =>
@@ -87,6 +71,11 @@ export default function CatalogAdminPage() {
     globalRationale: string;
   }>(null);
 
+  const [stats, setStats] = useState<{
+    sync: { type: string; executedAt: string; webSearchOk: boolean; aiModelsCreated: number; aiModelsUpdated: number; gpusCreated: number; gpusUpdated: number } | null;
+    refresh: { type: string; executedAt: string; webSearchOk: boolean; aiModelsCreated: number; aiModelsUpdated: number; gpusCreated: number; gpusUpdated: number } | null;
+  }>({ sync: null, refresh: null });
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CatalogEntry | null>(null);
   const [form, setForm] = useState<Partial<CatalogEntry>>(EMPTY_AI);
@@ -111,8 +100,21 @@ export default function CatalogAdminPage() {
       setLoading(false);
     }
   };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/admin/catalog/stats');
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      setStats(data);
+    } catch {
+      // Silently fail for stats
+    }
+  };
+
   useEffect(() => {
     fetchItems();
+    fetchStats();
   }, []);
 
   const visible = items.filter((i) => i.kind === tab);
@@ -218,6 +220,7 @@ export default function CatalogAdminPage() {
       });
       toast.success(`AI refresh: ${data.updatedCount ?? 0} entries updated`);
       fetchItems();
+      fetchStats();
     } finally {
       setRefreshing(false);
     }
@@ -248,6 +251,7 @@ export default function CatalogAdminPage() {
         `Sync: ${created} created, ${updated} updated${archived ? `, ${archived} archived` : ''}`,
       );
       fetchItems();
+      fetchStats();
     } finally {
       setSyncing(false);
     }
@@ -299,6 +303,28 @@ export default function CatalogAdminPage() {
             <Plus size={15} /> New
           </button>
         </div>
+      </div>
+
+      {/* Status bar */}
+      <div className="space-y-1 text-sm text-gray-600">
+        {stats.sync && (
+          <div>
+            Last Sync: {new Date(stats.sync.executedAt).toLocaleString('de-DE')} ·
+            Web search: {stats.sync.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
+            {stats.sync.aiModelsCreated} AI created, {stats.sync.aiModelsUpdated} updated ·
+            {stats.sync.gpusCreated} GPUs created, {stats.sync.gpusUpdated} updated
+          </div>
+        )}
+        {!stats.sync && <div className="text-gray-400">Last Sync: Never executed</div>}
+
+        {stats.refresh && (
+          <div>
+            Last Refresh: {new Date(stats.refresh.executedAt).toLocaleString('de-DE')} ·
+            Web search: {stats.refresh.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
+            {stats.refresh.aiModelsUpdated} AI updated, {stats.refresh.gpusUpdated} GPUs updated
+          </div>
+        )}
+        {!stats.refresh && <div className="text-gray-400">Last Refresh: Never executed</div>}
       </div>
 
       {/* Sync result banner */}
@@ -503,21 +529,12 @@ export default function CatalogAdminPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-smoke">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                  Name
-                </th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                  VRAM
-                </th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                  TDP
-                </th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                  Price
-                </th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                  AI updated
-                </th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Name</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">VRAM</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">TDP</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Conc. users</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Price</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">AI updated</th>
                 <th className="px-3 py-3" />
               </tr>
             </thead>
@@ -528,29 +545,12 @@ export default function CatalogAdminPage() {
                   className={`hover:bg-smoke/50 ${g.isActive ? '' : 'opacity-60'}`}
                 >
                   <td className="px-3 py-2 font-medium text-text">{g.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {g.vramGb ? `${g.vramGb} GB` : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {g.tdpW ? `${g.tdpW} W` : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {g.priceEur ? `€${g.priceEur.toLocaleString()}` : '—'}
-                  </td>
-                  <td
-                    className="px-3 py-2 text-xs text-muted"
-                    title={g.aiRationale}
-                  >
-                    {fmtDate(g.aiUpdatedAt)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <RowActions
-                      item={g}
-                      onEdit={openEdit}
-                      onToggle={toggleActive}
-                      onDelete={setDeleteTarget}
-                    />
-                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{g.vramGb ? `${g.vramGb} GB` : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{g.tdpW ? `${g.tdpW} W` : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{g.concurrentUsersPerGpu ? g.concurrentUsersPerGpu.toString() : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{g.priceEur ? `€${g.priceEur.toLocaleString()}` : '—'}</td>
+                  <td className="px-3 py-2 text-xs text-muted" title={g.aiRationale}>{fmtDate(g.aiUpdatedAt)}</td>
+                  <td className="px-3 py-2"><RowActions item={g} onEdit={openEdit} onToggle={toggleActive} onDelete={setDeleteTarget} /></td>
                 </tr>
               ))}
             </tbody>
@@ -562,11 +562,7 @@ export default function CatalogAdminPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={
-          editing
-            ? `Edit ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}`
-            : `New ${TAB_CONFIG[tab].label.replace(/s$/, '')}`
-        }
+        title={editing ? `Edit ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}` : `New ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}`}
         size="lg"
       >
         <CatalogForm form={form} onChange={setForm} />
@@ -712,9 +708,126 @@ function CatalogForm({
 }) {
   const set = (patch: Partial<CatalogEntry>) => onChange({ ...form, ...patch });
   const isAi = (form.kind ?? 'ai_model') === 'ai_model';
+  const [searchText, setSearchText] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResult, setSearchResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSearch = async () => {
+    if (!searchText.trim()) return;
+
+    setSearchLoading(true);
+    setSearchResult(null);
+
+    try {
+      // Step 1: Search existing DB entries
+      const res = await fetch(`/api/admin/catalog?kind=${form.kind ?? 'ai_model'}`);
+      const items: CatalogEntry[] = res.ok ? await res.json() : [];
+
+      const found = items.find(
+        i =>
+          i.name.toLowerCase().includes(searchText.toLowerCase()) ||
+          ('vendor' in i && i.vendor?.toLowerCase().includes(searchText.toLowerCase())),
+      );
+
+      if (found) {
+        // Auto-fill from DB entry
+        onChange({
+          ...form,
+          name: found.name,
+          vendor: found.vendor,
+          contextWindow: found.contextWindow,
+          pricePerMInputTokens: found.pricePerMInputTokens,
+          pricePerMOutputTokens: found.pricePerMOutputTokens,
+          deploymentMode: found.deploymentMode,
+          paramCountB: found.paramCountB,
+          tdpW: found.tdpW,
+          vramGb: found.vramGb,
+          priceEur: found.priceEur,
+          concurrentUsersPerGpu: found.concurrentUsersPerGpu,
+          notes: found.notes ?? '',
+        });
+        setSearchResult({
+          success: true,
+          message: `Found in catalog: ${found.name} — fields auto-filled. Review before saving.`,
+        });
+        return;
+      }
+
+      // Step 2: Search via AI if not in DB
+      const aiRes = await fetch('/api/admin/catalog/search-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchText, kind: form.kind ?? 'ai_model' }),
+      });
+
+      if (!aiRes.ok) {
+        setSearchResult({ success: false, message: 'AI search failed. Fill manually.' });
+        return;
+      }
+
+      const aiData = await aiRes.json();
+
+      if (!aiData.name) {
+        setSearchResult({
+          success: false,
+          message: 'Not found in catalog or AI knowledge. Fill manually.',
+        });
+        return;
+      }
+
+      // Auto-fill from LLM result
+      onChange({ ...form, ...aiData });
+
+      const source = aiData.searchedWeb
+        ? 'Found via AI (web search)'
+        : 'Found via AI';
+
+      setSearchResult({
+        success: true,
+        message: `${source}: ${aiData.name} — fields auto-filled. Review before saving.`,
+      });
+    } catch (err) {
+      setSearchResult({ success: false, message: 'Search error. Fill manually.' });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
+      {/* Search section */}
+      <div>
+        <label className="form-label">Search catalog or AI</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="form-input flex-1"
+            placeholder="Search model or GPU... (e.g. Claude Opus, H100)"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            disabled={searchLoading}
+          />
+          <button
+            onClick={handleSearch}
+            disabled={!searchText.trim() || searchLoading}
+            className="px-4 py-2 bg-blue-aria text-white text-sm rounded hover:bg-blue-aria/90 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {searchLoading ? <Spinner size="sm" /> : <Search size={14} />}
+            Search AI
+          </button>
+        </div>
+        {searchResult && (
+          <div
+            className={`mt-2 text-xs p-2 rounded ${
+              searchResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+            }`}
+          >
+            {searchResult.message}
+          </div>
+        )}
+      </div>
+
       {!('_id' in form && form._id) && (
         <div>
           <label className="form-label">Type</label>
@@ -842,6 +955,10 @@ function CatalogForm({
                 value={form.tdpW ?? 0}
                 onChange={(e) => set({ tdpW: Number(e.target.value) || 0 })}
               />
+            </div>
+            <div>
+              <label className="form-label">Concurrent users / GPU</label>
+              <input type="number" min={0} className="form-input tabular-nums" value={form.concurrentUsersPerGpu ?? 0} onChange={e => set({ concurrentUsersPerGpu: Number(e.target.value) || 0 })} placeholder="estimated capacity" />
             </div>
             <div>
               <label className="form-label">Unit price (€)</label>

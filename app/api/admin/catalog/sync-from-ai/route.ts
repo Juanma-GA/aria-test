@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Catalog } from '@/lib/models';
+import { Catalog, CatalogStats } from '@/lib/models';
 import { callMistral, parseLLMJson } from '@/lib/llm';
+import { searchTavily } from '@/lib/tavily';
 
 interface AIModelEntry {
   name: string;
@@ -19,6 +20,7 @@ interface GpuEntry {
   tdpW?: number;
   vramGb?: number;
   priceEur?: number;
+  concurrentUsersPerGpu?: number;
   notes?: string;
 }
 
@@ -62,7 +64,29 @@ export async function POST(req: NextRequest) {
     const archiveResiduals = searchParams.get('archiveResiduals') === 'true';
 
     const today = new Date().toISOString().slice(0, 10);
-    const prompt = `You are a market analyst maintaining the canonical catalog of currently-relevant AI models and inference hardware for an enterprise consultancy. Today is ${today}. Return the COMPLETE current market list as of today, EXCLUDING residual / deprecated / niche entries.
+
+    const tavilyResults = await searchTavily(
+      'latest AI models LLM pricing 2026 OpenAI Anthropic Mistral Google DeepSeek'
+    );
+    const gpuTavilyResults = await searchTavily(
+      'latest GPU inference hardware pricing 2026 NVIDIA AMD Intel'
+    );
+
+    const prompt = `You MUST search the web RIGHT NOW to get the latest AI models and GPU specs.
+Do NOT rely on your training data — it may be outdated.
+Use official vendor pages as primary source:
+- AI Models: mistral.ai/pricing, openai.com/api/pricing, anthropic.com/api,
+  ai.google.dev/pricing, deepseek.com, xai.com, cohere.com
+- GPUs: nvidia.com, amd.com, intel.com
+Search first, then return the data.
+
+You are a market analyst maintaining the canonical catalog of currently-relevant AI models and inference hardware for an enterprise consultancy. Today is ${today}. Return the COMPLETE current market list as of today, EXCLUDING residual / deprecated / niche entries.
+
+${tavilyResults ? `## CURRENT MARKET DATA (from web search, use as primary source):
+${tavilyResults}` : ''}
+
+${gpuTavilyResults ? `## CURRENT GPU MARKET DATA:
+${gpuTavilyResults}` : ''}
 
 DATA SOURCE PRIORITY (read carefully):
 - If you have access to web search, USE IT to fetch the latest publicly-available specs and prices from vendor pages (mistral.ai/pricing, openai.com/api/pricing, anthropic.com/api, ai.google.dev/pricing, deepseek.com, qwen pricing, xai.com, nvidia.com, amd.com, intel.com), tech news, or pricing aggregators. Prefer the official vendor page when available.
@@ -105,6 +129,7 @@ For each GPU provide:
 - tdpW: rated TDP in watts.
 - vramGb: HBM/VRAM in GB.
 - priceEur: representative new-unit list price in EUR (use most recent figure you have).
+- concurrentUsersPerGpu: estimated number of concurrent inference users this GPU can serve for a typical LLM workload (7B-13B parameter model, FP16). Based on VRAM and compute specs.
 - notes: optional 1-line caveat (e.g. "datacenter", "workstation").
 
 Return ONLY a JSON object with this exact shape:
@@ -113,7 +138,7 @@ Return ONLY a JSON object with this exact shape:
     { "name": "...", "vendor": "...", "contextWindow": 0, "pricePerMInputTokens": 0, "pricePerMOutputTokens": 0, "deploymentMode": "cloud_api", "paramCountB": 0, "notes": "..." }
   ],
   "gpus": [
-    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "notes": "..." }
+    { "name": "...", "tdpW": 0, "vramGb": 0, "priceEur": 0, "concurrentUsersPerGpu": 0, "notes": "..." }
   ],
   "exclusionRationale": "1 sentence on what was deliberately excluded and why.",
   "globalRationale": "1-2 sentences on overall confidence and any market shifts noted."
@@ -126,7 +151,7 @@ FORMATTING — read carefully:
 
     const text = await callMistral(
       [{ role: 'user', content: prompt }],
-      { maxTokens: 4500, temperature: 0.2, webSearch: true },
+      { maxTokens: 4500, temperature: 0.2 },
     );
     const parsed = parseLLMJson<SyncResult>(text);
 
@@ -197,7 +222,7 @@ FORMATTING — read carefully:
         aiRationale: g.notes ?? '',
         isActive: true,
       };
-      const numFields = ['tdpW', 'vramGb', 'priceEur'] as const;
+      const numFields = ['tdpW', 'vramGb', 'priceEur', 'concurrentUsersPerGpu'] as const;
       for (const f of numFields) {
         const v = (g as any)[f];
         if (typeof v === 'number' && Number.isFinite(v) && v >= 0) fields[f] = v;
@@ -229,6 +254,21 @@ FORMATTING — read carefully:
         else summary.archived.gpus.push(e.name);
       }
     }
+
+    // Save sync stats for display on admin page
+    await CatalogStats.findOneAndUpdate(
+      { type: 'sync' },
+      {
+        type: 'sync',
+        executedAt: new Date(),
+        webSearchOk: tavilyResults.length > 0 || gpuTavilyResults.length > 0,
+        aiModelsCreated: summary.aiModels.created,
+        aiModelsUpdated: summary.aiModels.updated,
+        gpusCreated: summary.gpus.created,
+        gpusUpdated: summary.gpus.updated,
+      },
+      { upsert: true, new: true }
+    );
 
     return NextResponse.json(summary);
   } catch (err) {

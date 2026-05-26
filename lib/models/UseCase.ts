@@ -5,13 +5,19 @@ export interface IUseCase extends Document {
   processId: mongoose.Types.ObjectId;
   cuId: string;
   description: string;
-  aiTypes: ('generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag' | 'validation' | 'prediction' | 'intelligent_automation' | 'agentic_ai' | 'other')[];
+  aiTypes: ('generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other')[];
   targetActivities: string[];
   b2Compatible: 'yes' | 'no' | 'partial';
   requiresClientIT: boolean;
   timeSavedPerProfile: { profileId: string; role: string; hoursPerExecution: number }[];
   estimatedDevCostEur: number;
   devCostExplanation: string;
+  devRateEur?: number;
+  nDevs?: number;
+  requiredPreconditions?: {
+    requiresClientIT?: boolean;
+    text?: string;
+  };
   estimatedImplWeeks: number;
   status: 'eligible' | 'blocked' | 'pending_review';
   blockedReason?: string;
@@ -70,6 +76,11 @@ const DimensionScoreSchema = new Schema({
   autoFilled: { type: Boolean, default: false },
 }, { _id: false });
 
+const RequiredPreconditionsSchema = new Schema({
+  requiresClientIT: { type: Boolean },
+  text: { type: String, default: '' },
+}, { _id: false });
+
 const TimeSavedEntrySchema = new Schema({
   profileId: { type: String, default: '' },
   role: { type: String, default: '' },
@@ -88,6 +99,9 @@ const UseCaseSchema = new Schema<IUseCase>({
   timeSavedPerProfile: [TimeSavedEntrySchema],
   estimatedDevCostEur: { type: Number, default: 0 },
   devCostExplanation: { type: String, default: '' },
+  devRateEur: { type: Number, default: 450 },
+  nDevs: { type: Number, default: 1 },
+  requiredPreconditions: RequiredPreconditionsSchema,
   estimatedImplWeeks: { type: Number, default: 0 },
   status: { type: String, enum: ['eligible', 'blocked', 'pending_review'], default: 'eligible' },
   blockedReason: { type: String },

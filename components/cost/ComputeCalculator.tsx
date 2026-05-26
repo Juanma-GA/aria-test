@@ -26,7 +26,7 @@ import type {
 } from '@/lib/types';
 import { computeAnnualCompute } from '@/lib/calculations';
 
-const fmt = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+const fmt = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
 
 const MODE_TABS: {
   key: AIModelDeploymentMode;
@@ -83,14 +83,11 @@ interface Props {
   title?: string;
   /** Optional initial-open state when no breakdown exists yet. */
   defaultOpen?: boolean;
+  /** B3 annual repetitions for override detection. */
+  b3AnnualReps?: number;
 }
 
-export function ComputeCalculator({
-  breakdown,
-  onChange,
-  title = 'Compute calculator',
-  defaultOpen = false,
-}: Props) {
+export function ComputeCalculator({ breakdown, onChange, title = 'Compute calculator', defaultOpen = false, b3AnnualReps }: Props) {
   const b: ComputeBreakdown = breakdown ?? DEFAULT_COMPUTE_BREAKDOWN;
   const usingCalc = !!breakdown?.mode;
   const [open, setOpen] = useState(usingCalc || defaultOpen);
@@ -99,12 +96,8 @@ export function ComputeCalculator({
 
   useEffect(() => {
     Promise.all([
-      fetch(apiUrl('/api/admin/catalog?kind=ai_model&activeOnly=true')).then(
-        (r) => (r.ok ? r.json() : []),
-      ),
-      fetch(apiUrl('/api/admin/catalog?kind=gpu&activeOnly=true')).then((r) =>
-        r.ok ? r.json() : [],
-      ),
+      fetch(apiUrl('/api/admin/catalog?kind=ai_model&activeOnly=true'), { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+      fetch(apiUrl('/api/admin/catalog?kind=gpu&activeOnly=true'), { credentials: 'include' }).then(r => r.ok ? r.json() : []),
     ]).then(([m, g]) => {
       setModels(m as CatalogEntry[]);
       setGpus(g as CatalogEntry[]);
@@ -229,50 +222,30 @@ export function ComputeCalculator({
                     </option>
                     {models.map((m) => (
                       <option key={m._id} value={m._id}>
-                        {m.name}
-                        {m.vendor ? ` (${m.vendor})` : ''} — €
-                        {(m.pricePerMInputTokens ?? 0).toFixed(2)}/€
-                        {(m.pricePerMOutputTokens ?? 0).toFixed(2)}/M
+                        {m.name}{m.vendor ? ` (${m.vendor})` : ''} — €{(m.pricePerMInputTokens ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(m.pricePerMOutputTokens ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
                       </option>
                     ))}
                     {b.modelId && !models.find((m) => m._id === b.modelId) && (
                       <option value={b.modelId} disabled>
-                        {b.modelNameSnapshot ?? '(archived)'} — archived (€
-                        {b.modelPriceInSnapshot ?? 0}/€
-                        {b.modelPriceOutSnapshot ?? 0}/M)
+                        {b.modelNameSnapshot ?? '(archived)'} — archived (€{(b.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/€{(b.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
                       </option>
                     )}
                   </select>
                 </div>
-                <NumField
-                  label="Annual executions"
-                  value={b.annualReps}
-                  onChange={(v) => update({ annualReps: v })}
-                  cols={3}
-                />
-                <NumField
-                  label="In tokens / exec"
-                  value={b.inputTokensPerExec}
-                  onChange={(v) => update({ inputTokensPerExec: v })}
-                  cols={2}
-                />
-                <NumField
-                  label="Out tokens / exec"
-                  value={b.outputTokensPerExec}
-                  onChange={(v) => update({ outputTokensPerExec: v })}
-                  cols={2}
-                />
+                <NumField label="Annual executions" value={b.annualReps}          onChange={v => update({ annualReps: v, annualRepsManuallyEdited: v !== (b3AnnualReps ?? 0) })}           cols={3} />
+                <NumField label="In tokens / exec"  value={b.inputTokensPerExec}  onChange={v => update({ inputTokensPerExec: v })}   cols={2} />
+                <NumField label="Out tokens / exec" value={b.outputTokensPerExec} onChange={v => update({ outputTokensPerExec: v })}  cols={2} />
               </div>
               <p className="text-[10px] text-muted">
-                {fmt.format(b.annualReps ?? 0)} reps × (
-                {fmt.format(b.inputTokensPerExec ?? 0)} in × €
-                {(b.modelPriceInSnapshot ?? 0).toFixed(2)}/M +{' '}
-                {fmt.format(b.outputTokensPerExec ?? 0)} out × €
-                {(b.modelPriceOutSnapshot ?? 0).toFixed(2)}/M) ={' '}
-                <span className="font-semibold text-text">
-                  {fmt.format(calc.cloudCostEur)} €/yr cloud
-                </span>
+                {fmt.format(b.annualReps ?? 0)} reps × ({fmt.format(b.inputTokensPerExec ?? 0)} in × €{(b.modelPriceInSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M
+                {' '}+ {fmt.format(b.outputTokensPerExec ?? 0)} out × €{(b.modelPriceOutSnapshot ?? 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/M)
+                {' '}= <span className="font-semibold text-text">{fmt.format(calc.cloudCostEur)} €/yr cloud</span>
               </p>
+              {b.annualRepsManuallyEdited && b3AnnualReps && b3AnnualReps !== b.annualReps && (
+                <div className="bg-amber-50 border border-amber-300 rounded text-[10px] text-amber-900 p-2">
+                  <span className="font-semibold">⚠️ Manual override:</span> Annual executions differ from B3 value ({fmt.format(b3AnnualReps ?? 0)}).
+                </div>
+              )}
             </div>
           )}
 
@@ -297,8 +270,7 @@ export function ComputeCalculator({
                     </option>
                     {gpus.map((g) => (
                       <option key={g._id} value={g._id}>
-                        {g.name} — {g.vramGb ?? '?'}GB · {g.tdpW ?? '?'}W · €
-                        {(g.priceEur ?? 0).toLocaleString()}
+                        {g.name} — {g.vramGb ?? '?'}GB · {g.tdpW ?? '?'}W · €{(g.priceEur ?? 0).toLocaleString('de-DE')}
                       </option>
                     ))}
                     {b.gpuId && !gpus.find((g) => g._id === b.gpuId) && (
@@ -429,6 +401,7 @@ export function ComputeCalculator({
               <div className="grid md:grid-cols-12 gap-2 items-end">
                 <NumField
                   label="Conc. users / GPU"
+                  tooltip={`${fmt.format(b.concurrentUsersPerGpuSnapshot ?? 0)} concurrent users each ${b.gpuNameSnapshot ?? 'GPU'} can serve simultaneously (vendor benchmark). Auto-filled from GPU catalog. Can be overridden manually, but not recommended.`}
                   value={b.concurrentUsersPerGpuSnapshot ?? 0}
                   onChange={(v) =>
                     update({
@@ -443,17 +416,15 @@ export function ComputeCalculator({
                 />
                 <NumField
                   label="Max concurrent (HW)"
-                  value={
-                    b.maxConcurrentUsersSupported ??
-                    calc.derivedMaxConcurrentUsers
-                  }
-                  onChange={(v) =>
-                    update({ maxConcurrentUsersSupported: Math.max(0, v) })
-                  }
+                  tooltip={`Total concurrent users supported by all GPUs. Calculated: ${fmt.format(b.concurrentUsersPerGpuSnapshot ?? 0)} CONC. USERS/GPU × ${fmt.format(b.nGpus ?? 1)} GPUs = ${fmt.format((b.concurrentUsersPerGpuSnapshot ?? 0) * (b.nGpus ?? 1))} total. Read-only.`}
+                  value={(b.nGpus ?? 1) * (b.concurrentUsersPerGpuSnapshot ?? 0)}
+                  onChange={() => {}}
+                  disabled={true}
                   cols={3}
                 />
                 <NumField
                   label="Peak concurrent (case)"
+                  tooltip="Max simultaneous users of THIS use case at peak load."
                   value={b.peakConcurrentUsers ?? 0}
                   onChange={(v) =>
                     update({ peakConcurrentUsers: Math.max(0, v) })
@@ -462,6 +433,7 @@ export function ComputeCalculator({
                 />
                 <NumField
                   label="Peak time / window"
+                  tooltip={`% of the Operating Window during which this UC runs at peak load. With your current window of ${fmt.format(calc.windowHoursPerYear)}h/yr, setting ${b.peakUsageFractionOfWindow ?? 25}% means this UC peaks for ${fmt.format(Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100))}h/yr — the remaining ${fmt.format(calc.windowHoursPerYear - Math.round((b.peakUsageFractionOfWindow ?? 25) * calc.windowHoursPerYear / 100))}h/yr the hardware is shared with other workloads or idle.`}
                   value={b.peakUsageFractionOfWindow ?? 25}
                   onChange={(v) =>
                     update({
@@ -512,16 +484,10 @@ export function ComputeCalculator({
               Clear calculator
             </button>
             <span className="text-text">
-              <span className="text-muted text-[11px] mr-1">
-                Annual recurring compute
-              </span>
-              <span className="font-semibold text-base tabular-nums">
-                {fmt.format(calc.totalEur)} €
-              </span>
-              {b.mode === 'hybrid' && (
-                <span className="text-muted text-[10px] ml-1">
-                  ({Math.round(calc.onPremFraction * 100)}% on-prem)
-                </span>
+              <span className="text-muted text-[11px] mr-1">Annual recurring compute</span>
+              <span className="font-semibold text-base tabular-nums">{fmt.format(calc.totalEur)} €</span>
+              {b.mode === 'on_premise' && (
+                <span className="text-muted text-[10px] ml-1">({Math.round(calc.onPremFraction * 100)}% on-prem)</span>
               )}
             </span>
           </div>
@@ -541,32 +507,20 @@ const COL_SPAN: Record<number, string> = {
   6: 'md:col-span-6',
 };
 
-function NumField({
-  label,
-  value,
-  onChange,
-  cols = 2,
-  suffix = '',
-  step = 1,
-}: {
-  label: string;
-  value?: number;
-  onChange: (v: number) => void;
-  cols?: number;
-  suffix?: string;
-  step?: number;
+function NumField({ label, value, onChange, cols = 2, suffix = '', step = 1, tooltip, disabled }: {
+  label: string; value?: number; onChange: (v: number) => void; cols?: number; suffix?: string; step?: number; tooltip?: string; disabled?: boolean;
 }) {
   return (
     <div className={COL_SPAN[cols] ?? 'md:col-span-2'}>
-      <label className="text-[10px] uppercase tracking-wide text-muted">
+      <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted">
         {label}
+        {tooltip && <span title={tooltip} className="cursor-help text-[11px]">ⓘ</span>}
       </label>
       <div className="relative">
         <input
-          type="number"
-          min={0}
-          step={step}
-          className="form-input text-xs tabular-nums pr-6"
+          type="number" min={0} step={step}
+          disabled={disabled}
+          className={`form-input text-xs tabular-nums pr-6 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
           value={value ?? 0}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
         />

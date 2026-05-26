@@ -146,9 +146,12 @@ export async function POST(
       timeSavedPerProfile: body.timeSavedPerProfile || [],
       estimatedDevCostEur: body.estimatedDevCostEur || 0,
       devCostExplanation: body.devCostExplanation || '',
+      devRateEur: body.devRateEur ?? 450,
+      nDevs: body.nDevs ?? 1,
       estimatedImplWeeks: body.estimatedImplWeeks || 0,
       status,
       notes: body.notes || '',
+      requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
     };
 
     if (blockedReason) useCaseData.blockedReason = blockedReason;

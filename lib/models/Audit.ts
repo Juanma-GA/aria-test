@@ -1,7 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export type AuditTeamRole = 'owner' | 'editor' | 'viewer';
-export type ProjectType = 'techpubs' | 'training' | 'iss' | 'lsa' | 'digital' | 'simulation' | 'ils' | 'supplychain' | 'other';
 
 export interface IAuditTeamMember {
   userId: mongoose.Types.ObjectId;
@@ -15,7 +14,6 @@ export interface IAudit extends Document {
   client: string;
   project: string;
   sector: 'defence' | 'aerospace' | 'naval' | 'railway' | 'internal' | 'other';
-  projectType?: ProjectType;
   leadConsultant: mongoose.Types.ObjectId;
   collaborators: mongoose.Types.ObjectId[];
   team: IAuditTeamMember[];
@@ -46,7 +44,6 @@ const AuditSchema = new Schema<IAudit>({
   client: { type: String, required: true },
   project: { type: String, default: '' },
   sector: { type: String, enum: ['defence', 'aerospace', 'naval', 'railway', 'internal', 'other'], required: true },
-  projectType: { type: String, enum: ['techpubs', 'training', 'iss', 'lsa', 'digital', 'simulation', 'ils', 'supplychain', 'other'], default: 'techpubs' },
   leadConsultant: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   collaborators: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   team: { type: [TeamMemberSchema], default: [] },
