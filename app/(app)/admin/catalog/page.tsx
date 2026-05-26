@@ -2,7 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Pencil, Trash2, Power, PowerOff, Cpu, Bot, Sparkles, RefreshCw, DownloadCloud, Search } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Power,
+  PowerOff,
+  Cpu,
+  Bot,
+  Sparkles,
+  RefreshCw,
+  DownloadCloud,
+  Search,
+} from 'lucide-react';
 import { apiUrl } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -32,8 +44,14 @@ const EMPTY_AI: Partial<CatalogEntry> = {
   notes: '',
 };
 const EMPTY_GPU: Partial<CatalogEntry> = {
-  kind: 'gpu', name: '', isActive: true,
-  tdpW: 0, vramGb: 0, priceEur: 0, concurrentUsersPerGpu: 0, notes: '',
+  kind: 'gpu',
+  name: '',
+  isActive: true,
+  tdpW: 0,
+  vramGb: 0,
+  priceEur: 0,
+  concurrentUsersPerGpu: 0,
+  notes: '',
 };
 
 const fmtDate = (d?: Date | string) =>
@@ -72,8 +90,24 @@ export default function CatalogAdminPage() {
   }>(null);
 
   const [stats, setStats] = useState<{
-    sync: { type: string; executedAt: string; webSearchOk: boolean; aiModelsCreated: number; aiModelsUpdated: number; gpusCreated: number; gpusUpdated: number } | null;
-    refresh: { type: string; executedAt: string; webSearchOk: boolean; aiModelsCreated: number; aiModelsUpdated: number; gpusCreated: number; gpusUpdated: number } | null;
+    sync: {
+      type: string;
+      executedAt: string;
+      webSearchOk: boolean;
+      aiModelsCreated: number;
+      aiModelsUpdated: number;
+      gpusCreated: number;
+      gpusUpdated: number;
+    } | null;
+    refresh: {
+      type: string;
+      executedAt: string;
+      webSearchOk: boolean;
+      aiModelsCreated: number;
+      aiModelsUpdated: number;
+      gpusCreated: number;
+      gpusUpdated: number;
+    } | null;
   }>({ sync: null, refresh: null });
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -103,7 +137,7 @@ export default function CatalogAdminPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/catalog/stats');
+      const res = await fetch(apiUrl('/api/admin/catalog/stats'));
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setStats(data);
@@ -309,22 +343,29 @@ export default function CatalogAdminPage() {
       <div className="space-y-1 text-sm text-gray-600">
         {stats.sync && (
           <div>
-            Last Sync: {new Date(stats.sync.executedAt).toLocaleString('de-DE')} ·
-            Web search: {stats.sync.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
-            {stats.sync.aiModelsCreated} AI created, {stats.sync.aiModelsUpdated} updated ·
-            {stats.sync.gpusCreated} GPUs created, {stats.sync.gpusUpdated} updated
+            Last Sync: {new Date(stats.sync.executedAt).toLocaleString('de-DE')}{' '}
+            · Web search: {stats.sync.webSearchOk ? '✅ OK' : '⚠️ unavailable'}{' '}
+            ·{stats.sync.aiModelsCreated} AI created,{' '}
+            {stats.sync.aiModelsUpdated} updated ·{stats.sync.gpusCreated} GPUs
+            created, {stats.sync.gpusUpdated} updated
           </div>
         )}
-        {!stats.sync && <div className="text-gray-400">Last Sync: Never executed</div>}
+        {!stats.sync && (
+          <div className="text-gray-400">Last Sync: Never executed</div>
+        )}
 
         {stats.refresh && (
           <div>
-            Last Refresh: {new Date(stats.refresh.executedAt).toLocaleString('de-DE')} ·
-            Web search: {stats.refresh.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
-            {stats.refresh.aiModelsUpdated} AI updated, {stats.refresh.gpusUpdated} GPUs updated
+            Last Refresh:{' '}
+            {new Date(stats.refresh.executedAt).toLocaleString('de-DE')} · Web
+            search: {stats.refresh.webSearchOk ? '✅ OK' : '⚠️ unavailable'} ·
+            {stats.refresh.aiModelsUpdated} AI updated,{' '}
+            {stats.refresh.gpusUpdated} GPUs updated
           </div>
         )}
-        {!stats.refresh && <div className="text-gray-400">Last Refresh: Never executed</div>}
+        {!stats.refresh && (
+          <div className="text-gray-400">Last Refresh: Never executed</div>
+        )}
       </div>
 
       {/* Sync result banner */}
@@ -529,12 +570,24 @@ export default function CatalogAdminPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-smoke">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Name</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">VRAM</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">TDP</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Conc. users</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Price</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">AI updated</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Name
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  VRAM
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  TDP
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Conc. users
+                </th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  Price
+                </th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                  AI updated
+                </th>
                 <th className="px-3 py-3" />
               </tr>
             </thead>
@@ -545,12 +598,34 @@ export default function CatalogAdminPage() {
                   className={`hover:bg-smoke/50 ${g.isActive ? '' : 'opacity-60'}`}
                 >
                   <td className="px-3 py-2 font-medium text-text">{g.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{g.vramGb ? `${g.vramGb} GB` : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{g.tdpW ? `${g.tdpW} W` : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{g.concurrentUsersPerGpu ? g.concurrentUsersPerGpu.toString() : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{g.priceEur ? `€${g.priceEur.toLocaleString()}` : '—'}</td>
-                  <td className="px-3 py-2 text-xs text-muted" title={g.aiRationale}>{fmtDate(g.aiUpdatedAt)}</td>
-                  <td className="px-3 py-2"><RowActions item={g} onEdit={openEdit} onToggle={toggleActive} onDelete={setDeleteTarget} /></td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {g.vramGb ? `${g.vramGb} GB` : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {g.tdpW ? `${g.tdpW} W` : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {g.concurrentUsersPerGpu
+                      ? g.concurrentUsersPerGpu.toString()
+                      : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {g.priceEur ? `€${g.priceEur.toLocaleString()}` : '—'}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-xs text-muted"
+                    title={g.aiRationale}
+                  >
+                    {fmtDate(g.aiUpdatedAt)}
+                  </td>
+                  <td className="px-3 py-2">
+                    <RowActions
+                      item={g}
+                      onEdit={openEdit}
+                      onToggle={toggleActive}
+                      onDelete={setDeleteTarget}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -562,7 +637,11 @@ export default function CatalogAdminPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? `Edit ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}` : `New ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}`}
+        title={
+          editing
+            ? `Edit ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}`
+            : `New ${TAB_CONFIG[(form.kind ?? 'ai_model') as Tab].label.replace(/s$/, '')}`
+        }
         size="lg"
       >
         <CatalogForm form={form} onChange={setForm} />
@@ -710,7 +789,10 @@ function CatalogForm({
   const isAi = (form.kind ?? 'ai_model') === 'ai_model';
   const [searchText, setSearchText] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchResult, setSearchResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [searchResult, setSearchResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const handleSearch = async () => {
     if (!searchText.trim()) return;
@@ -720,13 +802,16 @@ function CatalogForm({
 
     try {
       // Step 1: Search existing DB entries
-      const res = await fetch(`/api/admin/catalog?kind=${form.kind ?? 'ai_model'}`);
+      const res = await fetch(
+        `/api/admin/catalog?kind=${form.kind ?? 'ai_model'}`,
+      );
       const items: CatalogEntry[] = res.ok ? await res.json() : [];
 
       const found = items.find(
-        i =>
+        (i) =>
           i.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          ('vendor' in i && i.vendor?.toLowerCase().includes(searchText.toLowerCase())),
+          ('vendor' in i &&
+            i.vendor?.toLowerCase().includes(searchText.toLowerCase())),
       );
 
       if (found) {
@@ -754,14 +839,20 @@ function CatalogForm({
       }
 
       // Step 2: Search via AI if not in DB
-      const aiRes = await fetch('/api/admin/catalog/search-ai', {
+      const aiRes = await fetch(apiUrl('/api/admin/catalog/search-ai'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchText, kind: form.kind ?? 'ai_model' }),
+        body: JSON.stringify({
+          query: searchText,
+          kind: form.kind ?? 'ai_model',
+        }),
       });
 
       if (!aiRes.ok) {
-        setSearchResult({ success: false, message: 'AI search failed. Fill manually.' });
+        setSearchResult({
+          success: false,
+          message: 'AI search failed. Fill manually.',
+        });
         return;
       }
 
@@ -787,7 +878,10 @@ function CatalogForm({
         message: `${source}: ${aiData.name} — fields auto-filled. Review before saving.`,
       });
     } catch (err) {
-      setSearchResult({ success: false, message: 'Search error. Fill manually.' });
+      setSearchResult({
+        success: false,
+        message: 'Search error. Fill manually.',
+      });
     } finally {
       setSearchLoading(false);
     }
@@ -804,8 +898,8 @@ function CatalogForm({
             className="form-input flex-1"
             placeholder="Search model or GPU... (e.g. Claude Opus, H100)"
             value={searchText}
-            onChange={e => setSearchText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             disabled={searchLoading}
           />
           <button
@@ -820,7 +914,9 @@ function CatalogForm({
         {searchResult && (
           <div
             className={`mt-2 text-xs p-2 rounded ${
-              searchResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+              searchResult.success
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-amber-50 text-amber-700 border border-amber-200'
             }`}
           >
             {searchResult.message}
@@ -958,7 +1054,16 @@ function CatalogForm({
             </div>
             <div>
               <label className="form-label">Concurrent users / GPU</label>
-              <input type="number" min={0} className="form-input tabular-nums" value={form.concurrentUsersPerGpu ?? 0} onChange={e => set({ concurrentUsersPerGpu: Number(e.target.value) || 0 })} placeholder="estimated capacity" />
+              <input
+                type="number"
+                min={0}
+                className="form-input tabular-nums"
+                value={form.concurrentUsersPerGpu ?? 0}
+                onChange={(e) =>
+                  set({ concurrentUsersPerGpu: Number(e.target.value) || 0 })
+                }
+                placeholder="estimated capacity"
+              />
             </div>
             <div>
               <label className="form-label">Unit price (€)</label>
