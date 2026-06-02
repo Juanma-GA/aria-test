@@ -26,6 +26,7 @@ const DECISIONS: { key: POCDecisionType; label: string; color: string; desc: str
   { key: 'no_go_redesign', label: 'No-Go — Redesign POC', color: 'bg-amber-sov text-white border-amber-sov', desc: 'Criteria not met. Redesign and retry.' },
   { key: 'no_go_discard', label: 'No-Go — Discard use case', color: 'bg-red-sov text-white border-red-sov', desc: 'Use case not viable in this context. Move to Blocked.' },
   { key: 'paused', label: 'Paused — External dependency', color: 'bg-purple-aria text-white border-purple-aria', desc: 'Unresolved external dependency. Document and track.' },
+  { key: 'pending', label: 'Pending Decision', color: 'bg-slate-600 text-white border-slate-600', desc: 'Decision has not been made yet.' },
 ];
 
 type MilestoneStatus = 'pending' | 'work_in_progress' | 'done' | 'missed';
@@ -82,6 +83,82 @@ export default function POCDetailPage() {
       })
       .catch(() => setLoading(false));
   }, [auditId, pocId]);
+
+  // Pre-fill B2 Restrictions and UseCase data on mount
+  useEffect(() => {
+    if (!poc || !poc.processId) return;
+
+    const procesId = typeof poc.processId === 'object' ? (poc.processId as any)._id : poc.processId;
+    const useCaseId = typeof poc.useCaseId === 'object' ? (poc.useCaseId as any)._id : poc.useCaseId;
+
+    Promise.all([
+      fetch(`/api/audits/${auditId}/processes/${procesId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      useCaseId ? fetch(`/api/audits/${auditId}/usecases/${useCaseId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
+    ])
+      .then(([processData, useCaseData]) => {
+        const updates: Partial<POC> = {};
+
+        // Pre-fill Active B2 Restrictions from B2 data if empty
+        if (!poc.design?.activeB2Restrictions && processData?.b2?.axes) {
+          const axes = processData.b2.axes;
+          const axisNames: Record<string, string> = {
+            axis1_InfoClassification: 'Axis 1 — Information Classification',
+            axis2_ProcessSovereignty: 'Axis 2 — Process Sovereignty',
+            axis3_ToolSovereignty: 'Axis 3 — Tool Sovereignty',
+            axis4_DataSovereignty: 'Axis 4 — Data Sovereignty',
+            axis5_Infrastructure: 'Axis 5 — Infrastructure',
+          };
+
+          // Calculate sovereignty index
+          const vals = Object.values(axes)
+            .map((a: any) => (a?.status === 'green' ? 5 : a?.status === 'amber' ? 3 : a?.status === 'red' ? 1 : null))
+            .filter((v) => v !== null) as number[];
+          const sovIndex = vals.length > 0 ? (Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10).toFixed(1) : 'N/A';
+
+          const levels: Record<string, string> = { '5.0': 'Full Autonomy', '4.5': 'Managed', '3.5': 'Conditioned', '2.5': 'Restricted', '1.0': 'Critical' };
+          let level = 'Not assessed';
+          if (sovIndex !== 'N/A') {
+            const idx = parseFloat(sovIndex);
+            if (idx >= 4.5) level = 'Full Autonomy';
+            else if (idx >= 3.5) level = 'Managed';
+            else if (idx >= 2.5) level = 'Conditioned';
+            else if (idx >= 1.5) level = 'Restricted';
+            else level = 'Critical';
+          }
+
+          const statusEmoji: Record<string, string> = { green: '🟢', amber: '🟡', red: '🔴' };
+
+          const tableRows = Object.entries(axes)
+            .map(([key, axis]: [string, any]) => {
+              const status = axis?.status || 'amber';
+              const findings = (axis?.findings || 'N/A').substring(0, 100);
+              return `| ${axisNames[key]} | ${statusEmoji[status]} ${status.charAt(0).toUpperCase() + status.slice(1)} | ${findings} |`;
+            })
+            .join('\n');
+
+          const b2PreFill = `**Sovereignty Index: ${sovIndex} / 5.0 — ${level}**\n\n| Axis | Status | Findings |\n|------|--------|----------|\n${tableRows}`;
+          updates.design = { ...poc.design, activeB2Restrictions: b2PreFill };
+        }
+
+        // Pre-fill Dev Cost from UseCase if empty
+        if (!poc.design?.estimatedDevCostEur && useCaseData?.estimatedDevCostEur) {
+          updates.design = { ...(updates.design || poc.design), estimatedDevCostEur: useCaseData.estimatedDevCostEur };
+        }
+
+        // Pre-fill Compute Breakdown from UseCase if empty
+        if (!poc.computeBreakdown?.mode && useCaseData?.computeBreakdown) {
+          updates.computeBreakdown = useCaseData.computeBreakdown;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          setPoc((prev) => (prev ? { ...prev, ...updates } : null));
+        }
+      })
+      .catch(() => {
+        // Silent fail
+      });
+  }, [poc?.processId, poc?.useCaseId, auditId]);
+
 
   const save = useCallback(async (updated: Partial<POC>) => {
     setSaveStatus('saving');
@@ -354,39 +431,13 @@ export default function POCDetailPage() {
                   }} />
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="form-label mb-0">Measurable Objective</label>
-                  <button
-                    onClick={async () => {
-                      setRefreshingFill(true);
-                      try {
-                        const res = await fetch(`/api/audits/${auditId}/pocs/${pocId}/ai/fill-design`, {
-                          method: 'POST', credentials: 'include',
-                          headers: { 'Content-Type': 'application/json' },
-                        });
-                        const data = await res.json();
-                        if (data.poc) setPoc(data.poc);
-                      } catch {}
-                      setRefreshingFill(false);
-                    }}
-                    disabled={refreshingFill}
-                    className="flex items-center gap-1 text-[10px] text-blue-aria border border-blue-aria rounded px-1.5 py-0.5 hover:bg-blue-50 transition-colors disabled:opacity-50"
-                  >
-                    {refreshingFill ? <Spinner size="sm" /> : <RefreshCw size={10} />}
-                    Refresh with AI
-                  </button>
-                </div>
+                <label className="form-label">Measurable Objective</label>
                 <textarea rows={2} className="form-textarea" value={poc.design?.measurableObjective || ''}
                   onChange={e => updateDesign('measurableObjective', e.target.value)} />
-                {aiGeneratedFields.includes('measurableObjective') && poc.design?.measurableObjective && (
-                  <div className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-600">
-                    <Bot size={10} /><span>AI-generated</span>
-                  </div>
-                )}
               </div>
               <div>
                 <label className="form-label">Scope Description</label>
-                <textarea rows={2} className="form-textarea" value={poc.design?.scopeDescription || ''}
+                <textarea rows={4} className="form-textarea" value={poc.design?.scopeDescription || ''}
                   onChange={e => updateDesign('scopeDescription', e.target.value)} />
               </div>
               <div>
@@ -403,7 +454,7 @@ export default function POCDetailPage() {
               </div>
               <div className="col-span-2">
                 <label className="form-label">Required Resources</label>
-                <textarea rows={2} className="form-textarea" value={poc.design?.requiredResources || ''}
+                <textarea rows={4} className="form-textarea" value={poc.design?.requiredResources || ''}
                   onChange={e => updateDesign('requiredResources', e.target.value)} />
               </div>
               <div>
@@ -415,11 +466,6 @@ export default function POCDetailPage() {
                 <label className="form-label">Active B2 Restrictions</label>
                 <textarea rows={2} className="form-textarea" value={poc.design?.activeB2Restrictions || ''}
                   onChange={e => updateDesign('activeB2Restrictions', e.target.value)} />
-                {aiGeneratedFields.includes('activeB2Restrictions') && poc.design?.activeB2Restrictions && (
-                  <div className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-600">
-                    <Bot size={10} /><span>AI-generated</span>
-                  </div>
-                )}
               </div>
             </div>
 
