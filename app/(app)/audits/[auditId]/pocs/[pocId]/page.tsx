@@ -498,8 +498,9 @@ export default function POCDetailPage() {
 
             <div>
               <label className="form-label">€ Dev Cost (man-hour)</label>
-              <input type="number" className="form-input" value={poc.design?.estimatedDevCostEur || ''}
-                onChange={e => updateDesign('estimatedDevCostEur', Number(e.target.value))} />
+              <input type="text" className="form-input"
+                value={(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+                onChange={e => updateDesign('estimatedDevCostEur', Number(e.target.value.replace(/\./g, '')) || 0)} />
             </div>
 
             {poc.phase === 'design' && (
