@@ -463,7 +463,7 @@ export default function POCDetailPage() {
               </div>
               <div className="col-span-2">
                 <label className="form-label">Sovereignty Matrix (B2)</label>
-                <textarea rows={2} className="form-textarea" value={poc.design?.activeB2Restrictions || ''}
+                <textarea rows={5} className="form-textarea" value={poc.design?.activeB2Restrictions || ''}
                   onChange={e => updateDesign('activeB2Restrictions', e.target.value)} />
               </div>
             </div>
