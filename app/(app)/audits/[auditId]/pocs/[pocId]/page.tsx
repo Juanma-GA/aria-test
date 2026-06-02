@@ -144,6 +144,17 @@ export default function POCDetailPage() {
           updates.design = { ...(updates.design || poc.design), estimatedDevCostEur: useCaseData.estimatedDevCostEur };
         }
 
+        // Pre-fill Dev Cost calculator fields from UseCase if empty
+        if (!poc.design?.estimatedImplWeeks && useCaseData?.estimatedImplWeeks) {
+          updates.design = { ...(updates.design || poc.design), estimatedImplWeeks: useCaseData.estimatedImplWeeks };
+        }
+        if (!poc.design?.nDevs && useCaseData?.nDevs) {
+          updates.design = { ...(updates.design || poc.design), nDevs: useCaseData.nDevs };
+        }
+        if (!poc.design?.devRateEur && useCaseData?.devRateEur) {
+          updates.design = { ...(updates.design || poc.design), devRateEur: useCaseData.devRateEur };
+        }
+
         // Pre-fill Compute Breakdown from UseCase if empty
         if (!poc.computeBreakdown?.mode && useCaseData?.computeBreakdown) {
           updates.computeBreakdown = useCaseData.computeBreakdown;
@@ -496,11 +507,85 @@ export default function POCDetailPage() {
               )}
             </div>
 
-            <div className="card border-l-4 border-l-blue-aria p-3 space-y-2">
-              <label className="form-label">€ Dev Cost (man-hour)</label>
-              <input type="text" className="form-input"
-                value={(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
-                onChange={e => updateDesign('estimatedDevCostEur', Number(e.target.value.replace(/\./g, '')) || 0)} />
+            <div className="card border-l-4 border-l-orange-200 bg-orange-50 p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">🔧 € Dev Cost (man-hour)</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {/* Impl. Time (weeks) */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-text">Impl. Time</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      className="form-input flex-1"
+                      value={poc.design?.estimatedImplWeeks || 0}
+                      onChange={(e) => {
+                        const weeks = Number(e.target.value) || 0;
+                        const cost = weeks * 5 * (poc.design?.devRateEur || 450) * (poc.design?.nDevs || 1);
+                        updateDesign('estimatedImplWeeks', weeks);
+                        setTimeout(() => {
+                          updateDesign('estimatedDevCostEur', cost);
+                        }, 0);
+                      }}
+                    />
+                    <span className="text-xs text-muted">weeks</span>
+                  </div>
+                </div>
+
+                {/* Nº Developers */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-text">Nº Developers</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      className="form-input flex-1"
+                      value={poc.design?.nDevs || 1}
+                      onChange={(e) => {
+                        const devs = Number(e.target.value) || 1;
+                        const cost = (poc.design?.estimatedImplWeeks || 0) * 5 * (poc.design?.devRateEur || 450) * devs;
+                        updateDesign('nDevs', devs);
+                        setTimeout(() => {
+                          updateDesign('estimatedDevCostEur', cost);
+                        }, 0);
+                      }}
+                    />
+                    <span className="text-xs text-muted">devs</span>
+                  </div>
+                </div>
+
+                {/* Dev Rate Reference */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-text">Dev Rate Reference</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      className="form-input flex-1"
+                      value={poc.design?.devRateEur || 450}
+                      onChange={(e) => {
+                        const rate = Number(e.target.value) || 450;
+                        const cost = (poc.design?.estimatedImplWeeks || 0) * 5 * rate * (poc.design?.nDevs || 1);
+                        updateDesign('devRateEur', rate);
+                        setTimeout(() => {
+                          updateDesign('estimatedDevCostEur', cost);
+                        }, 0);
+                      }}
+                    />
+                    <span className="text-xs text-muted">€/day</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-orange-200 pt-2 text-sm font-semibold text-text">
+                € {(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+              </div>
             </div>
 
             {poc.phase === 'design' && (

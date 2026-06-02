@@ -303,6 +303,9 @@ export interface POC_Design {
   requiredResources: string;
   activeB2Restrictions: string;
   estimatedDevCostEur?: number;
+  estimatedImplWeeks?: number;
+  nDevs?: number;
+  devRateEur?: number;
   successCriteria: POCCriterion[];
 }
 

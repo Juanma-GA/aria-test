@@ -35,6 +35,9 @@ export interface IPOC extends Document {
     requiredResources: string;
     activeB2Restrictions: string;
     estimatedDevCostEur: number;
+    estimatedImplWeeks?: number;
+    nDevs?: number;
+    devRateEur?: number;
     successCriteria: object[];
   };
   execution: {
@@ -109,6 +112,9 @@ const POCSchema = new Schema<IPOC>({
     requiredResources: { type: String, default: '' },
     activeB2Restrictions: { type: String, default: '' },
     estimatedDevCostEur: { type: Number, default: 0 },
+    estimatedImplWeeks: { type: Number, default: 0 },
+    nDevs: { type: Number, default: 1 },
+    devRateEur: { type: Number, default: 450 },
     successCriteria: [CriterionSchema],
   },
   execution: {
