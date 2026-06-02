@@ -496,7 +496,7 @@ export default function POCDetailPage() {
               )}
             </div>
 
-            <div>
+            <div className="card border-l-4 border-l-blue-aria p-3 space-y-2">
               <label className="form-label">€ Dev Cost (man-hour)</label>
               <input type="text" className="form-input"
                 value={(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
