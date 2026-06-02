@@ -431,7 +431,7 @@ export default function POCDetailPage() {
               </div>
               <div className="col-span-2">
                 <label className="form-label">Measurable Objective</label>
-                <textarea rows={2} className="form-textarea" value={poc.design?.measurableObjective || ''}
+                <textarea rows={1} className="form-textarea resize-none h-[42px]" value={poc.design?.measurableObjective || ''}
                   onChange={e => updateDesign('measurableObjective', e.target.value)} />
               </div>
               <div className="col-span-2">
