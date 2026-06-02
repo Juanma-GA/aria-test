@@ -245,6 +245,7 @@ function SlideOver({
   const [isPhase2Visible, setIsPhase2Visible] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
+  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
@@ -546,73 +547,79 @@ function SlideOver({
       setError('');
       setPhase1ChangeDetected(false);
 
-      // Recalculate Phase 2 with LLM
-      setIsRecalculating(true);
-      try {
-        const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${data._id}/ai/recalculate`),
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              description: data.description,
-              aiTypes: data.aiTypes,
-              targetActivities: data.targetActivities,
-              requiredPreconditions: data.requiredPreconditions,
-              devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
-              estimatedImplWeeks: form.estimatedImplWeeks ?? data.estimatedImplWeeks ?? 0,
-              nDevs: form.nDevs ?? data.nDevs ?? 1,
-              score: { dimensions: dims },
-            }),
-          }
-        );
-
-        if (!recalcRes.ok) {
-          throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
-        }
-
-        const result = await recalcRes.json();
-
-        // Map roles to profileIds and consolidate duplicates (same logic as import handler)
-        const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
-          const matched = b1Profiles.find(
-            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
-          );
-          return {
-            profileId: matched?.id ?? crypto.randomUUID(),
-            role: matched?.role ?? entry.role ?? '',
-            hoursPerExecution: entry.hoursPerExecution ?? 0,
-          };
-        });
-
-        const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
-          const existing = acc.find(e => e.profileId === entry.profileId);
-          if (existing) {
-            existing.hoursPerExecution += entry.hoursPerExecution;
-          } else {
-            acc.push({ ...entry });
-          }
-          return acc;
-        }, [] as typeof mapped);
-
-        // Update form with recalculated Phase 2 values
-        setForm(f => ({
-          ...f,
-          timeSavedPerProfile: consolidated,
-          estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
-          estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
-          devCostExplanation: result.devCostExplanation ?? '',
-        }));
-
-        setIsPhase2Visible(true);
-      } catch (recalcErr) {
-        setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
-        setIsPhase2Visible(true);
-      } finally {
-        setIsRecalculating(false);
-      }
+      // Show confirmation dialog to recalculate Phase 2
+      setShowCalculateDialog(true);
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
     finally { setSaving(false); }
+  };
+
+  const handleRecalculate = async () => {
+    if (!form._id) return;
+    setIsRecalculating(true);
+    try {
+      const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${form._id}/ai/recalculate`),
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: form.description,
+            aiTypes: form.aiTypes,
+            targetActivities: form.targetActivities,
+            requiredPreconditions: form.requiredPreconditions,
+            devRateEur: form.devRateEur ?? 450,
+            estimatedImplWeeks: form.estimatedImplWeeks ?? 0,
+            nDevs: form.nDevs ?? 1,
+            score: { dimensions: dims },
+          }),
+        }
+      );
+
+      if (!recalcRes.ok) {
+        throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
+      }
+
+      const result = await recalcRes.json();
+
+      // Map roles to profileIds and consolidate duplicates
+      const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
+        const matched = b1Profiles.find(
+          p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+        );
+        return {
+          profileId: matched?.id ?? crypto.randomUUID(),
+          role: matched?.role ?? entry.role ?? '',
+          hoursPerExecution: entry.hoursPerExecution ?? 0,
+        };
+      });
+
+      const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
+        const existing = acc.find(e => e.profileId === entry.profileId);
+        if (existing) {
+          existing.hoursPerExecution += entry.hoursPerExecution;
+        } else {
+          acc.push({ ...entry });
+        }
+        return acc;
+      }, [] as typeof mapped);
+
+      // Update form with recalculated Phase 2 values
+      setForm(f => ({
+        ...f,
+        timeSavedPerProfile: consolidated,
+        estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
+        estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
+        devCostExplanation: result.devCostExplanation ?? '',
+      }));
+
+      setIsPhase2Visible(true);
+    } catch (recalcErr) {
+      setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
+      setIsPhase2Visible(true);
+    } finally {
+      setIsRecalculating(false);
+      setShowCalculateDialog(false);
+    }
   };
 
   const handleRecalculateOnly = async () => {
@@ -937,10 +944,10 @@ function SlideOver({
             })}
           </div>
 
-          {/* Save & Calculate button (Phase 1 action button) */}
+          {/* Save button (Phase 1 action button) */}
           <div className="flex gap-3">
-            <button onClick={handleSave_Phase1} disabled={isRecalculating} className="btn-primary flex-1">
-              {isRecalculating ? 'Calculating...' : 'Save & Calculate'}
+            <button onClick={handleSave_Phase1} disabled={saving} className="btn-primary flex-1">
+              {saving ? 'Saving...' : 'Save'}
             </button>
           </div>
 
@@ -1781,6 +1788,20 @@ export default function B5Page() {
         onSaved={handleSaved}
         initialDesc={initialDesc}
         b2Axes={b2Axes}
+      />
+
+      <ConfirmModal
+        isOpen={showCalculateDialog}
+        onClose={() => {
+          setShowCalculateDialog(false);
+          setIsPhase2Visible(true);
+        }}
+        onConfirm={handleRecalculate}
+        title="Phase 1 saved"
+        message="Do you want to recalculate Phase 2 estimates with AI?"
+        confirmLabel={isRecalculating ? 'Calculating...' : 'Yes, Calculate'}
+        cancelLabel="No, skip"
+        isLoading={isRecalculating}
       />
 
       {/* Generate UCs with AI modal */}
