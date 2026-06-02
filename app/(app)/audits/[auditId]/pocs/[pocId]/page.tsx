@@ -126,13 +126,12 @@ export default function POCDetailPage() {
             else level = 'Critical';
           }
 
-          const statusEmoji: Record<string, string> = { green: '🟢', amber: '🟡', red: '🔴' };
-
           const tableRows = Object.entries(axes)
             .map(([key, axis]: [string, any]) => {
               const status = axis?.status || 'amber';
-              const findings = (axis?.findings || 'N/A').substring(0, 100);
-              return `| ${axisNames[key]} | ${statusEmoji[status]} ${status.charAt(0).toUpperCase() + status.slice(1)} | ${findings} |`;
+              const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+              const findings = axis?.findings?.trim() ? axis.findings : '—';
+              return `| ${axisNames[key]} | ${statusLabel} | ${findings} |`;
             })
             .join('\n');
 
