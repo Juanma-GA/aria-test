@@ -606,11 +606,14 @@ function SlideOver({
         return acc;
       }, [] as typeof mapped);
 
+      // Compute Dev Cost deterministically (weeks × 5 × devRateEur × nDevs)
+      const devCost = (result.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+
       // Update form with recalculated Phase 2 values
       setForm(f => ({
         ...f,
         timeSavedPerProfile: consolidated,
-        estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
+        estimatedDevCostEur: devCost,
         estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
         devCostExplanation: result.devCostExplanation ?? '',
       }));
@@ -648,9 +651,12 @@ function SlideOver({
       if (!recalcRes.ok) throw new Error('Recalculation failed');
       const result = await recalcRes.json();
 
+      // Compute Dev Cost deterministically (weeks × 5 × devRateEur × nDevs)
+      const devCost = (result.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+
       setForm(f => ({
         ...f,
-        estimatedDevCostEur: result.estimatedDevCostEur ?? f.estimatedDevCostEur,
+        estimatedDevCostEur: devCost,
         estimatedImplWeeks: result.estimatedImplWeeks ?? f.estimatedImplWeeks,
         devCostExplanation: result.devCostExplanation ?? f.devCostExplanation,
       }));
