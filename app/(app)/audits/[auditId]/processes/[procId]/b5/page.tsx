@@ -1229,6 +1229,20 @@ function SlideOver({
             </button>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={showCalculateDialog}
+          onClose={() => {
+            setShowCalculateDialog(false);
+            setIsPhase2Visible(true);
+          }}
+          onConfirm={handleRecalculate}
+          title="Phase 1 saved"
+          message="Do you want to recalculate Phase 2 estimates with AI?"
+          confirmLabel={isRecalculating ? 'Calculating...' : 'Yes, Calculate'}
+          cancelLabel="No, skip"
+          isLoading={isRecalculating}
+        />
       </div>
     </div>
   );
@@ -1794,20 +1808,6 @@ export default function B5Page() {
         b2Axes={b2Axes}
         showCalculateDialog={showCalculateDialog}
         setShowCalculateDialog={setShowCalculateDialog}
-      />
-
-      <ConfirmModal
-        isOpen={showCalculateDialog}
-        onClose={() => {
-          setShowCalculateDialog(false);
-          setIsPhase2Visible(true);
-        }}
-        onConfirm={handleRecalculate}
-        title="Phase 1 saved"
-        message="Do you want to recalculate Phase 2 estimates with AI?"
-        confirmLabel={isRecalculating ? 'Calculating...' : 'Yes, Calculate'}
-        cancelLabel="No, skip"
-        isLoading={isRecalculating}
       />
 
       {/* Generate UCs with AI modal */}
