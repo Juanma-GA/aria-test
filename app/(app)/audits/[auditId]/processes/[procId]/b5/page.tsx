@@ -213,6 +213,8 @@ function SlideOver({
   onSaved,
   initialDesc,
   b2Axes,
+  showCalculateDialog,
+  setShowCalculateDialog,
 }: {
   open: boolean;
   onClose: () => void;
@@ -225,6 +227,8 @@ function SlideOver({
   onSaved: (uc: UseCase, blocked: boolean) => void;
   initialDesc?: string;
   b2Axes?: Record<string, any>;
+  showCalculateDialog: boolean;
+  setShowCalculateDialog: (open: boolean) => void;
 }) {
   type FormType = Partial<UseCase> & {
     aiTypes: AIType[];
@@ -245,7 +249,6 @@ function SlideOver({
   const [isPhase2Visible, setIsPhase2Visible] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
-  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
 
@@ -1325,6 +1328,7 @@ export default function B5Page() {
   const [slideOver, setSlideOver] = useState(false);
   const [editUC, setEditUC] = useState<UseCase | null>(null);
   const [initialDesc, setInitialDesc] = useState('');
+  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     uc: UseCase | null;
@@ -1788,6 +1792,8 @@ export default function B5Page() {
         onSaved={handleSaved}
         initialDesc={initialDesc}
         b2Axes={b2Axes}
+        showCalculateDialog={showCalculateDialog}
+        setShowCalculateDialog={setShowCalculateDialog}
       />
 
       <ConfirmModal
