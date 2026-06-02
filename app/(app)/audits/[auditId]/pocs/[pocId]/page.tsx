@@ -456,11 +456,6 @@ export default function POCDetailPage() {
                 <textarea rows={4} className="form-textarea" value={poc.design?.requiredResources || ''}
                   onChange={e => updateDesign('requiredResources', e.target.value)} />
               </div>
-              <div>
-                <label className="form-label">Dev Cost — Man-Hours (€)</label>
-                <input type="number" className="form-input" value={poc.design?.estimatedDevCostEur || ''}
-                  onChange={e => updateDesign('estimatedDevCostEur', Number(e.target.value))} />
-              </div>
               <div className="col-span-2">
                 <label className="form-label">Sovereignty Matrix (B2)</label>
                 <textarea rows={5} className="form-textarea" value={poc.design?.activeB2Restrictions || ''}
@@ -501,6 +496,12 @@ export default function POCDetailPage() {
               )}
             </div>
 
+            <div>
+              <label className="form-label">€ Dev Cost (man-hour)</label>
+              <input type="number" className="form-input" value={poc.design?.estimatedDevCostEur || ''}
+                onChange={e => updateDesign('estimatedDevCostEur', Number(e.target.value))} />
+            </div>
+
             {poc.phase === 'design' && (
               <button
                 onClick={() => advanceTo('execution')}
@@ -517,7 +518,7 @@ export default function POCDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                Compute scope &amp; cost (POC)
+                € Compute cost
                 <span className="text-[10px] font-medium uppercase tracking-wide text-blue-aria bg-blue-pale rounded px-1.5 py-0.5">carries to industrialization</span>
               </h3>
               <p className="text-[11px] text-muted leading-snug">
