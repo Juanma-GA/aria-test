@@ -430,12 +430,12 @@ export default function POCDetailPage() {
                     trigger({ name: e.target.value });
                   }} />
               </div>
-              <div>
+              <div className="col-span-2">
                 <label className="form-label">Measurable Objective</label>
                 <textarea rows={2} className="form-textarea" value={poc.design?.measurableObjective || ''}
                   onChange={e => updateDesign('measurableObjective', e.target.value)} />
               </div>
-              <div>
+              <div className="col-span-2">
                 <label className="form-label">Scope Description</label>
                 <textarea rows={4} className="form-textarea" value={poc.design?.scopeDescription || ''}
                   onChange={e => updateDesign('scopeDescription', e.target.value)} />
