@@ -131,11 +131,11 @@ export default function POCDetailPage() {
               const status = axis?.status || 'amber';
               const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
               const findings = axis?.findings?.trim() ? axis.findings : '—';
-              return `| ${axisNames[key]} | ${statusLabel} | ${findings} |`;
+              return `${axisNames[key]} | ${statusLabel} | ${findings}`;
             })
             .join('\n');
 
-          const b2PreFill = `**Sovereignty Index: ${sovIndex} / 5.0 — ${level}**\n\n| Axis | Status | Findings |\n|------|--------|----------|\n${tableRows}`;
+          const b2PreFill = `Sovereignty Index: ${sovIndex} / 5.0 — ${level}\n\n${tableRows}`;
           updates.design = { ...poc.design, activeB2Restrictions: b2PreFill };
         }
 
