@@ -151,6 +151,8 @@ export async function POST(
       };
     }
 
+    console.log('[POC CREATE INPUT] rest.design:', JSON.stringify(rest.design));
+
     const poc = await POC.create({
       auditId,
       useCaseId,
