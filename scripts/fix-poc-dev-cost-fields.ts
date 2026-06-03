@@ -53,7 +53,10 @@ async function fixPOCDevCostFields() {
 
     let fixed = 0;
     for (const poc of pocsToFix) {
-      const needsUpdate = !poc.design?.estimatedImplWeeks || !poc.design?.nDevs || !poc.design?.devRateEur;
+      const needsUpdate =
+        poc.design?.estimatedImplWeeks === undefined ||
+        poc.design?.nDevs === undefined ||
+        poc.design?.devRateEur === undefined;
 
       if (!needsUpdate) {
         continue;
@@ -74,11 +77,11 @@ async function fixPOCDevCostFields() {
         $set['design.estimatedImplWeeks'] = useCase.estimatedImplWeeks ?? 0;
         console.log(`   Setting estimatedImplWeeks = ${$set['design.estimatedImplWeeks']}`);
       }
-      if (!poc.design?.nDevs && useCase.nDevs !== undefined) {
+      if (poc.design?.nDevs === undefined && useCase.nDevs !== undefined) {
         $set['design.nDevs'] = useCase.nDevs ?? 1;
         console.log(`   Setting nDevs = ${$set['design.nDevs']}`);
       }
-      if (!poc.design?.devRateEur && useCase.devRateEur !== undefined) {
+      if (poc.design?.devRateEur === undefined && useCase.devRateEur !== undefined) {
         $set['design.devRateEur'] = useCase.devRateEur ?? 450;
         console.log(`   Setting devRateEur = ${$set['design.devRateEur']}`);
       }
