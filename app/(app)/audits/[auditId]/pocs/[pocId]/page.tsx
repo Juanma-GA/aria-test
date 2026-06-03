@@ -591,17 +591,6 @@ export default function POCDetailPage() {
               </div>
             </div>
 
-            {poc.phase === 'design' && (
-              <button
-                onClick={() => advanceTo('execution')}
-                disabled={(poc.design?.successCriteria || []).length < 2}
-                className="btn-primary disabled:opacity-50"
-              >
-                Advance to Execution →
-              </button>
-            )}
-
-
         {/* Catalog-driven POC compute scope (carries to Industrialization) */}
         <div className="card border-l-4 border-l-blue-aria p-3 space-y-2 bg-blue-50">
           <div className="flex items-center justify-between">
@@ -625,6 +614,16 @@ export default function POCDetailPage() {
             }}
           />
         </div>
+
+        {poc.phase === 'design' && (
+          <button
+            onClick={() => advanceTo('execution')}
+            disabled={(poc.design?.successCriteria || []).length < 2}
+            className="btn-primary disabled:opacity-50"
+          >
+            Advance to Execution →
+          </button>
+        )}
 
           </div>
         )}
