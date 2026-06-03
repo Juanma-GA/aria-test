@@ -52,61 +52,51 @@ export async function PATCH(
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
-    console.log('[PATCH CONTENT-TYPE]', req.headers.get('content-type'));
-    console.log('[PATCH METHOD]', req.method);
-
     const body = await req.json();
-    console.log('[PATCH BODY RAW]', JSON.stringify(body), 'keys:', Object.keys(body));
 
-    const poc = await POC.findOne({ auditId, _id: pocId });
+    const poc = await POC.findOne({ auditId, _id: pocId }).lean() as any;
     if (!poc) {
       return NextResponse.json({ error: 'POC not found' }, { status: 404 });
     }
 
+    // Build $set from body, handling nested field merges
+    const $set: Record<string, any> = {};
+
     // Deep merge nested objects (design, execution, evaluation, decision)
-    const nestedFields = [
-      'design',
-      'execution',
-      'evaluation',
-      'decision',
-    ] as const;
+    const nestedFields = ['design', 'execution', 'evaluation', 'decision'];
     for (const field of nestedFields) {
       if (body[field] !== undefined) {
-        const existing = (poc[field] as any)?.toObject?.() ?? poc[field] ?? {};
-        (poc as any)[field] = { ...existing, ...body[field] };
+        const existing = (poc as any)[field] ?? {};
+        $set[field] = { ...existing, ...body[field] };
         delete body[field];
       }
     }
 
-    console.log('[PATCH BODY]', JSON.stringify(body));
+    // Add remaining scalar fields to $set
+    for (const [key, value] of Object.entries(body)) {
+      if (key !== '_id') $set[key] = value;
+    }
 
     // Compute calculator: server-side recompute of computedAnnualEur from the
     // breakdown inputs, so the persisted euro figure always matches the inputs.
-    if (body.computeBreakdown !== undefined) {
-      const existing = ((poc as any).computeBreakdown?.toObject?.() ??
-        (poc as any).computeBreakdown ??
-        {}) as Record<string, unknown>;
-      const merged = { ...existing, ...body.computeBreakdown };
-      const calc = computeAnnualCompute(merged as any);
-      (poc as any).computeBreakdown = {
-        ...merged,
-        computedAnnualEur: calc.totalEur,
-      };
-      delete body.computeBreakdown;
+    if ($set.computeBreakdown) {
+      const calc = computeAnnualCompute($set.computeBreakdown);
+      $set.computeBreakdown = { ...$set.computeBreakdown, computedAnnualEur: calc.totalEur };
     }
 
     // Stamp archivedAt whenever isArchived flips, so the audit log is implicit.
-    if ('isArchived' in body) {
-      (poc as any).archivedAt = body.isArchived ? new Date() : undefined;
+    if (typeof $set.isArchived === 'boolean') {
+      $set.archivedAt = $set.isArchived ? new Date() : undefined;
     }
 
-    // Apply remaining scalar fields
-    Object.assign(poc, body);
-
-    await poc.save();
+    // Use MongoDB native driver to bypass Mongoose strict mode
+    await POC.collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(pocId) },
+      { $set }
+    );
 
     // If decision is set to 'no_go_discard', block the linked use case
-    const decision = (poc.decision as any)?.decision;
+    const decision = ($set.decision as any)?.decision;
     if (decision === 'no_go_discard' && poc.useCaseId) {
       await UseCase.findByIdAndUpdate(poc.useCaseId, {
         status: 'blocked',
@@ -114,7 +104,9 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json(poc.toObject());
+    // Fetch updated document and return
+    const updated = await POC.findOne({ auditId, _id: pocId }).lean();
+    return NextResponse.json(updated);
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(
