@@ -163,7 +163,10 @@ export default function POCDetailPage() {
         body: JSON.stringify(updated),
       });
       const data = await res.json();
-      setPoc(data);
+      setPoc(prev => prev ? {
+        ...data,
+        design: { ...data.design, ...prev.design }
+      } : data);
       setSaveStatus('saved');
     } catch { setSaveStatus('unsaved'); }
   }, [auditId, pocId]);
