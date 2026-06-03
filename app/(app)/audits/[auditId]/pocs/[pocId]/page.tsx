@@ -77,12 +77,6 @@ export default function POCDetailPage() {
     ])
       .then(([pocData, auditData]) => {
         setPoc(pocData);
-        console.log('[POC LOAD] design fields:', {
-          estimatedImplWeeks: pocData?.design?.estimatedImplWeeks,
-          nDevs: pocData?.design?.nDevs,
-          devRateEur: pocData?.design?.devRateEur,
-          estimatedDevCostEur: pocData?.design?.estimatedDevCostEur,
-        });
         if (pocData?.phase) setActiveTab(pocData.phase as POCPhase);
         if (auditData) setAudit(auditData);
         setLoading(false);
@@ -151,7 +145,6 @@ export default function POCDetailPage() {
         }
 
         if (Object.keys(updates).length > 0) {
-          console.log('[POC PREFILL] updates:', JSON.stringify(updates));
           setPoc((prev) => (prev ? { ...prev, ...updates } : null));
         }
       })

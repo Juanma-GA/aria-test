@@ -134,18 +134,11 @@ export async function POST(
       const uc = (await UseCase.findById(useCaseId)
         .select('estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
         .lean()) as any;
-      console.log('[POC CREATE] UC dev cost fields:', {
-        estimatedImplWeeks: uc?.estimatedImplWeeks,
-        nDevs: uc?.nDevs,
-        devRateEur: uc?.devRateEur,
-        estimatedDevCostEur: uc?.estimatedDevCostEur,
-      });
       rest.design = rest.design || {};
       if (uc?.estimatedImplWeeks !== undefined) rest.design.estimatedImplWeeks = uc.estimatedImplWeeks;
       if (uc?.nDevs !== undefined) rest.design.nDevs = uc.nDevs;
       if (uc?.devRateEur !== undefined) rest.design.devRateEur = uc.devRateEur;
       if (uc?.estimatedDevCostEur !== undefined) rest.design.estimatedDevCostEur = uc.estimatedDevCostEur;
-      console.log('[POC CREATE] rest.design before create:', rest.design);
     }
 
     // Recompute the calculator's annual euro figure server-side so the
@@ -166,7 +159,7 @@ export async function POST(
       ...rest,
     });
 
-    return NextResponse.json(poc, { status: 201 });
+    return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(
