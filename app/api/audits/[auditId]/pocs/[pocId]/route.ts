@@ -27,6 +27,13 @@ export async function GET(
       return NextResponse.json({ error: 'POC not found' }, { status: 404 });
     }
 
+    console.log('[POC GET] design fields from DB:', {
+      estimatedImplWeeks: (poc as any)?.design?.estimatedImplWeeks,
+      nDevs: (poc as any)?.design?.nDevs,
+      devRateEur: (poc as any)?.design?.devRateEur,
+      estimatedDevCostEur: (poc as any)?.design?.estimatedDevCostEur,
+    });
+
     return NextResponse.json(poc);
   } catch (err) {
     console.error('[API]', err);
