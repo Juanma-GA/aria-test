@@ -11,6 +11,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { OriginTrace, type OriginNode } from '@/components/ui/OriginTrace';
 import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/ComputeCalculator';
 import { useAuditAccess } from '@/context/AuditAccessContext';
+import { apiUrl } from '@/lib/utils';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -186,7 +187,7 @@ export default function POCDetailPage() {
     setSaveStatus('saving');
     console.log('[SAVE SENDING]', JSON.stringify(updated));
     try {
-      const res = await fetch(`/api/audits/${auditId}/pocs/${pocId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
