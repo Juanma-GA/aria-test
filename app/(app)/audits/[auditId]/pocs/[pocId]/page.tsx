@@ -160,6 +160,9 @@ export default function POCDetailPage() {
 
         if (Object.keys(updates).length > 0) {
           setPoc((prev) => (prev ? { ...prev, ...updates } : null));
+          if (updates.design) {
+            trigger({ design: updates.design } as any);
+          }
         }
       })
       .catch(() => {
