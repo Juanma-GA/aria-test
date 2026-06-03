@@ -550,8 +550,12 @@ export default function POCDetailPage() {
                           const cost = weeks * 5 * (prev.design?.devRateEur ?? 450) * (prev.design?.nDevs ?? 1);
                           return { ...prev, design: { ...prev.design, estimatedImplWeeks: weeks, estimatedDevCostEur: cost } };
                         });
-                        const newDesign = { ...poc.design, estimatedImplWeeks: weeks, estimatedDevCostEur: weeks * 5 * (poc.design?.devRateEur ?? 450) * (poc.design?.nDevs ?? 1) };
-                        trigger({ design: newDesign } as any);
+                        trigger({ design: {
+                          estimatedImplWeeks: weeks,
+                          nDevs: poc.design?.nDevs ?? 1,
+                          devRateEur: poc.design?.devRateEur ?? 450,
+                          estimatedDevCostEur: weeks * 5 * (poc.design?.devRateEur ?? 450) * (poc.design?.nDevs ?? 1)
+                        }} as any);
                       }}
                     />
                     <span className="text-xs text-muted">weeks</span>
@@ -575,8 +579,12 @@ export default function POCDetailPage() {
                           const cost = (prev.design?.estimatedImplWeeks ?? 0) * 5 * (prev.design?.devRateEur ?? 450) * devs;
                           return { ...prev, design: { ...prev.design, nDevs: devs, estimatedDevCostEur: cost } };
                         });
-                        const newDesign = { ...poc.design, nDevs: devs, estimatedDevCostEur: (poc.design?.estimatedImplWeeks ?? 0) * 5 * (poc.design?.devRateEur ?? 450) * devs };
-                        trigger({ design: newDesign } as any);
+                        trigger({ design: {
+                          estimatedImplWeeks: poc.design?.estimatedImplWeeks ?? 0,
+                          nDevs: devs,
+                          devRateEur: poc.design?.devRateEur ?? 450,
+                          estimatedDevCostEur: (poc.design?.estimatedImplWeeks ?? 0) * 5 * (poc.design?.devRateEur ?? 450) * devs
+                        }} as any);
                       }}
                     />
                     <span className="text-xs text-muted">devs</span>
@@ -600,8 +608,12 @@ export default function POCDetailPage() {
                           const cost = (prev.design?.estimatedImplWeeks ?? 0) * 5 * rate * (prev.design?.nDevs ?? 1);
                           return { ...prev, design: { ...prev.design, devRateEur: rate, estimatedDevCostEur: cost } };
                         });
-                        const newDesign = { ...poc.design, devRateEur: rate, estimatedDevCostEur: (poc.design?.estimatedImplWeeks ?? 0) * 5 * rate * (poc.design?.nDevs ?? 1) };
-                        trigger({ design: newDesign } as any);
+                        trigger({ design: {
+                          estimatedImplWeeks: poc.design?.estimatedImplWeeks ?? 0,
+                          nDevs: poc.design?.nDevs ?? 1,
+                          devRateEur: rate,
+                          estimatedDevCostEur: (poc.design?.estimatedImplWeeks ?? 0) * 5 * rate * (poc.design?.nDevs ?? 1)
+                        }} as any);
                       }}
                     />
                     <span className="text-xs text-muted">€/day</span>
