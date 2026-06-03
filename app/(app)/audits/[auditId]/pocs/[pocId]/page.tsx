@@ -96,6 +96,11 @@ export default function POCDetailPage() {
       useCaseId ? fetch(`/api/audits/${auditId}/usecases/${useCaseId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
     ])
       .then(([processData, useCaseData]) => {
+        console.log('[PREFILL] useCaseData dev cost:', {
+          estimatedImplWeeks: useCaseData?.estimatedImplWeeks,
+          nDevs: useCaseData?.nDevs,
+          devRateEur: useCaseData?.devRateEur,
+        });
         const updates: Partial<POC> = {};
 
         // Pre-fill Active B2 Restrictions from B2 data if empty
@@ -145,6 +150,11 @@ export default function POCDetailPage() {
         }
 
         // Pre-fill dev cost fields from UseCase
+        console.log('[PREFILL] poc.design current:', {
+          estimatedImplWeeks: poc.design?.estimatedImplWeeks,
+          nDevs: poc.design?.nDevs,
+          devRateEur: poc.design?.devRateEur,
+        });
         if (poc.design?.estimatedImplWeeks === undefined && useCaseData?.estimatedImplWeeks !== undefined) {
           updates.design = { ...(updates.design || poc.design),
             estimatedImplWeeks: useCaseData.estimatedImplWeeks };
@@ -158,15 +168,12 @@ export default function POCDetailPage() {
             devRateEur: useCaseData.devRateEur };
         }
 
+        console.log('[PREFILL] updates.design:', JSON.stringify(updates.design));
         if (Object.keys(updates).length > 0) {
           setPoc((prev) => (prev ? { ...prev, ...updates } : null));
-          // Persist pre-filled values to DB directly
-          fetch(`/api/audits/${auditId}/pocs/${pocId}`, {
-            method: 'PATCH',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updates),
-          }).catch(() => {});
+          if (updates.design) {
+            trigger({ design: updates.design } as any);
+          }
         }
       })
       .catch(() => {
@@ -184,6 +191,11 @@ export default function POCDetailPage() {
         body: JSON.stringify(updated),
       });
       const data = await res.json();
+      console.log('[SAVE RESPONSE] design:', {
+        estimatedImplWeeks: data?.design?.estimatedImplWeeks,
+        nDevs: data?.design?.nDevs,
+        devRateEur: data?.design?.devRateEur,
+      });
       setPoc(prev => prev ? {
         ...data,
         design: { ...data.design, ...prev.design }
