@@ -184,6 +184,7 @@ export default function POCDetailPage() {
 
   const save = useCallback(async (updated: Partial<POC>) => {
     setSaveStatus('saving');
+    console.log('[SAVE SENDING]', JSON.stringify(updated));
     try {
       const res = await fetch(`/api/audits/${auditId}/pocs/${pocId}`, {
         method: 'PATCH', credentials: 'include',
