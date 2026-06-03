@@ -104,7 +104,7 @@ export async function POST(
     // still edit any field afterwards.
     if (!rest.computeBreakdown || !rest.computeBreakdown.mode) {
       const uc = (await UseCase.findById(useCaseId)
-        .select('computeBreakdown')
+        .select('computeBreakdown estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
         .lean()) as any;
       const sourceBreakdown = uc?.computeBreakdown;
       if (sourceBreakdown && sourceBreakdown.mode) {
@@ -127,6 +127,18 @@ export async function POST(
           onPremPct: sourceBreakdown.onPremPct ?? 100,
         };
       }
+    }
+
+    // Copy Dev Cost calculator fields from UseCase at creation time
+    if (!rest.design?.estimatedDevCostEur) {
+      const uc = (await UseCase.findById(useCaseId)
+        .select('estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
+        .lean()) as any;
+      rest.design = rest.design || {};
+      if (uc?.estimatedImplWeeks) rest.design.estimatedImplWeeks = uc.estimatedImplWeeks;
+      if (uc?.nDevs) rest.design.nDevs = uc.nDevs;
+      if (uc?.devRateEur) rest.design.devRateEur = uc.devRateEur;
+      if (uc?.estimatedDevCostEur) rest.design.estimatedDevCostEur = uc.estimatedDevCostEur;
     }
 
     // Recompute the calculator's annual euro figure server-side so the

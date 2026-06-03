@@ -139,22 +139,6 @@ export default function POCDetailPage() {
           updates.design = { ...poc.design, activeB2Restrictions: b2PreFill };
         }
 
-        // Pre-fill Dev Cost from UseCase if empty
-        if (!poc.design?.estimatedDevCostEur && useCaseData?.estimatedDevCostEur) {
-          updates.design = { ...(updates.design || poc.design), estimatedDevCostEur: useCaseData.estimatedDevCostEur };
-        }
-
-        // Pre-fill Dev Cost calculator fields from UseCase if empty
-        if (!poc.design?.estimatedImplWeeks && useCaseData?.estimatedImplWeeks) {
-          updates.design = { ...(updates.design || poc.design), estimatedImplWeeks: useCaseData.estimatedImplWeeks };
-        }
-        if ((poc.design?.nDevs === undefined || poc.design?.nDevs === 1) && useCaseData?.nDevs) {
-          updates.design = { ...(updates.design || poc.design), nDevs: useCaseData.nDevs };
-        }
-        if ((poc.design?.devRateEur === undefined || poc.design?.devRateEur === 450) && useCaseData?.devRateEur) {
-          updates.design = { ...(updates.design || poc.design), devRateEur: useCaseData.devRateEur };
-        }
-
         // Pre-fill Compute Breakdown from UseCase if empty
         if (!poc.computeBreakdown?.mode && useCaseData?.computeBreakdown) {
           updates.computeBreakdown = useCaseData.computeBreakdown;
