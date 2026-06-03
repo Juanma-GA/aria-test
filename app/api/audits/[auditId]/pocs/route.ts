@@ -166,6 +166,14 @@ export async function POST(
       },
     });
 
+    // Verify what was saved to MongoDB
+    const verify = await POC.findById(poc._id).select('design').lean() as any;
+    console.log('[VERIFY POC FIELDS]', JSON.stringify({
+      w: verify?.design?.estimatedImplWeeks,
+      n: verify?.design?.nDevs,
+      r: verify?.design?.devRateEur,
+    }));
+
     return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {
     console.error('[API]', err);
