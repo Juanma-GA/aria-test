@@ -96,6 +96,7 @@ export default function POCDetailPage() {
       useCaseId ? fetch(`/api/audits/${auditId}/usecases/${useCaseId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
     ])
       .then(([processData, useCaseData]) => {
+        console.log('[B8 PRE-FILL] useCaseData:', useCaseData);
         const updates: Partial<POC> = {};
 
         // Pre-fill Active B2 Restrictions from B2 data if empty
