@@ -98,14 +98,16 @@ export async function POST(
     const sequence = String(existingCount + 1).padStart(2, '0');
     const pocId = `POC-${cuId}-${sequence}`;
 
+    // Fetch the UseCase once with all needed fields
+    const uc = await UseCase.findById(useCaseId)
+      .select('computeBreakdown estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
+      .lean() as any;
+
     // Inherit the upstream UseCase calculator state when the client did not
     // supply one. Snapshots (model / GPU specs) flow through unchanged so the
     // POC starts from the same hypothesis the use case captured. The user can
     // still edit any field afterwards.
     if (!rest.computeBreakdown || !rest.computeBreakdown.mode) {
-      const uc = (await UseCase.findById(useCaseId)
-        .select('computeBreakdown estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
-        .lean()) as any;
       const sourceBreakdown = uc?.computeBreakdown;
       if (sourceBreakdown && sourceBreakdown.mode) {
         rest.computeBreakdown = {
@@ -129,18 +131,6 @@ export async function POST(
       }
     }
 
-    // Copy Dev Cost calculator fields from UseCase at creation time
-    if (!rest.design?.estimatedDevCostEur) {
-      const uc = (await UseCase.findById(useCaseId)
-        .select('estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
-        .lean()) as any;
-      rest.design = rest.design || {};
-      if (uc?.estimatedImplWeeks !== undefined) rest.design.estimatedImplWeeks = uc.estimatedImplWeeks;
-      if (uc?.nDevs !== undefined) rest.design.nDevs = uc.nDevs;
-      if (uc?.devRateEur !== undefined) rest.design.devRateEur = uc.devRateEur;
-      if (uc?.estimatedDevCostEur !== undefined) rest.design.estimatedDevCostEur = uc.estimatedDevCostEur;
-    }
-
     // Recompute the calculator's annual euro figure server-side so the
     // persisted snapshot stays coherent regardless of what the client posts.
     if (rest.computeBreakdown && typeof rest.computeBreakdown === 'object') {
@@ -159,20 +149,12 @@ export async function POST(
       ...rest,
       design: {
         ...(rest.design || {}),
-        estimatedImplWeeks: rest.design?.estimatedImplWeeks,
-        nDevs: rest.design?.nDevs,
-        devRateEur: rest.design?.devRateEur,
-        estimatedDevCostEur: rest.design?.estimatedDevCostEur,
+        estimatedImplWeeks: uc?.estimatedImplWeeks ?? 0,
+        nDevs: uc?.nDevs ?? 1,
+        devRateEur: uc?.devRateEur ?? 450,
+        estimatedDevCostEur: uc?.estimatedDevCostEur ?? 0,
       },
     });
-
-    // Verify what was saved to MongoDB
-    const verify = await POC.findById(poc._id).select('design').lean() as any;
-    console.log('[VERIFY POC FIELDS]', JSON.stringify({
-      w: verify?.design?.estimatedImplWeeks,
-      n: verify?.design?.nDevs,
-      r: verify?.design?.devRateEur,
-    }));
 
     return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {
