@@ -151,22 +151,19 @@ export async function POST(
       };
     }
 
-    console.log('[POC CREATE INPUT] rest.design:', JSON.stringify(rest.design));
-
     const poc = await POC.create({
       auditId,
       useCaseId,
       processId,
       pocId,
       ...rest,
-    });
-
-    const createdPoc = await POC.findById(poc._id).lean();
-    console.log('[POC CREATE VERIFY] design fields in DB after create:', {
-      estimatedImplWeeks: (createdPoc as any)?.design?.estimatedImplWeeks,
-      nDevs: (createdPoc as any)?.design?.nDevs,
-      devRateEur: (createdPoc as any)?.design?.devRateEur,
-      estimatedDevCostEur: (createdPoc as any)?.design?.estimatedDevCostEur,
+      design: {
+        ...(rest.design || {}),
+        estimatedImplWeeks: rest.design?.estimatedImplWeeks,
+        nDevs: rest.design?.nDevs,
+        devRateEur: rest.design?.devRateEur,
+        estimatedDevCostEur: rest.design?.estimatedDevCostEur,
+      },
     });
 
     return NextResponse.json(poc.toObject(), { status: 201 });
