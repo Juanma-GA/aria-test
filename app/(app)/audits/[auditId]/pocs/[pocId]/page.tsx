@@ -96,7 +96,6 @@ export default function POCDetailPage() {
       useCaseId ? fetch(`/api/audits/${auditId}/usecases/${useCaseId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
     ])
       .then(([processData, useCaseData]) => {
-        console.log('[B8 PRE-FILL] useCaseData:', useCaseData);
         const updates: Partial<POC> = {};
 
         // Pre-fill Active B2 Restrictions from B2 data if empty
@@ -149,10 +148,10 @@ export default function POCDetailPage() {
         if (!poc.design?.estimatedImplWeeks && useCaseData?.estimatedImplWeeks) {
           updates.design = { ...(updates.design || poc.design), estimatedImplWeeks: useCaseData.estimatedImplWeeks };
         }
-        if (!poc.design?.nDevs && useCaseData?.nDevs) {
+        if ((poc.design?.nDevs === undefined || poc.design?.nDevs === 1) && useCaseData?.nDevs) {
           updates.design = { ...(updates.design || poc.design), nDevs: useCaseData.nDevs };
         }
-        if (!poc.design?.devRateEur && useCaseData?.devRateEur) {
+        if ((poc.design?.devRateEur === undefined || poc.design?.devRateEur === 450) && useCaseData?.devRateEur) {
           updates.design = { ...(updates.design || poc.design), devRateEur: useCaseData.devRateEur };
         }
 
