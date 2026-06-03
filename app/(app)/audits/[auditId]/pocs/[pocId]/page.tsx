@@ -68,6 +68,7 @@ export default function POCDetailPage() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; cascade: boolean; indCount: number; error?: string }>({ open: false, cascade: false, indCount: 0 });
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const prefillDoneRef = useRef(false);
   const { canEdit } = useAuditAccess();
 
   useEffect(() => {
@@ -86,6 +87,8 @@ export default function POCDetailPage() {
 
   // Pre-fill B2 Restrictions and UseCase data on mount
   useEffect(() => {
+    if (prefillDoneRef.current) return;
+    prefillDoneRef.current = true;
     if (!poc || !poc.processId) return;
 
     const procesId = typeof poc.processId === 'object' ? (poc.processId as any)._id : poc.processId;
