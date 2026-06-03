@@ -159,6 +159,14 @@ export async function POST(
       ...rest,
     });
 
+    const createdPoc = await POC.findById(poc._id).lean();
+    console.log('[POC CREATE VERIFY] design fields in DB after create:', {
+      estimatedImplWeeks: (createdPoc as any)?.design?.estimatedImplWeeks,
+      nDevs: (createdPoc as any)?.design?.nDevs,
+      devRateEur: (createdPoc as any)?.design?.devRateEur,
+      estimatedDevCostEur: (createdPoc as any)?.design?.estimatedDevCostEur,
+    });
+
     return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {
     console.error('[API]', err);
