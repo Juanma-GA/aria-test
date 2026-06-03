@@ -112,9 +112,9 @@ const POCSchema = new Schema<IPOC>({
     requiredResources: { type: String, default: '' },
     activeB2Restrictions: { type: String, default: '' },
     estimatedDevCostEur: { type: Number, default: 0 },
-    estimatedImplWeeks: { type: Number, default: 0 },
-    nDevs: { type: Number, default: 1 },
-    devRateEur: { type: Number, default: 450 },
+    estimatedImplWeeks: { type: Number },
+    nDevs: { type: Number },
+    devRateEur: { type: Number },
     successCriteria: [CriterionSchema],
   },
   execution: {
