@@ -74,11 +74,7 @@ export async function PATCH(
       }
     }
 
-    console.log('[PATCH DESIGN]', JSON.stringify({
-      estimatedImplWeeks: (poc as any).design?.estimatedImplWeeks,
-      nDevs: (poc as any).design?.nDevs,
-      devRateEur: (poc as any).design?.devRateEur,
-    }));
+    console.log('[PATCH BODY]', JSON.stringify(body));
 
     // Compute calculator: server-side recompute of computedAnnualEur from the
     // breakdown inputs, so the persisted euro figure always matches the inputs.
