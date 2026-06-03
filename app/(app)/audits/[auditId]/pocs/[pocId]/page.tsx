@@ -144,6 +144,20 @@ export default function POCDetailPage() {
           updates.computeBreakdown = useCaseData.computeBreakdown;
         }
 
+        // Pre-fill dev cost fields from UseCase
+        if (useCaseData?.estimatedImplWeeks !== undefined) {
+          updates.design = { ...(updates.design || poc.design),
+            estimatedImplWeeks: useCaseData.estimatedImplWeeks };
+        }
+        if (useCaseData?.nDevs !== undefined) {
+          updates.design = { ...(updates.design || poc.design),
+            nDevs: useCaseData.nDevs };
+        }
+        if (useCaseData?.devRateEur !== undefined) {
+          updates.design = { ...(updates.design || poc.design),
+            devRateEur: useCaseData.devRateEur };
+        }
+
         if (Object.keys(updates).length > 0) {
           setPoc((prev) => (prev ? { ...prev, ...updates } : null));
         }
