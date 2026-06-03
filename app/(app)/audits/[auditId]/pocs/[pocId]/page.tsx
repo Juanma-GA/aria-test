@@ -507,9 +507,9 @@ export default function POCDetailPage() {
               )}
             </div>
 
-            <div className="card border-l-4 border-l-orange-200 bg-orange-50 p-3 space-y-3">
+            <div className="card border-l-4 border-l-blue-aria p-3 space-y-3 bg-blue-50">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">🔧 € Dev Cost (man-hour)</span>
+                <span className="text-sm font-semibold">€ Dev Cost (man-hour)</span>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -583,8 +583,11 @@ export default function POCDetailPage() {
                 </div>
               </div>
 
-              <div className="border-t border-orange-200 pt-2 text-sm font-semibold text-text">
-                € {(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+              <div className="flex justify-end items-center pt-1 border-t border-border">
+                <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
+                <span className="text-sm font-bold text-text">
+                  €{(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+                </span>
               </div>
             </div>
 
@@ -600,23 +603,16 @@ export default function POCDetailPage() {
 
 
         {/* Catalog-driven POC compute scope (carries to Industrialization) */}
-        <div className="card border-l-4 border-l-blue-aria p-3 space-y-2">
+        <div className="card border-l-4 border-l-blue-aria p-3 space-y-2 bg-blue-50">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 € Compute cost
-                <span className="text-[10px] font-medium uppercase tracking-wide text-blue-aria bg-blue-pale rounded px-1.5 py-0.5">carries to industrialization</span>
               </h3>
               <p className="text-[11px] text-muted leading-snug">
-                Size the POC for its <strong>limited pilot scope</strong> — typical POC volumes (a handful of users, hundreds–low thousands of executions/year) — using the central model + GPU catalog. The model / GPU / mode choice is the part that usually carries unchanged to production; <em>annual executions</em> and <em>GPU count</em> are the ones that get <strong>scaled up</strong> on promotion to industrialization.
-                {' '}If POC results invalidate the assumptions (e.g. a different model wins, on-prem turns out infeasible), you can change anything in industrialization without losing the inherited starting point.
+                Re-size the PoC for a small pilot, with a limited number of users and a low volume of executions. Use the model and GPU intended for production. If the PoC results indicate that changes are needed, they can be implemented during the industrialization phase.
               </p>
             </div>
-            {(poc as any).computeBreakdown?.computedAnnualEur > 0 && (
-              <span className="text-xs font-semibold text-text tabular-nums whitespace-nowrap ml-2">
-                €{((poc as any).computeBreakdown?.computedAnnualEur ?? 0).toLocaleString('en-GB', { maximumFractionDigits: 0 })} /yr (POC)
-              </span>
-            )}
           </div>
           <PocComputeCalculator
             title="POC compute calculator"
