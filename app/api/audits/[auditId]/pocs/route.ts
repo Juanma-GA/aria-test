@@ -127,6 +127,14 @@ export async function POST(
           amortizationYears: sourceBreakdown.amortizationYears ?? 4,
           electricityRateEur: sourceBreakdown.electricityRateEur ?? 0.15,
           onPremPct: sourceBreakdown.onPremPct ?? 100,
+          concurrentUsersPerGpuSnapshot: sourceBreakdown.concurrentUsersPerGpuSnapshot ?? 0,
+          workingHoursPerDay: sourceBreakdown.workingHoursPerDay ?? 10,
+          workingDaysPerWeek: sourceBreakdown.workingDaysPerWeek ?? 5,
+          workingWeeksPerYear: sourceBreakdown.workingWeeksPerYear ?? 48,
+          maxConcurrentUsersSupported: sourceBreakdown.maxConcurrentUsersSupported ?? 0,
+          peakConcurrentUsers: sourceBreakdown.peakConcurrentUsers ?? 0,
+          peakUsageFractionOfWindow: sourceBreakdown.peakUsageFractionOfWindow ?? 25,
+          hwPreexisting: sourceBreakdown.hwPreexisting ?? false,
         };
       }
     }
