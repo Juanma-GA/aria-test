@@ -91,7 +91,7 @@ export async function PATCH(
 
     // Use MongoDB native driver to bypass Mongoose strict mode
     await POC.collection.updateOne(
-      { _id: new mongoose.Types.ObjectId(pocId) },
+      { _id: poc._id },
       { $set }
     );
 
