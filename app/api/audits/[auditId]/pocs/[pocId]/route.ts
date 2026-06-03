@@ -52,7 +52,11 @@ export async function PATCH(
     const access = await requireAuditAccess(req, auditId, 'edit');
     if (!isAccessGranted(access)) return access;
 
+    console.log('[PATCH CONTENT-TYPE]', req.headers.get('content-type'));
+    console.log('[PATCH METHOD]', req.method);
+
     const body = await req.json();
+    console.log('[PATCH BODY RAW]', JSON.stringify(body), 'keys:', Object.keys(body));
 
     const poc = await POC.findOne({ auditId, _id: pocId });
     if (!poc) {
