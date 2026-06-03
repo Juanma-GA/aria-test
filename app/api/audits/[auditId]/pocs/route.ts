@@ -135,10 +135,10 @@ export async function POST(
         .select('estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
         .lean()) as any;
       rest.design = rest.design || {};
-      if (uc?.estimatedImplWeeks) rest.design.estimatedImplWeeks = uc.estimatedImplWeeks;
-      if (uc?.nDevs) rest.design.nDevs = uc.nDevs;
-      if (uc?.devRateEur) rest.design.devRateEur = uc.devRateEur;
-      if (uc?.estimatedDevCostEur) rest.design.estimatedDevCostEur = uc.estimatedDevCostEur;
+      if (uc?.estimatedImplWeeks !== undefined) rest.design.estimatedImplWeeks = uc.estimatedImplWeeks;
+      if (uc?.nDevs !== undefined) rest.design.nDevs = uc.nDevs;
+      if (uc?.devRateEur !== undefined) rest.design.devRateEur = uc.devRateEur;
+      if (uc?.estimatedDevCostEur !== undefined) rest.design.estimatedDevCostEur = uc.estimatedDevCostEur;
     }
 
     // Recompute the calculator's annual euro figure server-side so the
