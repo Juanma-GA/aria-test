@@ -773,7 +773,7 @@ export default function POCDetailPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => advanceTo('design')}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 bg-slate-50"
                 >
                   ← Return to Design
                 </button>
@@ -845,7 +845,7 @@ export default function POCDetailPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => advanceTo('execution')}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 bg-slate-50"
                 >
                   ← Return to Execution
                 </button>
@@ -914,7 +914,7 @@ export default function POCDetailPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => advanceTo('evaluation')}
-                className="btn-secondary flex-1"
+                className="btn-secondary flex-1 bg-slate-50"
               >
                 ← Return to Evaluation
               </button>
@@ -965,7 +965,7 @@ export default function POCDetailPage() {
             <div className="flex gap-2 pt-3 border-t border-border">
               <button
                 onClick={() => advanceTo('decision')}
-                className="btn-secondary flex-1"
+                className="btn-secondary flex-1 bg-slate-50"
               >
                 ← Return to Decision
               </button>
