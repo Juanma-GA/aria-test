@@ -180,23 +180,6 @@ function UCSlideOver({
             <Badge variant={STATUS_VARIANTS[uc.status]}>
               {uc.status.replace('_', ' ')}
             </Badge>
-            {total !== null && (
-              <Badge
-                variant={
-                  cat === 'quick_win'
-                    ? 'green'
-                    : cat === 'mid_term'
-                      ? 'amber'
-                      : 'blue'
-                }
-              >
-                {cat === 'quick_win'
-                  ? 'Quick Win'
-                  : cat === 'mid_term'
-                    ? 'Mid-term'
-                    : 'Strategic'}
-              </Badge>
-            )}
           </div>
           <div className="flex items-center gap-1">
             {uc.process && uc.audit && (
