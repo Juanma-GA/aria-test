@@ -29,7 +29,10 @@ JWT_SECRET=aria-super-secret-key-change-in-production-2025
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NODE_ENV=development
 MISTRAL_API_KEY=your-mistral-api-key-here
+TAVILY_API_KEY=your-tavily-api-key-here
 ```
+
+**Note:** TAVILY_API_KEY is optional—only needed for AI catalog web search features.
 
 **Nota:** Si MongoDB está en otro servidor/puerto, actualizar `MONGODB_URI`.
 
@@ -103,7 +106,17 @@ This script:
 - New audits automatically default to 'techpubs' - no manual action needed
 - Safe to run multiple times (idempotent)
 
-**Both scripts are safe to run multiple times and won't duplicate data.**
+### 3. Fix legacy UC status values (if upgrading from older version)
+```bash
+npx ts-node scripts/fix-uc-status-migration.ts
+```
+
+This script:
+- Finds UseCases with old status values ('blocked', 'pending_review') or missing status
+- Sets all affected UCs to 'eligible'
+- Safe to run multiple times (idempotent)
+
+**All scripts are safe to run multiple times and won't duplicate data.**
 
 ---
 
