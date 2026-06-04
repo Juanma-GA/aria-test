@@ -415,37 +415,6 @@ function UCSlideOver({
             </div>
           )}
 
-          {/* Blocked info */}
-          {uc.status === 'blocked' &&
-            (uc.blockedReason || uc.unblockCondition) && (
-              <div className="rounded-sm bg-red-50 border border-red-200 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-red-700">
-                  <AlertTriangle size={14} />
-                  <span className="text-xs font-semibold uppercase tracking-wide">
-                    Blocked
-                  </span>
-                </div>
-                {uc.blockedReason && (
-                  <p className="text-xs text-red-700">{uc.blockedReason}</p>
-                )}
-                {uc.blockedAxis && (
-                  <p className="text-[10px] text-red-600 font-mono">
-                    {uc.blockedAxis}
-                  </p>
-                )}
-                {uc.unblockCondition && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide">
-                      To unblock:
-                    </p>
-                    <p className="text-xs text-red-700">
-                      {uc.unblockCondition}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
           {/* Notes */}
           {uc.notes && (
             <div>
@@ -523,7 +492,7 @@ export default function GlobalUseCasesPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
-          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
+          {(['all', 'eligible', 'in_poc', 'discarded'] as const).map(
             (f) => (
               <button
                 key={f}
@@ -534,7 +503,7 @@ export default function GlobalUseCasesPage() {
                     : 'text-muted hover:text-text'
                 }`}
               >
-                {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
+                {f === 'in_poc' ? 'In POC' : f} ({counts[f]})
               </button>
             ),
           )}

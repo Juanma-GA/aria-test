@@ -1329,7 +1329,6 @@ export default function B5Page() {
     error?: string;
   }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
   const [showArchived, setShowArchived] = useState(false);
-  const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [generateModal, setGenerateModal] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -1417,12 +1416,6 @@ export default function B5Page() {
         ? prev.map((u) => (u._id === uc._id ? uc : u))
         : [...prev, uc];
     });
-    if (blocked) {
-      setBlockedNotice(
-        'This use case has been automatically moved to Blocked due to B2 restrictions.',
-      );
-      setTimeout(() => setBlockedNotice(null), 5000);
-    }
   };
 
   const handleDelete = async () => {
@@ -1616,7 +1609,7 @@ export default function B5Page() {
                 return (
                   <tr
                     key={uc._id}
-                    className={`hover:bg-slate-50 transition-colors ${uc.status === 'blocked' ? 'opacity-70' : ''} ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
+                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
                   >
                     <td className="px-3 py-3">
                       <button
@@ -1634,15 +1627,6 @@ export default function B5Page() {
                       <p className="text-sm text-text line-clamp-2" title={uc.description}>
                         {uc.description}
                       </p>
-                      {uc.status === 'blocked' && uc.blockedReason && (
-                        <div className="mt-1 flex items-start gap-1 text-xs text-red-sov">
-                          <AlertTriangle
-                            size={10}
-                            className="mt-0.5 flex-shrink-0"
-                          />
-                          {uc.blockedReason}
-                        </div>
-                      )}
                       {uc.requiresClientIT && (
                         <div className="mt-1 text-xs text-amber-sov">
                           Client IT required
