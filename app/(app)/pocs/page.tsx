@@ -11,6 +11,7 @@ import type { POCPhase, POCDecisionType } from '@/lib/types';
 interface GlobalPOC {
   _id: string;
   pocId: string;
+  name?: string;
   phase: POCPhase;
   decision: {
     decision: POCDecisionType;
@@ -163,6 +164,7 @@ export default function GlobalPOCsPage() {
               <tr className="border-b border-border bg-slate-50">
                 {[
                   'ID',
+                  'POC Name',
                   'Use Case',
                   'Audit',
                   'Client',
@@ -204,13 +206,16 @@ export default function GlobalPOCsPage() {
                     <td className="py-3 px-4 font-mono text-xs text-blue-aria font-medium whitespace-nowrap">
                       {poc.pocId}
                     </td>
+                    <td className="py-3 px-4 text-xs text-text whitespace-nowrap">
+                      {poc.name || '—'}
+                    </td>
                     <td className="py-3 px-4 max-w-xs">
                       {poc.useCase ? (
                         <>
                           <span className="font-mono text-xs text-blue-aria">
                             {poc.useCase.cuId}
                           </span>
-                          <p className="text-text text-xs line-clamp-1 mt-0.5">
+                          <p className="text-text text-xs line-clamp-1 mt-0.5" title={poc.useCase.description}>
                             {poc.useCase.description}
                           </p>
                         </>
