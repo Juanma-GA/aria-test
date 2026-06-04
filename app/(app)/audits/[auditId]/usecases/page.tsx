@@ -205,7 +205,6 @@ export default function AuditUseCasesPage() {
                   'AI Types',
                   'People',
                   'Score',
-                  'Category',
                   'Status',
                   'ROI',
                 ].map((h) => (
@@ -257,7 +256,7 @@ export default function AuditUseCasesPage() {
                       )}
                     </td>
                     <td className="py-3 px-4 max-w-xs">
-                      <p className="text-text line-clamp-2">{uc.description}</p>
+                      <p className="text-text line-clamp-2" title={uc.description}>{uc.description}</p>
                     </td>
                     <td
                       className="py-3 px-4 text-xs text-muted whitespace-nowrap"
@@ -295,31 +294,10 @@ export default function AuditUseCasesPage() {
                     <td className="py-3 px-4 text-center">
                       {total !== null ? (
                         <span className="font-mono font-bold text-text">
-                          {total}
+                          {total}/30
                         </span>
                       ) : (
                         <span className="text-muted text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      {cat ? (
-                        <Badge
-                          variant={
-                            cat === 'quick_win'
-                              ? 'green'
-                              : cat === 'mid_term'
-                                ? 'amber'
-                                : 'blue'
-                          }
-                        >
-                          {cat === 'quick_win'
-                            ? 'Quick Win'
-                            : cat === 'mid_term'
-                              ? 'Mid-term'
-                              : 'Strategic'}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted text-xs">Not scored</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
