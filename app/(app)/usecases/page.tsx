@@ -618,7 +618,7 @@ export default function GlobalUseCasesPage() {
                     <td className="py-3 px-4 text-center">
                       {total !== null ? (
                         <span className="font-mono font-bold text-text">
-                          {total}
+                          {total}/30
                         </span>
                       ) : (
                         <span className="text-muted text-xs">—</span>
