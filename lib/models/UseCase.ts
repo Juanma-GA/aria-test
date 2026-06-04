@@ -20,9 +20,6 @@ export interface IUseCase extends Document {
   };
   estimatedImplWeeks: number;
   status: 'eligible' | 'in_poc' | 'discarded';
-  blockedReason?: string;
-  blockedAxis?: string;
-  unblockCondition?: string;
   reviewDate?: Date;
   notes: string;
   sovereigntyAnalysis?: string;
@@ -104,9 +101,6 @@ const UseCaseSchema = new Schema<IUseCase>({
   requiredPreconditions: RequiredPreconditionsSchema,
   estimatedImplWeeks: { type: Number, default: 0 },
   status: { type: String, enum: ['eligible', 'in_poc', 'discarded'], default: 'eligible' },
-  blockedReason: { type: String },
-  blockedAxis: { type: String },
-  unblockCondition: { type: String },
   reviewDate: { type: Date },
   notes: { type: String, default: '' },
   sovereigntyAnalysis: { type: String, default: '' },

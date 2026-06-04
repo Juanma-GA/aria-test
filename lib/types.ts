@@ -188,9 +188,6 @@ export interface UseCase {
   };
   estimatedImplWeeks: number;
   status: UseCaseStatus;
-  blockedReason?: string;
-  blockedAxis?: string;
-  unblockCondition?: string;
   reviewDate?: Date;
   notes: string;
   sovereigntyAnalysis?: string;
