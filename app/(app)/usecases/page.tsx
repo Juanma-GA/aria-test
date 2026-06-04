@@ -567,7 +567,6 @@ export default function GlobalUseCasesPage() {
                   'AI Types',
                   'People',
                   'Score',
-                  'Category',
                   'Status',
                   'ROI',
                 ].map((h) => (
@@ -605,7 +604,7 @@ export default function GlobalUseCasesPage() {
                       </button>
                     </td>
                     <td className="py-3 px-4 max-w-xs">
-                      <p className="text-text line-clamp-2">{uc.description}</p>
+                      <p className="text-text line-clamp-2" title={uc.description}>{uc.description}</p>
                     </td>
                     <td
                       className="py-3 px-4 text-xs text-muted whitespace-nowrap"
@@ -655,23 +654,6 @@ export default function GlobalUseCasesPage() {
                         </span>
                       ) : (
                         <span className="text-muted text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      {total !== null ? (
-                        <Badge
-                          variant={
-                            cat === 'quick_win'
-                              ? 'green'
-                              : cat === 'mid_term'
-                                ? 'amber'
-                                : 'blue'
-                          }
-                        >
-                          {cat}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted text-xs">Not scored</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
