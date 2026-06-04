@@ -962,6 +962,14 @@ export default function POCDetailPage() {
             <div className="text-sm text-muted italic pt-3 border-t border-border">
               This POC is closed.
             </div>
+            <div className="flex gap-2 pt-3 border-t border-border">
+              <button
+                onClick={() => advanceTo('decision')}
+                className="btn-secondary flex-1"
+              >
+                ← Return to Decision
+              </button>
+            </div>
           </div>
         )}
       </div>
