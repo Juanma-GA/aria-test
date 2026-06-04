@@ -642,7 +642,7 @@ export default function ProcessPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-4 max-w-[200px]">
-                        <p className="text-xs text-text truncate">
+                        <p className="text-xs text-text truncate" title={uc.description}>
                           {uc.description}
                         </p>
                       </td>
