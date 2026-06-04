@@ -25,7 +25,7 @@ export interface IPOC extends Document {
   processId: mongoose.Types.ObjectId;
   pocId: string;
   name?: string;
-  phase: 'design' | 'execution' | 'evaluation' | 'closed';
+  phase: 'design' | 'execution' | 'evaluation' | 'decision' | 'closed';
   design: {
     responsibleUserId: string;
     measurableObjective: string;
@@ -102,7 +102,7 @@ const POCSchema = new Schema<IPOC>({
   processId: { type: Schema.Types.ObjectId, ref: 'Process', required: true },
   pocId: { type: String, required: true },
   name: { type: String, default: '' },
-  phase: { type: String, enum: ['design', 'execution', 'evaluation', 'closed'], default: 'design' },
+  phase: { type: String, enum: ['design', 'execution', 'evaluation', 'decision', 'closed'], default: 'design' },
   design: {
     responsibleUserId: { type: String, default: '' },
     measurableObjective: { type: String, default: '' },

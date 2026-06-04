@@ -31,11 +31,12 @@ interface GlobalPOC {
   useCase: { _id: string; cuId: string; description: string } | null;
 }
 
-const PHASE_VARIANTS: Record<POCPhase, 'blue' | 'amber' | 'purple' | 'slate'> =
+const PHASE_VARIANTS: Record<POCPhase, 'blue' | 'amber' | 'purple' | 'green' | 'slate'> =
   {
     design: 'blue',
     execution: 'amber',
     evaluation: 'purple',
+    decision: 'green',
     closed: 'slate',
   };
 
@@ -43,6 +44,7 @@ const PHASE_LABELS: Record<POCPhase, string> = {
   design: 'Design',
   execution: 'Execution',
   evaluation: 'Evaluation',
+  decision: 'Decision',
   closed: 'Closed',
 };
 
@@ -104,6 +106,7 @@ export default function GlobalPOCsPage() {
     design: pocs.filter((p) => p.phase === 'design').length,
     execution: pocs.filter((p) => p.phase === 'execution').length,
     evaluation: pocs.filter((p) => p.phase === 'evaluation').length,
+    decision: pocs.filter((p) => p.phase === 'decision').length,
     closed: pocs.filter((p) => p.phase === 'closed').length,
   };
 
@@ -128,7 +131,7 @@ export default function GlobalPOCsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
           {(
-            ['all', 'design', 'execution', 'evaluation', 'closed'] as const
+            ['all', 'design', 'execution', 'evaluation', 'decision', 'closed'] as const
           ).map((f) => (
             <button
               key={f}

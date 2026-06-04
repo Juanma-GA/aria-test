@@ -18,7 +18,8 @@ const PHASES: { key: POCPhase; label: string; num: number }[] = [
   { key: 'design', label: 'Design', num: 1 },
   { key: 'execution', label: 'Execution', num: 2 },
   { key: 'evaluation', label: 'Evaluation', num: 3 },
-  { key: 'closed', label: 'Decision', num: 4 },
+  { key: 'decision', label: 'Decision', num: 4 },
+  { key: 'closed', label: 'Closed', num: 5 },
 ];
 
 const DECISIONS: { key: POCDecisionType; label: string; color: string; desc: string }[] = [
@@ -279,10 +280,10 @@ export default function POCDetailPage() {
 
   const setDecision = async (decision: POCDecisionType) => {
     if (!poc) return;
-    const next = { ...poc, phase: 'closed' as POCPhase, decision: { ...poc.decision, decision, decidedAt: new Date() } };
+    const next = { ...poc, phase: 'decision' as POCPhase, decision: { ...poc.decision, decision, decidedAt: new Date() } };
     setPoc(next as POC);
-    setActiveTab('closed');
-    await save({ phase: 'closed', decision: next.decision });
+    setActiveTab('decision');
+    await save({ phase: 'decision', decision: next.decision });
   };
 
   const advanceTo = async (nextPhase: POCPhase) => {
@@ -848,14 +849,14 @@ export default function POCDetailPage() {
                 >
                   ← Return to Execution
                 </button>
-                <button onClick={() => advanceTo('closed')} className="btn-primary flex-1">Proceed to Decision →</button>
+                <button onClick={() => advanceTo('decision')} className="btn-primary flex-1">Proceed to Decision →</button>
               </div>
             )}
           </div>
         )}
 
         {/* Phase 4: Decision */}
-        {activeTab === 'closed' && (
+        {activeTab === 'decision' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3">
               {DECISIONS.map(d => {
@@ -917,6 +918,49 @@ export default function POCDetailPage() {
               >
                 ← Return to Evaluation
               </button>
+              <button
+                onClick={() => advanceTo('closed')}
+                className="btn-primary flex-1"
+              >
+                Close POC ✓
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 5: Closed */}
+        {activeTab === 'closed' && (
+          <div className="space-y-4">
+            {poc.decision?.decision && (
+              <div>
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Final Decision</p>
+                <Badge
+                  variant={
+                    poc.decision.decision === 'go'
+                      ? 'green'
+                      : poc.decision.decision === 'go_conditional'
+                        ? 'amber'
+                        : 'red'
+                  }
+                >
+                  {DECISIONS.find(d => d.key === poc.decision.decision)?.label || poc.decision.decision}
+                </Badge>
+              </div>
+            )}
+            {poc.decision?.justification && (
+              <div>
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Justification</p>
+                <p className="text-sm text-text whitespace-pre-wrap">{poc.decision.justification}</p>
+              </div>
+            )}
+            {poc.decision?.nextSteps && (
+              <div>
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Next Steps</p>
+                <p className="text-sm text-text whitespace-pre-wrap">{poc.decision.nextSteps}</p>
+              </div>
+            )}
+            <div className="text-sm text-muted italic pt-3 border-t border-border">
+              This POC is closed.
             </div>
           </div>
         )}

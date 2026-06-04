@@ -279,7 +279,7 @@ export interface B7_Roadmap {
 }
 
 // ── B8 POC ─────────────────────────────────────────────────────────────────────
-export type POCPhase = 'design' | 'execution' | 'evaluation' | 'closed';
+export type POCPhase = 'design' | 'execution' | 'evaluation' | 'decision' | 'closed';
 export type POCDecisionType = 'go' | 'go_conditional' | 'no_go_redesign' | 'no_go_discard' | 'paused' | 'pending';
 
 export interface POCCriterion {

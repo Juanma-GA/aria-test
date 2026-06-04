@@ -234,8 +234,8 @@ function buildPrompt(
       p.decision?.decision === 'go' ||
       p.decision?.decision === 'go_conditional',
   ).length;
-  const pocClosed = pocs.filter((p) => p.phase === 'closed').length;
-  const pocActive = pocs.filter((p) => p.phase !== 'closed').length;
+  const pocClosed = pocs.filter((p) => p.phase === 'closed' || p.phase === 'decision').length;
+  const pocActive = pocs.filter((p) => p.phase !== 'closed' && p.phase !== 'decision').length;
 
   // ── Global sovereignty ──────────────────────────────────────────────────────
   const axisCountByStatus: Record<string, Record<string, number>> = {};

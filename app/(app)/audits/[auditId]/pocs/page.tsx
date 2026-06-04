@@ -12,6 +12,7 @@ const PHASE_COLORS = {
   design: 'slate',
   execution: 'blue',
   evaluation: 'amber',
+  decision: 'teal',
   closed: 'green',
 } as const;
 const DECISION_COLORS = {
