@@ -22,7 +22,7 @@ export default function NewPOCPage() {
       .then((data) => {
         setUseCases(
           Array.isArray(data)
-            ? data.filter((u: UseCase) => u.status === 'eligible')
+            ? data.filter((u: UseCase) => u.status === 'eligible' || u.status === 'in_poc')
             : [],
         );
         setLoading(false);

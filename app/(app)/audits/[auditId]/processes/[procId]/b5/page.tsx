@@ -51,10 +51,10 @@ const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'gre
   agentic_ai_workflow: 'purple', mcp_client: 'teal', mcp_server: 'teal',
   function_tool: 'slate', chatbot: 'blue', multimodal_vlm: 'purple', other: 'slate',
 };
-const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
+const STATUS_VARIANTS: Record<string, 'green' | 'blue' | 'slate'> = {
   eligible: 'green',
-  blocked: 'red',
-  pending_review: 'amber',
+  in_poc: 'blue',
+  discarded: 'slate',
 };
 
 const DIMENSIONS: {
@@ -710,7 +710,7 @@ function SlideOver({
 
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
-      onSaved(data, data.status === 'blocked' && !editUC);
+      onSaved(data);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -1499,9 +1499,8 @@ export default function B5Page() {
   const counts = {
     all: useCases.length,
     eligible: useCases.filter((u) => u.status === 'eligible').length,
-    blocked: useCases.filter((u) => u.status === 'blocked').length,
-    pending_review: useCases.filter((u) => u.status === 'pending_review')
-      .length,
+    in_poc: useCases.filter((u) => u.status === 'in_poc').length,
+    discarded: useCases.filter((u) => u.status === 'discarded').length,
   };
 
   if (loading)
@@ -1557,24 +1556,17 @@ export default function B5Page() {
         </div>
       </div>
 
-      {blockedNotice && (
-        <div className="mb-4 flex items-center gap-2 p-3 bg-red-sov-light text-red-sov rounded text-sm">
-          <AlertTriangle size={16} />
-          {blockedNotice}
-        </div>
-      )}
-
       {/* Filter tabs */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex gap-1 bg-white rounded-md border border-border p-1 w-fit">
-          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
+          {(['all', 'eligible', 'in_poc', 'discarded'] as const).map(
             (f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
               >
-                {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
+                {f === 'in_poc' ? 'In POC' : f} ({counts[f]})
               </button>
             ),
           )}
@@ -1708,7 +1700,7 @@ export default function B5Page() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {uc.status === 'eligible' && (
+                        {(uc.status === 'eligible' || uc.status === 'in_poc') && (
                           <button
                             onClick={() => createPOC(uc)}
                             title="Create POC"

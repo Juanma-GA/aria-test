@@ -152,7 +152,7 @@ export default function ScoringPage() {
 
   const [loading, setLoading] = useState(true);
   const [useCases, setUseCases] = useState<UseCase[]>([]);
-  const [blockedCount, setBlockedCount] = useState(0);
+  const [discardedCount, setDiscardedCount] = useState(0);
   const [filterProcess, setFilterProcess] = useState('all');
   const [processes, setProcesses] = useState<
     { _id: string; procId: string; name: string }[]
@@ -181,8 +181,8 @@ export default function ScoringPage() {
     ])
       .then(([ucs, procs]) => {
         const all = Array.isArray(ucs) ? (ucs as UseCase[]) : [];
-        setBlockedCount(all.filter((u) => u.status === 'blocked').length);
-        setUseCases(all.filter((u) => u.status !== 'blocked'));
+        setDiscardedCount(all.filter((u) => u.status === 'discarded').length);
+        setUseCases(all.filter((u) => u.status !== 'discarded'));
         setProcesses(Array.isArray(procs) ? procs : []);
         setLoading(false);
       })
@@ -349,7 +349,7 @@ export default function ScoringPage() {
         {filtered.length === 0 ? (
           <div className="card p-12 text-center text-muted text-sm">
             No eligible use cases to score. Add use cases in B5 and ensure they
-            are not blocked.
+            are not discarded.
           </div>
         ) : (
           <div className="card overflow-x-auto">

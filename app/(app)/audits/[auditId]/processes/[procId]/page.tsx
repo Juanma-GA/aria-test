@@ -150,7 +150,7 @@ const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
   { value: 'Other', label: 'Other' },
 ];
 
-const UC_STATUSES: UseCaseStatus[] = ['eligible', 'blocked', 'pending_review'];
+const UC_STATUSES: UseCaseStatus[] = ['eligible', 'in_poc', 'discarded'];
 const POC_PHASES: POCPhase[] = ['design', 'execution', 'evaluation', 'closed'];
 const POC_DECISIONS: POCDecisionType[] = [
   'pending',
@@ -169,11 +169,11 @@ const IND_STATUSES: IndustrializationStatus[] = [
   'cancelled',
 ];
 
-const UC_STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> =
+const UC_STATUS_VARIANTS: Record<string, 'green' | 'blue' | 'slate'> =
   {
     eligible: 'green',
-    blocked: 'red',
-    pending_review: 'amber',
+    in_poc: 'blue',
+    discarded: 'slate',
   };
 
 const PHASE_VARIANTS: Record<string, 'slate' | 'blue' | 'amber' | 'green'> = {

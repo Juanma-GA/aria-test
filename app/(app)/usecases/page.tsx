@@ -67,10 +67,10 @@ const DIMENSION_LABELS: Record<string, string> = {
   d6_governanceComplexity: 'Governance Complexity',
 };
 
-const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'red' | 'amber'> = {
+const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'blue' | 'slate'> = {
   eligible: 'green',
-  blocked: 'red',
-  pending_review: 'amber',
+  in_poc: 'blue',
+  discarded: 'slate',
 };
 
 const AI_TYPE_COLORS: Record<
@@ -495,9 +495,8 @@ export default function GlobalUseCasesPage() {
   const counts = {
     all: useCases.length,
     eligible: useCases.filter((u) => u.status === 'eligible').length,
-    blocked: useCases.filter((u) => u.status === 'blocked').length,
-    pending_review: useCases.filter((u) => u.status === 'pending_review')
-      .length,
+    in_poc: useCases.filter((u) => u.status === 'in_poc').length,
+    discarded: useCases.filter((u) => u.status === 'discarded').length,
   };
 
   if (loading) {

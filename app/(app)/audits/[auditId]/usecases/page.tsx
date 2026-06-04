@@ -44,10 +44,10 @@ interface AuditUseCase {
   };
 }
 
-const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'red' | 'amber'> = {
+const STATUS_VARIANTS: Record<UseCaseStatus, 'green' | 'blue' | 'slate'> = {
   eligible: 'green',
-  blocked: 'red',
-  pending_review: 'amber',
+  in_poc: 'blue',
+  discarded: 'slate',
 };
 
 const AI_TYPE_COLORS: Record<
@@ -123,9 +123,8 @@ export default function AuditUseCasesPage() {
   const counts = {
     all: useCases.length,
     eligible: useCases.filter((u) => u.status === 'eligible').length,
-    blocked: useCases.filter((u) => u.status === 'blocked').length,
-    pending_review: useCases.filter((u) => u.status === 'pending_review')
-      .length,
+    in_poc: useCases.filter((u) => u.status === 'in_poc').length,
+    discarded: useCases.filter((u) => u.status === 'discarded').length,
   };
 
   if (loading) {
@@ -159,14 +158,14 @@ export default function AuditUseCasesPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-white border border-border rounded-sm p-1">
-          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
+          {(['all', 'eligible', 'in_poc', 'discarded'] as const).map(
             (f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
               >
-                {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
+                {f === 'in_poc' ? 'In POC' : f} ({counts[f]})
               </button>
             ),
           )}
