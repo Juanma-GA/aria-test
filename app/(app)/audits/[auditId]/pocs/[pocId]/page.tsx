@@ -769,13 +769,21 @@ export default function POCDetailPage() {
             </div>
 
             {poc.phase === 'execution' && (
-              <button
-                onClick={() => advanceTo('evaluation')}
-                disabled={milestones.length === 0}
-                className="btn-primary disabled:opacity-50"
-              >
-                Advance to Evaluation →
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => advanceTo('design')}
+                  className="btn-secondary flex-1"
+                >
+                  ← Return to Design
+                </button>
+                <button
+                  onClick={() => advanceTo('evaluation')}
+                  disabled={milestones.length === 0}
+                  className="btn-primary disabled:opacity-50 flex-1"
+                >
+                  Advance to Evaluation →
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -833,7 +841,15 @@ export default function POCDetailPage() {
             </div>
 
             {poc.phase === 'evaluation' && (
-              <button onClick={() => advanceTo('closed')} className="btn-primary">Proceed to Decision →</button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => advanceTo('execution')}
+                  className="btn-secondary flex-1"
+                >
+                  ← Return to Execution
+                </button>
+                <button onClick={() => advanceTo('closed')} className="btn-primary flex-1">Proceed to Decision →</button>
+              </div>
             )}
           </div>
         )}
@@ -894,6 +910,14 @@ export default function POCDetailPage() {
                 <button onClick={() => router.push(`/audits/${auditId}/roadmap`)} className="ml-auto text-xs underline">Open Roadmap →</button>
               </div>
             )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => advanceTo('evaluation')}
+                className="btn-secondary flex-1"
+              >
+                ← Return to Evaluation
+              </button>
+            </div>
           </div>
         )}
       </div>
