@@ -1639,7 +1639,7 @@ export default function B5Page() {
                       </button>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="text-sm text-text line-clamp-2">
+                      <p className="text-sm text-text line-clamp-2" title={uc.description}>
                         {uc.description}
                       </p>
                       {uc.status === 'blocked' && uc.blockedReason && (
