@@ -671,8 +671,11 @@ function SlideOver({
   const handleSave_Phase2 = async () => {
     setSaving(true);
     try {
-      const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
-      const method = editUC ? 'PATCH' : 'POST';
+      const ucId = editUC?._id ?? form._id;
+      const url = ucId
+        ? `/api/audits/${auditId}/usecases/${ucId}`
+        : `/api/audits/${auditId}/usecases`;
+      const method = ucId ? 'PATCH' : 'POST';
       const bodyData = {
         ...form,
         processId,
