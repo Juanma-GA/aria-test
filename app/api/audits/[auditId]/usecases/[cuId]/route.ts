@@ -139,6 +139,11 @@ export async function PATCH(
       };
     }
 
+    // When archiving an eligible UC, set status to 'discarded'
+    if ($set.isArchived === true && existing.status === 'eligible') {
+      $set.status = 'discarded';
+    }
+
     // Use native MongoDB driver to bypass Mongoose strict-mode stripping on $set
     const oid = new mongoose.Types.ObjectId(cuId);
     const result = await UseCase.collection.updateOne({ _id: oid }, { $set });

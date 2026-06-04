@@ -164,6 +164,9 @@ export async function POST(
       },
     });
 
+    // Transition UC to 'in_poc' when first POC is created
+    await UseCase.findByIdAndUpdate(useCaseId, { $set: { status: 'in_poc' } });
+
     return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {
     console.error('[API]', err);

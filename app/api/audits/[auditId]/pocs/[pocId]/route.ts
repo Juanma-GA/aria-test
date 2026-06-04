@@ -95,15 +95,6 @@ export async function PATCH(
       { $set }
     );
 
-    // If decision is set to 'no_go_discard', block the linked use case
-    const decision = ($set.decision as any)?.decision;
-    if (decision === 'no_go_discard' && poc.useCaseId) {
-      await UseCase.findByIdAndUpdate(poc.useCaseId, {
-        status: 'blocked',
-        blockedReason: 'POC decision: no_go_discard',
-      });
-    }
-
     // Fetch updated document and return
     const updated = await POC.findOne({ auditId, _id: pocId }).lean();
     return NextResponse.json(updated);
@@ -156,6 +147,16 @@ export async function DELETE(
     }
 
     await poc.deleteOne();
+
+    // Revert UC to 'eligible' if no other POCs remain
+    const remainingPocs = await POC.countDocuments({
+      useCaseId: (poc as any).useCaseId,
+      _id: { $ne: poc._id }
+    });
+    if (remainingPocs === 0) {
+      await UseCase.findByIdAndUpdate((poc as any).useCaseId, { $set: { status: 'eligible' } });
+    }
+
     return NextResponse.json({
       message: 'POC deleted successfully',
       cascaded: cascade ? { industrializations: indCount } : undefined,
