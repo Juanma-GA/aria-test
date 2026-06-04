@@ -194,13 +194,17 @@ export default function POCsPage() {
                       </Badge>
                     </td>
                     <td className="py-3 px-3">
-                      <Badge
-                        variant={
-                          DECISION_COLORS[poc.decision?.decision || 'pending']
-                        }
-                      >
-                        {DECISION_LABELS[poc.decision?.decision || 'pending']}
-                      </Badge>
+                      {(() => {
+                        const displayDecision =
+                          (poc.phase === 'decision' || poc.phase === 'closed') && poc.decision?.decision
+                            ? poc.decision.decision
+                            : 'pending';
+                        return (
+                          <Badge variant={DECISION_COLORS[displayDecision]}>
+                            {DECISION_LABELS[displayDecision]}
+                          </Badge>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-3 text-blue-aria text-xs">Open →</td>
                   </tr>
