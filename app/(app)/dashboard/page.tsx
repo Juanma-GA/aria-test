@@ -268,7 +268,7 @@ function SavingsInfographic({
 
       {/* Body */}
       <div className="p-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Left: donut + legend */}
+        {/* Left: donut only */}
         <div className="lg:col-span-2 flex flex-col items-center gap-5">
           <SavingsDonut
             qw={savingsByCategory.quickWin}
@@ -276,34 +276,6 @@ function SavingsInfographic({
             st={savingsByCategory.strategic}
             total={totalSaving}
           />
-          <div className="w-full space-y-2">
-            {categories.map(({ key, label, color }) => {
-              const saving = savingsByCategory[key];
-              const count = ucsByCategory[key];
-              const pct = totalSaving > 0 ? (saving / totalSaving) * 100 : 0;
-              return (
-                <div
-                  key={key}
-                  className="flex items-center gap-3 bg-white/5 rounded px-3 py-2"
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-xs text-slate-300 flex-1">{label}</span>
-                  <span className="text-[10px] text-slate-500">
-                    {count} UCs
-                  </span>
-                  <span className="text-xs font-mono font-bold text-white">
-                    €{fmt(saving)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 w-7 text-right">
-                    {pct.toFixed(0)}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
         </div>
 
         {/* Right: per-audit bars */}
