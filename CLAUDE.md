@@ -220,6 +220,48 @@
 - ✅ Metadata icons config added to `app/layout.tsx`
 - ✅ Source: `app/layout.tsx` line 9: `icons: { icon: '/favicon.svg' }`
 
+### B8 POC (Proof of Concept) Features ✅
+- ✅ **POC Detail Page Layout (B8)**:
+  - First three fields (POC Name, Measurable Objective, Scope Description) stacked full-width (`col-span-2`)
+  - Cleaner grid layout in Design tab
+  - Source: `app/(app)/audits/[auditId]/pocs/[pocId]/page.tsx`
+
+- ✅ **Dev Cost Calculator Fields**:
+  - `estimatedImplWeeks` — Implementation time copied from UseCase
+  - `nDevs` — Number of developers (supports fractional, min 0.1)
+  - `devRateEur` — Daily rate per developer (default €450/day)
+  - Server-side defaults: 0 weeks, 1 dev, €450/day
+  - Source: `lib/types.ts` POC_Design interface, `lib/models/POC.ts`
+
+- ✅ **UseCase → POC Pre-fill on Load**:
+  - B2 Restrictions: fetches Process B2 data and formats as plain text
+  - Dev Cost Fields: pre-fills from linked UseCase if POC fields undefined
+  - Compute Breakdown: inherits full calculator state including operating window & concurrency
+  - All pre-fills trigger immediate PATCH to persist
+  - Source: `app/(app)/audits/[auditId]/pocs/[pocId]/page.tsx` useEffect #2
+
+- ✅ **POC PATCH Handler Refactor**:
+  - Changed from Mongoose document manipulation to MongoDB native `$set` driver
+  - Bypasses Mongoose strict mode that was silently dropping subdocument fields
+  - Handles nested field merges with deep merge logic
+  - Re-computes `computedAnnualEur` server-side on save
+  - Persists archive timestamp (`archivedAt`) when `isArchived` flips
+  - Side-effect: sets UseCase status='blocked' if POC decision='no_go_discard'
+  - Source: `app/api/audits/[auditId]/pocs/[pocId]/route.ts` PATCH handler
+
+- ✅ **ComputeBreakdown Field Expansion**:
+  - Extended POC creation to copy ALL computeBreakdown fields from UseCase:
+  - **Operating Window**: workingHoursPerDay (10), workingDaysPerWeek (5), workingWeeksPerYear (48)
+  - **Concurrency**: concurrentUsersPerGpuSnapshot (0), maxConcurrentUsersSupported (0), 
+    peakConcurrentUsers (0), peakUsageFractionOfWindow (25)
+  - **Hardware**: hwPreexisting (false)
+  - POC now inherits complete calculator state for accurate cost estimation
+  - Source: `app/api/audits/[auditId]/pocs/route.ts` POST handler lines 113-138
+
+- ✅ **Console.log Cleanup**:
+  - Removed all temporary debug statements from POC detail page
+  - Source: `app/(app)/audits/[auditId]/pocs/[pocId]/page.tsx`
+
 ---
 
 ## Issues Resolution Status
