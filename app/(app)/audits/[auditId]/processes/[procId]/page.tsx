@@ -346,7 +346,7 @@ export default function ProcessPage() {
   const activities: any[] = process.b3?.activities ?? [];
   const annualReps: number = process.b3?.annualRepetitions ?? 0;
   const totalHrsRun = activities.reduce(
-    (s, a) => s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1),
+    (s, a) => s + (a.estimatedTimeHours ?? 0),
     0,
   );
   const totalHrsYear = totalHrsRun * annualReps;
