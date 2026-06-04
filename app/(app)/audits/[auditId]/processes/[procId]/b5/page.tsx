@@ -874,22 +874,9 @@ function SlideOver({
           <div className="border border-border rounded p-4 space-y-3 mt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-lg text-text">
-                  {total}/25
-                </span>
-                <Badge
-                  variant={
-                    cat === 'Quick Win'
-                      ? 'green'
-                      : cat === 'Mid-term'
-                        ? 'amber'
-                        : 'blue'
-                  }
-                >
-                  {cat}
-                </Badge>
-              </div>
+              <span className="font-mono font-bold text-lg text-text">
+                {total}/25
+              </span>
             </div>
             {DIMENSIONS.map(({ key, label, hint, scale }) => {
               const dim = dims[key as keyof typeof dims];
@@ -1257,28 +1244,12 @@ function SlideOver({
 function UCScore({ uc }: { uc: UseCase }) {
   if (!uc.score?.dimensions)
     return <span className="text-xs text-muted">—</span>;
-  const { total, category } = calculateScore(
+  const { total } = calculateScore(
     uc.score.dimensions as Parameters<typeof calculateScore>[0],
   );
   return (
     <div className="flex items-center gap-1.5 text-xs">
       <span className="font-mono font-bold text-text">{total}/30</span>
-      <Badge
-        variant={
-          category === 'quick_win'
-            ? 'green'
-            : category === 'mid_term'
-              ? 'amber'
-              : 'blue'
-        }
-        className="text-[10px]"
-      >
-        {category === 'quick_win'
-          ? 'Quick Win'
-          : category === 'mid_term'
-            ? 'Mid-term'
-            : 'Strategic'}
-      </Badge>
     </div>
   );
 }
