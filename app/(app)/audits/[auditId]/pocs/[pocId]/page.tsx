@@ -773,7 +773,7 @@ export default function POCDetailPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => advanceTo('design')}
-                  className="btn-secondary flex-1 bg-slate-50"
+                  className="flex-1 px-4 py-2 rounded-sm border-2 border-slate-400 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
                 >
                   ← Return to Design
                 </button>
@@ -845,7 +845,7 @@ export default function POCDetailPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => advanceTo('execution')}
-                  className="btn-secondary flex-1 bg-slate-50"
+                  className="flex-1 px-4 py-2 rounded-sm border-2 border-slate-400 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
                 >
                   ← Return to Execution
                 </button>
@@ -914,7 +914,7 @@ export default function POCDetailPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => advanceTo('evaluation')}
-                className="btn-secondary flex-1 bg-slate-50"
+                className="flex-1 px-4 py-2 rounded-sm border-2 border-slate-400 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
               >
                 ← Return to Evaluation
               </button>
@@ -965,7 +965,7 @@ export default function POCDetailPage() {
             <div className="flex gap-2 pt-3 border-t border-border">
               <button
                 onClick={() => advanceTo('decision')}
-                className="btn-secondary flex-1 bg-slate-50"
+                className="flex-1 px-4 py-2 rounded-sm border-2 border-slate-400 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
               >
                 ← Return to Decision
               </button>
