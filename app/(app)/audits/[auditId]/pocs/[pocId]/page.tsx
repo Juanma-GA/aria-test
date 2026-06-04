@@ -11,6 +11,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { OriginTrace, type OriginNode } from '@/components/ui/OriginTrace';
 import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/ComputeCalculator';
 import { useAuditAccess } from '@/context/AuditAccessContext';
+import { apiUrl } from '@/lib/utils';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -126,23 +127,17 @@ export default function POCDetailPage() {
             else level = 'Critical';
           }
 
-          const statusEmoji: Record<string, string> = { green: '🟢', amber: '🟡', red: '🔴' };
-
           const tableRows = Object.entries(axes)
             .map(([key, axis]: [string, any]) => {
               const status = axis?.status || 'amber';
-              const findings = (axis?.findings || 'N/A').substring(0, 100);
-              return `| ${axisNames[key]} | ${statusEmoji[status]} ${status.charAt(0).toUpperCase() + status.slice(1)} | ${findings} |`;
+              const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+              const findings = axis?.findings?.trim() ? axis.findings : '—';
+              return `${axisNames[key]} | ${statusLabel} | ${findings}`;
             })
             .join('\n');
 
-          const b2PreFill = `**Sovereignty Index: ${sovIndex} / 5.0 — ${level}**\n\n| Axis | Status | Findings |\n|------|--------|----------|\n${tableRows}`;
+          const b2PreFill = `Sovereignty Index: ${sovIndex} / 5.0 — ${level}\n\n${tableRows}`;
           updates.design = { ...poc.design, activeB2Restrictions: b2PreFill };
-        }
-
-        // Pre-fill Dev Cost from UseCase if empty
-        if (!poc.design?.estimatedDevCostEur && useCaseData?.estimatedDevCostEur) {
-          updates.design = { ...(updates.design || poc.design), estimatedDevCostEur: useCaseData.estimatedDevCostEur };
         }
 
         // Pre-fill Compute Breakdown from UseCase if empty
@@ -150,8 +145,25 @@ export default function POCDetailPage() {
           updates.computeBreakdown = useCaseData.computeBreakdown;
         }
 
+        // Pre-fill dev cost fields from UseCase
+        if (poc.design?.estimatedImplWeeks === undefined && useCaseData?.estimatedImplWeeks !== undefined) {
+          updates.design = { ...(updates.design || poc.design),
+            estimatedImplWeeks: useCaseData.estimatedImplWeeks };
+        }
+        if (poc.design?.nDevs === undefined && useCaseData?.nDevs !== undefined) {
+          updates.design = { ...(updates.design || poc.design),
+            nDevs: useCaseData.nDevs };
+        }
+        if (poc.design?.devRateEur === undefined && useCaseData?.devRateEur !== undefined) {
+          updates.design = { ...(updates.design || poc.design),
+            devRateEur: useCaseData.devRateEur };
+        }
+
         if (Object.keys(updates).length > 0) {
           setPoc((prev) => (prev ? { ...prev, ...updates } : null));
+          if (updates.design) {
+            trigger({ design: updates.design } as any);
+          }
         }
       })
       .catch(() => {
@@ -163,13 +175,16 @@ export default function POCDetailPage() {
   const save = useCallback(async (updated: Partial<POC>) => {
     setSaveStatus('saving');
     try {
-      const res = await fetch(`/api/audits/${auditId}/pocs/${pocId}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
       const data = await res.json();
-      setPoc(data);
+      setPoc(prev => prev ? {
+        ...data,
+        design: { ...data.design, ...prev.design }
+      } : data);
       setSaveStatus('saved');
     } catch { setSaveStatus('unsaved'); }
   }, [auditId, pocId]);
@@ -432,7 +447,7 @@ export default function POCDetailPage() {
               </div>
               <div className="col-span-2">
                 <label className="form-label">Measurable Objective</label>
-                <textarea rows={2} className="form-textarea" value={poc.design?.measurableObjective || ''}
+                <textarea rows={1} className="form-textarea resize-none h-[42px]" value={poc.design?.measurableObjective || ''}
                   onChange={e => updateDesign('measurableObjective', e.target.value)} />
               </div>
               <div className="col-span-2">
@@ -457,14 +472,9 @@ export default function POCDetailPage() {
                 <textarea rows={4} className="form-textarea" value={poc.design?.requiredResources || ''}
                   onChange={e => updateDesign('requiredResources', e.target.value)} />
               </div>
-              <div>
-                <label className="form-label">Dev Cost — Man-Hours (€)</label>
-                <input type="number" className="form-input" value={poc.design?.estimatedDevCostEur || ''}
-                  onChange={e => updateDesign('estimatedDevCostEur', Number(e.target.value))} />
-              </div>
               <div className="col-span-2">
-                <label className="form-label">Active B2 Restrictions</label>
-                <textarea rows={2} className="form-textarea" value={poc.design?.activeB2Restrictions || ''}
+                <label className="form-label">Sovereignty Matrix (B2)</label>
+                <textarea rows={5} className="form-textarea" value={poc.design?.activeB2Restrictions || ''}
                   onChange={e => updateDesign('activeB2Restrictions', e.target.value)} />
               </div>
             </div>
@@ -502,35 +512,119 @@ export default function POCDetailPage() {
               )}
             </div>
 
-            {poc.phase === 'design' && (
-              <button
-                onClick={() => advanceTo('execution')}
-                disabled={(poc.design?.successCriteria || []).length < 2}
-                className="btn-primary disabled:opacity-50"
-              >
-                Advance to Execution →
-              </button>
-            )}
+            <div className="card border-l-4 border-l-blue-aria p-3 space-y-3 bg-blue-50">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">€ Dev Cost (man-hour)</span>
+              </div>
 
+              <div className="grid grid-cols-3 gap-3">
+                {/* Impl. Time (weeks) */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-text">Impl. Time</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      className="form-input flex-1"
+                      value={poc.design?.estimatedImplWeeks || 0}
+                      onChange={(e) => {
+                        const weeks = Number(e.target.value) || 0;
+                        setPoc(prev => {
+                          if (!prev) return prev;
+                          const cost = weeks * 5 * (prev.design?.devRateEur ?? 450) * (prev.design?.nDevs ?? 1);
+                          return { ...prev, design: { ...prev.design, estimatedImplWeeks: weeks, estimatedDevCostEur: cost } };
+                        });
+                        trigger({ design: {
+                          estimatedImplWeeks: weeks,
+                          nDevs: poc.design?.nDevs ?? 1,
+                          devRateEur: poc.design?.devRateEur ?? 450,
+                          estimatedDevCostEur: weeks * 5 * (poc.design?.devRateEur ?? 450) * (poc.design?.nDevs ?? 1)
+                        }} as any);
+                      }}
+                    />
+                    <span className="text-xs text-muted">weeks</span>
+                  </div>
+                </div>
+
+                {/* Nº Developers */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-text">Nº Developers</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      className="form-input flex-1"
+                      value={poc.design?.nDevs || 1}
+                      onChange={(e) => {
+                        const devs = Number(e.target.value) || 1;
+                        setPoc(prev => {
+                          if (!prev) return prev;
+                          const cost = (prev.design?.estimatedImplWeeks ?? 0) * 5 * (prev.design?.devRateEur ?? 450) * devs;
+                          return { ...prev, design: { ...prev.design, nDevs: devs, estimatedDevCostEur: cost } };
+                        });
+                        trigger({ design: {
+                          estimatedImplWeeks: poc.design?.estimatedImplWeeks ?? 0,
+                          nDevs: devs,
+                          devRateEur: poc.design?.devRateEur ?? 450,
+                          estimatedDevCostEur: (poc.design?.estimatedImplWeeks ?? 0) * 5 * (poc.design?.devRateEur ?? 450) * devs
+                        }} as any);
+                      }}
+                    />
+                    <span className="text-xs text-muted">devs</span>
+                  </div>
+                </div>
+
+                {/* Dev Rate Reference */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-text">Dev Rate Reference</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      className="form-input flex-1"
+                      value={poc.design?.devRateEur || 450}
+                      onChange={(e) => {
+                        const rate = Number(e.target.value) || 450;
+                        setPoc(prev => {
+                          if (!prev) return prev;
+                          const cost = (prev.design?.estimatedImplWeeks ?? 0) * 5 * rate * (prev.design?.nDevs ?? 1);
+                          return { ...prev, design: { ...prev.design, devRateEur: rate, estimatedDevCostEur: cost } };
+                        });
+                        trigger({ design: {
+                          estimatedImplWeeks: poc.design?.estimatedImplWeeks ?? 0,
+                          nDevs: poc.design?.nDevs ?? 1,
+                          devRateEur: rate,
+                          estimatedDevCostEur: (poc.design?.estimatedImplWeeks ?? 0) * 5 * rate * (poc.design?.nDevs ?? 1)
+                        }} as any);
+                      }}
+                    />
+                    <span className="text-xs text-muted">€/day</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end items-center pt-1 border-t border-border">
+                <span className="text-xs text-muted mr-2">Dev Cost estimate</span>
+                <span className="text-sm font-bold text-text">
+                  €{(poc.design?.estimatedDevCostEur || 0).toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
 
         {/* Catalog-driven POC compute scope (carries to Industrialization) */}
-        <div className="card border-l-4 border-l-blue-aria p-3 space-y-2">
+        <div className="card border-l-4 border-l-blue-aria p-3 space-y-2 bg-blue-50">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2">
-                Compute scope &amp; cost (POC)
-                <span className="text-[10px] font-medium uppercase tracking-wide text-blue-aria bg-blue-pale rounded px-1.5 py-0.5">carries to industrialization</span>
+                € Compute cost
               </h3>
               <p className="text-[11px] text-muted leading-snug">
-                Size the POC for its <strong>limited pilot scope</strong> — typical POC volumes (a handful of users, hundreds–low thousands of executions/year) — using the central model + GPU catalog. The model / GPU / mode choice is the part that usually carries unchanged to production; <em>annual executions</em> and <em>GPU count</em> are the ones that get <strong>scaled up</strong> on promotion to industrialization.
-                {' '}If POC results invalidate the assumptions (e.g. a different model wins, on-prem turns out infeasible), you can change anything in industrialization without losing the inherited starting point.
+                Re-size the PoC for a small pilot, with a limited number of users and a low volume of executions. Use the model and GPU intended for production. If the PoC results indicate that changes are needed, they can be implemented during the industrialization phase.
               </p>
             </div>
-            {(poc as any).computeBreakdown?.computedAnnualEur > 0 && (
-              <span className="text-xs font-semibold text-text tabular-nums whitespace-nowrap ml-2">
-                €{((poc as any).computeBreakdown?.computedAnnualEur ?? 0).toLocaleString('en-GB', { maximumFractionDigits: 0 })} /yr (POC)
-              </span>
-            )}
           </div>
           <PocComputeCalculator
             title="POC compute calculator"
@@ -543,6 +637,16 @@ export default function POCDetailPage() {
             }}
           />
         </div>
+
+        {poc.phase === 'design' && (
+          <button
+            onClick={() => advanceTo('execution')}
+            disabled={(poc.design?.successCriteria || []).length < 2}
+            className="btn-primary disabled:opacity-50"
+          >
+            Advance to Execution →
+          </button>
+        )}
 
           </div>
         )}
