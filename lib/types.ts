@@ -157,7 +157,7 @@ export interface B3_ProcessMap {
 
 // ── B5 USE CASES ───────────────────────────────────────────────────────────────
 export type AIType = 'generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other';
-export type UseCaseStatus = 'eligible' | 'blocked' | 'pending_review';
+export type UseCaseStatus = 'eligible' | 'in_poc' | 'discarded';
 export type B2CompatibilityType = 'yes' | 'no' | 'partial';
 
 export interface TimeSavedEntry {

@@ -81,19 +81,8 @@ export async function POST(
     const seq = await nextSequence(`usecase:${body.processId}`);
     const cuId = `${procIdStr}-C${String(seq).padStart(2, '0')}`;
 
-    // Determine status based on B2 compatibility
-    let status = body.status || 'eligible';
-    let blockedReason: string | undefined;
-    let blockedAxis: string | undefined;
-
-    if (body.b2Compatible === 'no' && body.processId) {
-      const process = await Process.findById(body.processId).lean();
-      if (process && hasRedAxis(process.b2)) {
-        status = 'blocked';
-        blockedReason = 'B2 sovereignty axis marked red';
-        blockedAxis = 'b2';
-      }
-    }
+    // All new use cases start as eligible
+    const status = 'eligible';
 
     // Pre-fill D5 sovereigntyIndex from process b2
     let d5Value = 3;
@@ -138,9 +127,6 @@ export async function POST(
       notes: body.notes || '',
       requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
     };
-
-    if (blockedReason) useCaseData.blockedReason = blockedReason;
-    if (blockedAxis) useCaseData.blockedAxis = blockedAxis;
 
     // Carry the calculator state from the create payload, recomputing the
     // annual figure server-side so the persisted snapshot is always coherent.
