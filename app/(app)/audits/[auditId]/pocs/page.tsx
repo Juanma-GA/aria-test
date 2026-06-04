@@ -400,13 +400,6 @@ ${body}
           >
             <FileText size={14} /> POC Report
           </button>
-          <a
-            href={`/api/audits/${auditId}/export/pocs`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted border border-border rounded-sm hover:border-blue-aria hover:text-blue-aria transition-colors"
-          >
-            <Download size={13} />
-            Export CSV
-          </a>
           <button
             onClick={() => router.push(`/audits/${auditId}/pocs/new`)}
             className="btn-primary flex items-center gap-1"
