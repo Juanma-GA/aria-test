@@ -143,6 +143,10 @@ export async function PATCH(
     if ($set.isArchived === true && existing.status === 'eligible') {
       $set.status = 'discarded';
     }
+    // When unarchiving a discarded UC, revert status to 'eligible'
+    if ($set.isArchived === false && existing.status === 'discarded') {
+      $set.status = 'eligible';
+    }
 
     // Use native MongoDB driver to bypass Mongoose strict-mode stripping on $set
     const oid = new mongoose.Types.ObjectId(cuId);
