@@ -589,7 +589,6 @@ export default function ProcessPage() {
                     'Description',
                     'AI Type(s)',
                     'Score',
-                    'Category',
                     'ROI',
                     'Status',
                   ].map((h) => (
@@ -663,23 +662,6 @@ export default function ProcessPage() {
                         <span className="text-xs font-bold text-text">
                           {total}/30
                         </span>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={
-                            cat === 'quick_win'
-                              ? 'green'
-                              : cat === 'mid_term'
-                                ? 'amber'
-                                : 'blue'
-                          }
-                        >
-                          {cat === 'quick_win'
-                            ? 'Quick Win'
-                            : cat === 'mid_term'
-                              ? 'Mid-term'
-                              : 'Strategic'}
-                        </Badge>
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         <div className="space-y-0.5 text-[10px]">
