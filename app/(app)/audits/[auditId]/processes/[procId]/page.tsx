@@ -8,6 +8,7 @@ import {
   Minus,
   Plus,
   Pencil,
+  Trash2,
   X,
   FlaskConical,
   Lightbulb,
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { DEPARTMENT_TYPES } from '@/lib/validators';
 import type {
   Priority,
@@ -225,6 +227,9 @@ export default function ProcessPage() {
   const [editingPOC, setEditingPOC] = useState<POCRow | null>(null);
   const [editingInd, setEditingInd] = useState<IndRow | null>(null);
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -313,6 +318,26 @@ export default function ProcessPage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/audits/${auditId}/processes/${procId}`),
+        {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+      if (res.ok) {
+        setDeleteConfirmOpen(false);
+        router.push(`/audits/${auditId}`);
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -480,6 +505,12 @@ export default function ProcessPage() {
                 className="flex items-center gap-1 text-xs text-muted hover:text-blue-aria border border-border rounded px-2 py-0.5 hover:border-blue-aria transition-colors"
               >
                 <Pencil size={11} /> Edit
+              </button>
+              <button
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="flex items-center gap-1 text-xs text-red-sov hover:text-red-600 border border-red-sov/30 rounded px-2 py-0.5 hover:border-red-600 transition-colors"
+              >
+                <Trash2 size={11} /> Delete
               </button>
             </div>
 
@@ -1070,6 +1101,18 @@ export default function ProcessPage() {
           );
           setEditingInd(null);
         }}
+      />
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Process"
+        message="Are you sure you want to delete this process? This will also delete all associated Use Cases."
+        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        isLoading={deleting}
       />
     </div>
   );
