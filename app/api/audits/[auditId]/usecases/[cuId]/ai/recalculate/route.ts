@@ -99,35 +99,9 @@ For timeSavedPerProfile: Return hoursPerExecution ONLY for the profiles listed b
 hoursPerExecution must be ≤ current hours that profile spends on that step.
 If the same profile appears in multiple target steps, return ONE entry with the sum of hours saved across all steps.
 
-For estimatedDevCostEur: estimate total development cost in EUR based on:
-
-## COST ESTIMATION GUIDELINES
-
-**Scenario 1: ATEXIS Tools (minimal custom dev)**
-- Use Oxygen XML, BRDP Manager, or existing ATEXIS-maintained tools
-- Development cost: €20k–€40k (20–30% dev hours)
-- Rationale: Framework is production-ready; only integration and validation needed
-
-**Scenario 2: Standard Tools + Custom Integration**
-- Leverage Python, FastAPI, or open-source libraries
-- Development cost: €40k–€80k (40–60% dev hours)
-- Rationale: Third-party tools handle core AI; custom integration (APIs, ETL, logging) adds complexity
-
-**Scenario 3: Custom Development**
-- Build from scratch or highly specialized architecture (e.g., fine-tuned LLM, bespoke data pipeline)
-- Development cost: €80k–€200k+ (60–100% dev hours)
-- Rationale: Full bespoke development with comprehensive testing, documentation, compliance integration
-
-**Modifiers:**
-- AI-assisted development (Copilot, CoPilot, Claude): +50% productivity boost → reduce estimated hours by 33%
-- Regulated sector compliance overhead (B2 red flags): +20–30% additional cost for governance, audit, traceability
-- Reference dev rate: €${devRateRef}/day (Spain 2025, inclusive of overhead)
-
 For estimatedImplWeeks: total weeks from kickoff to production including integration, testing and validation.
 
 For devCostExplanation: 2-3 sentences justifying the cost, mentioning main cost drivers and compliance overhead if regulated sector.
-
-User has set Impl. Time to ${estimatedImplWeeks} weeks. If provided (> 0), use this as the fixed weeks value and only recalculate estimatedDevCostEur to be coherent with it: estimatedDevCostEur = ${estimatedImplWeeks} × 5 × ${devRateEur} × ${nDevs}
 
 nDevs reference: ${nDevs} developers
 
@@ -157,10 +131,9 @@ ${profileListStr}
 ## B3 — PROCESS MAP
 ${activitiesSummary}
 
-Return ONLY a flat JSON object with EXACTLY these 4 top-level keys, no wrapper object, no nesting:
+Return ONLY a flat JSON object with EXACTLY these 3 top-level keys, no wrapper object, no nesting:
 {
   "timeSavedPerProfile": [{ "role": "exact role name from B3", "hoursPerExecution": 0.0 }],
-  "estimatedDevCostEur": 0,
   "estimatedImplWeeks": 0,
   "devCostExplanation": "explanation"
 }
@@ -190,9 +163,12 @@ Do NOT wrap in any outer key like 'implementationEconomics' or 'result'.`;
       }, { status: 500 });
     }
 
+    // Compute estimatedDevCostEur deterministically on server
+    const estimatedDevCostEur = (estimatedImplWeeks ?? 0) * 5 * (devRateEur ?? 450) * (nDevs ?? 1);
+
     return NextResponse.json({
       timeSavedPerProfile: result.timeSavedPerProfile ?? [],
-      estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
+      estimatedDevCostEur,
       estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
       devCostExplanation: result.devCostExplanation ?? '',
     });

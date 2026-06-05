@@ -22,7 +22,7 @@ export default function NewPOCPage() {
       .then((data) => {
         setUseCases(
           Array.isArray(data)
-            ? data.filter((u: UseCase) => u.status === 'eligible')
+            ? data.filter((u: UseCase) => u.status === 'eligible' || u.status === 'in_poc')
             : [],
         );
         setLoading(false);
@@ -51,12 +51,6 @@ export default function NewPOCPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      // Trigger AI fill-design after creation (non-blocking)
-      fetch(apiUrl(`/api/audits/${auditId}/pocs/${data._id}/ai/fill-design`), {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      }).catch(() => {});
       router.push(`/audits/${auditId}/pocs/${data._id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed');

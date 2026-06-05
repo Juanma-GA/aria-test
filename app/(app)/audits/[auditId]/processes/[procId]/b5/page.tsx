@@ -51,10 +51,10 @@ const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'gre
   agentic_ai_workflow: 'purple', mcp_client: 'teal', mcp_server: 'teal',
   function_tool: 'slate', chatbot: 'blue', multimodal_vlm: 'purple', other: 'slate',
 };
-const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
+const STATUS_VARIANTS: Record<string, 'green' | 'blue' | 'slate'> = {
   eligible: 'green',
-  blocked: 'red',
-  pending_review: 'amber',
+  in_poc: 'blue',
+  discarded: 'slate',
 };
 
 const DIMENSIONS: {
@@ -213,6 +213,8 @@ function SlideOver({
   onSaved,
   initialDesc,
   b2Axes,
+  showCalculateDialog,
+  setShowCalculateDialog,
 }: {
   open: boolean;
   onClose: () => void;
@@ -225,6 +227,8 @@ function SlideOver({
   onSaved: (uc: UseCase, blocked: boolean) => void;
   initialDesc?: string;
   b2Axes?: Record<string, any>;
+  showCalculateDialog: boolean;
+  setShowCalculateDialog: (open: boolean) => void;
 }) {
   type FormType = Partial<UseCase> & {
     aiTypes: AIType[];
@@ -546,73 +550,82 @@ function SlideOver({
       setError('');
       setPhase1ChangeDetected(false);
 
-      // Recalculate Phase 2 with LLM
-      setIsRecalculating(true);
-      try {
-        const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${data._id}/ai/recalculate`),
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              description: data.description,
-              aiTypes: data.aiTypes,
-              targetActivities: data.targetActivities,
-              requiredPreconditions: data.requiredPreconditions,
-              devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
-              estimatedImplWeeks: form.estimatedImplWeeks ?? data.estimatedImplWeeks ?? 0,
-              nDevs: form.nDevs ?? data.nDevs ?? 1,
-              score: { dimensions: dims },
-            }),
-          }
-        );
-
-        if (!recalcRes.ok) {
-          throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
-        }
-
-        const result = await recalcRes.json();
-
-        // Map roles to profileIds and consolidate duplicates (same logic as import handler)
-        const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
-          const matched = b1Profiles.find(
-            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
-          );
-          return {
-            profileId: matched?.id ?? crypto.randomUUID(),
-            role: matched?.role ?? entry.role ?? '',
-            hoursPerExecution: entry.hoursPerExecution ?? 0,
-          };
-        });
-
-        const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
-          const existing = acc.find(e => e.profileId === entry.profileId);
-          if (existing) {
-            existing.hoursPerExecution += entry.hoursPerExecution;
-          } else {
-            acc.push({ ...entry });
-          }
-          return acc;
-        }, [] as typeof mapped);
-
-        // Update form with recalculated Phase 2 values
-        setForm(f => ({
-          ...f,
-          timeSavedPerProfile: consolidated,
-          estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
-          estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
-          devCostExplanation: result.devCostExplanation ?? '',
-        }));
-
-        setIsPhase2Visible(true);
-      } catch (recalcErr) {
-        setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
-        setIsPhase2Visible(true);
-      } finally {
-        setIsRecalculating(false);
-      }
+      // Show confirmation dialog to recalculate Phase 2
+      setShowCalculateDialog(true);
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
     finally { setSaving(false); }
+  };
+
+  const handleRecalculate = async () => {
+    if (!form._id) return;
+    setIsRecalculating(true);
+    try {
+      const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${form._id}/ai/recalculate`),
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: form.description,
+            aiTypes: form.aiTypes,
+            targetActivities: form.targetActivities,
+            requiredPreconditions: form.requiredPreconditions,
+            devRateEur: form.devRateEur ?? 450,
+            estimatedImplWeeks: form.estimatedImplWeeks ?? 0,
+            nDevs: form.nDevs ?? 1,
+            score: { dimensions: dims },
+          }),
+        }
+      );
+
+      if (!recalcRes.ok) {
+        throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
+      }
+
+      const result = await recalcRes.json();
+
+      // Map roles to profileIds and consolidate duplicates
+      const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
+        const matched = b1Profiles.find(
+          p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+        );
+        return {
+          profileId: matched?.id ?? crypto.randomUUID(),
+          role: matched?.role ?? entry.role ?? '',
+          hoursPerExecution: entry.hoursPerExecution ?? 0,
+        };
+      });
+
+      const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
+        const existing = acc.find(e => e.profileId === entry.profileId);
+        if (existing) {
+          existing.hoursPerExecution += entry.hoursPerExecution;
+        } else {
+          acc.push({ ...entry });
+        }
+        return acc;
+      }, [] as typeof mapped);
+
+      // Compute Dev Cost deterministically (weeks × 5 × devRateEur × nDevs)
+      const devCost = (result.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+
+      // Update form with recalculated Phase 2 values
+      setForm(f => ({
+        ...f,
+        timeSavedPerProfile: consolidated,
+        estimatedDevCostEur: devCost,
+        estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
+        devCostExplanation: result.devCostExplanation ?? '',
+      }));
+
+      setIsPhase2Visible(true);
+    } catch (recalcErr) {
+      setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
+      setIsPhase2Visible(true);
+    } finally {
+      setIsRecalculating(false);
+      setShowCalculateDialog(false);
+    }
   };
 
   const handleRecalculateOnly = async () => {
@@ -638,9 +651,12 @@ function SlideOver({
       if (!recalcRes.ok) throw new Error('Recalculation failed');
       const result = await recalcRes.json();
 
+      // Compute Dev Cost deterministically (weeks × 5 × devRateEur × nDevs)
+      const devCost = (result.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+
       setForm(f => ({
         ...f,
-        estimatedDevCostEur: result.estimatedDevCostEur ?? f.estimatedDevCostEur,
+        estimatedDevCostEur: devCost,
         estimatedImplWeeks: result.estimatedImplWeeks ?? f.estimatedImplWeeks,
         devCostExplanation: result.devCostExplanation ?? f.devCostExplanation,
       }));
@@ -655,8 +671,11 @@ function SlideOver({
   const handleSave_Phase2 = async () => {
     setSaving(true);
     try {
-      const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
-      const method = editUC ? 'PATCH' : 'POST';
+      const ucId = editUC?._id ?? form._id;
+      const url = ucId
+        ? `/api/audits/${auditId}/usecases/${ucId}`
+        : `/api/audits/${auditId}/usecases`;
+      const method = ucId ? 'PATCH' : 'POST';
       const bodyData = {
         ...form,
         processId,
@@ -694,7 +713,7 @@ function SlideOver({
 
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
-      onSaved(data, data.status === 'blocked' && !editUC);
+      onSaved(data);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -858,22 +877,9 @@ function SlideOver({
           <div className="border border-border rounded p-4 space-y-3 mt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-lg text-text">
-                  {total}/25
-                </span>
-                <Badge
-                  variant={
-                    cat === 'Quick Win'
-                      ? 'green'
-                      : cat === 'Mid-term'
-                        ? 'amber'
-                        : 'blue'
-                  }
-                >
-                  {cat}
-                </Badge>
-              </div>
+              <span className="font-mono font-bold text-lg text-text">
+                {total}/25
+              </span>
             </div>
             {DIMENSIONS.map(({ key, label, hint, scale }) => {
               const dim = dims[key as keyof typeof dims];
@@ -937,10 +943,10 @@ function SlideOver({
             })}
           </div>
 
-          {/* Save & Calculate button (Phase 1 action button) */}
+          {/* Save button (Phase 1 action button) */}
           <div className="flex gap-3">
-            <button onClick={handleSave_Phase1} disabled={isRecalculating} className="btn-primary flex-1">
-              {isRecalculating ? 'Calculating...' : 'Save & Calculate'}
+            <button onClick={handleSave_Phase1} disabled={saving} className="btn-primary flex-1">
+              {saving ? 'Saving...' : 'Save'}
             </button>
           </div>
 
@@ -1219,6 +1225,20 @@ function SlideOver({
             </button>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={showCalculateDialog}
+          onClose={() => {
+            setShowCalculateDialog(false);
+            setIsPhase2Visible(true);
+          }}
+          onConfirm={handleRecalculate}
+          title="Phase 1 saved"
+          message="Do you want to recalculate Phase 2 estimates with AI?"
+          confirmLabel={isRecalculating ? 'Calculating...' : 'Yes, Calculate'}
+          cancelLabel="No, skip"
+          isLoading={isRecalculating}
+        />
       </div>
     </div>
   );
@@ -1227,28 +1247,12 @@ function SlideOver({
 function UCScore({ uc }: { uc: UseCase }) {
   if (!uc.score?.dimensions)
     return <span className="text-xs text-muted">—</span>;
-  const { total, category } = calculateScore(
+  const { total } = calculateScore(
     uc.score.dimensions as Parameters<typeof calculateScore>[0],
   );
   return (
     <div className="flex items-center gap-1.5 text-xs">
       <span className="font-mono font-bold text-text">{total}/30</span>
-      <Badge
-        variant={
-          category === 'quick_win'
-            ? 'green'
-            : category === 'mid_term'
-              ? 'amber'
-              : 'blue'
-        }
-        className="text-[10px]"
-      >
-        {category === 'quick_win'
-          ? 'Quick Win'
-          : category === 'mid_term'
-            ? 'Mid-term'
-            : 'Strategic'}
-      </Badge>
     </div>
   );
 }
@@ -1318,6 +1322,7 @@ export default function B5Page() {
   const [slideOver, setSlideOver] = useState(false);
   const [editUC, setEditUC] = useState<UseCase | null>(null);
   const [initialDesc, setInitialDesc] = useState('');
+  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     uc: UseCase | null;
@@ -1327,7 +1332,6 @@ export default function B5Page() {
     error?: string;
   }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
   const [showArchived, setShowArchived] = useState(false);
-  const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [generateModal, setGenerateModal] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -1415,12 +1419,6 @@ export default function B5Page() {
         ? prev.map((u) => (u._id === uc._id ? uc : u))
         : [...prev, uc];
     });
-    if (blocked) {
-      setBlockedNotice(
-        'This use case has been automatically moved to Blocked due to B2 restrictions.',
-      );
-      setTimeout(() => setBlockedNotice(null), 5000);
-    }
   };
 
   const handleDelete = async () => {
@@ -1497,9 +1495,8 @@ export default function B5Page() {
   const counts = {
     all: useCases.length,
     eligible: useCases.filter((u) => u.status === 'eligible').length,
-    blocked: useCases.filter((u) => u.status === 'blocked').length,
-    pending_review: useCases.filter((u) => u.status === 'pending_review')
-      .length,
+    in_poc: useCases.filter((u) => u.status === 'in_poc').length,
+    discarded: useCases.filter((u) => u.status === 'discarded').length,
   };
 
   if (loading)
@@ -1555,24 +1552,17 @@ export default function B5Page() {
         </div>
       </div>
 
-      {blockedNotice && (
-        <div className="mb-4 flex items-center gap-2 p-3 bg-red-sov-light text-red-sov rounded text-sm">
-          <AlertTriangle size={16} />
-          {blockedNotice}
-        </div>
-      )}
-
       {/* Filter tabs */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex gap-1 bg-white rounded-md border border-border p-1 w-fit">
-          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(
+          {(['all', 'eligible', 'in_poc', 'discarded'] as const).map(
             (f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
               >
-                {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
+                {f === 'in_poc' ? 'In POC' : f} ({counts[f]})
               </button>
             ),
           )}
@@ -1622,7 +1612,7 @@ export default function B5Page() {
                 return (
                   <tr
                     key={uc._id}
-                    className={`hover:bg-slate-50 transition-colors ${uc.status === 'blocked' ? 'opacity-70' : ''} ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
+                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
                   >
                     <td className="px-3 py-3">
                       <button
@@ -1637,18 +1627,9 @@ export default function B5Page() {
                       </button>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="text-sm text-text line-clamp-2">
+                      <p className="text-sm text-text line-clamp-2" title={uc.description}>
                         {uc.description}
                       </p>
-                      {uc.status === 'blocked' && uc.blockedReason && (
-                        <div className="mt-1 flex items-start gap-1 text-xs text-red-sov">
-                          <AlertTriangle
-                            size={10}
-                            className="mt-0.5 flex-shrink-0"
-                          />
-                          {uc.blockedReason}
-                        </div>
-                      )}
                       {uc.requiresClientIT && (
                         <div className="mt-1 text-xs text-amber-sov">
                           Client IT required
@@ -1706,7 +1687,7 @@ export default function B5Page() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {uc.status === 'eligible' && (
+                        {(uc.status === 'eligible' || uc.status === 'in_poc') && (
                           <button
                             onClick={() => createPOC(uc)}
                             title="Create POC"
@@ -1781,6 +1762,8 @@ export default function B5Page() {
         onSaved={handleSaved}
         initialDesc={initialDesc}
         b2Axes={b2Axes}
+        showCalculateDialog={showCalculateDialog}
+        setShowCalculateDialog={setShowCalculateDialog}
       />
 
       {/* Generate UCs with AI modal */}

@@ -8,6 +8,7 @@ import {
   Minus,
   Plus,
   Pencil,
+  Trash2,
   X,
   FlaskConical,
   Lightbulb,
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { TagInput } from '@/components/ui/TagInput';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { DEPARTMENT_TYPES } from '@/lib/validators';
 import type {
   Priority,
@@ -150,7 +152,7 @@ const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
   { value: 'Other', label: 'Other' },
 ];
 
-const UC_STATUSES: UseCaseStatus[] = ['eligible', 'blocked', 'pending_review'];
+const UC_STATUSES: UseCaseStatus[] = ['eligible', 'in_poc', 'discarded'];
 const POC_PHASES: POCPhase[] = ['design', 'execution', 'evaluation', 'closed'];
 const POC_DECISIONS: POCDecisionType[] = [
   'pending',
@@ -169,11 +171,11 @@ const IND_STATUSES: IndustrializationStatus[] = [
   'cancelled',
 ];
 
-const UC_STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> =
+const UC_STATUS_VARIANTS: Record<string, 'green' | 'blue' | 'slate'> =
   {
     eligible: 'green',
-    blocked: 'red',
-    pending_review: 'amber',
+    in_poc: 'blue',
+    discarded: 'slate',
   };
 
 const PHASE_VARIANTS: Record<string, 'slate' | 'blue' | 'amber' | 'green'> = {
@@ -224,6 +226,9 @@ export default function ProcessPage() {
   const [editingUC, setEditingUC] = useState<UCRow | null>(null);
   const [editingPOC, setEditingPOC] = useState<POCRow | null>(null);
   const [editingInd, setEditingInd] = useState<IndRow | null>(null);
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -316,6 +321,26 @@ export default function ProcessPage() {
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/audits/${auditId}/processes/${procId}`),
+        {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+      if (res.ok) {
+        setDeleteConfirmOpen(false);
+        router.push(`/audits/${auditId}`);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -346,7 +371,7 @@ export default function ProcessPage() {
   const activities: any[] = process.b3?.activities ?? [];
   const annualReps: number = process.b3?.annualRepetitions ?? 0;
   const totalHrsRun = activities.reduce(
-    (s, a) => s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1),
+    (s, a) => s + (a.estimatedTimeHours ?? 0),
     0,
   );
   const totalHrsYear = totalHrsRun * annualReps;
@@ -481,6 +506,12 @@ export default function ProcessPage() {
               >
                 <Pencil size={11} /> Edit
               </button>
+              <button
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="flex items-center gap-1 text-xs text-red-sov hover:text-red-600 border border-red-sov/30 rounded px-2 py-0.5 hover:border-red-600 transition-colors"
+              >
+                <Trash2 size={11} /> Delete
+              </button>
             </div>
 
             <h1 className="font-display text-xl font-bold text-text leading-tight">
@@ -589,7 +620,6 @@ export default function ProcessPage() {
                     'Description',
                     'AI Type(s)',
                     'Score',
-                    'Category',
                     'ROI',
                     'Status',
                   ].map((h) => (
@@ -643,7 +673,7 @@ export default function ProcessPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-4 max-w-[200px]">
-                        <p className="text-xs text-text truncate">
+                        <p className="text-xs text-text truncate" title={uc.description}>
                           {uc.description}
                         </p>
                       </td>
@@ -663,23 +693,6 @@ export default function ProcessPage() {
                         <span className="text-xs font-bold text-text">
                           {total}/30
                         </span>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={
-                            cat === 'quick_win'
-                              ? 'green'
-                              : cat === 'mid_term'
-                                ? 'amber'
-                                : 'blue'
-                          }
-                        >
-                          {cat === 'quick_win'
-                            ? 'Quick Win'
-                            : cat === 'mid_term'
-                              ? 'Mid-term'
-                              : 'Strategic'}
-                        </Badge>
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         <div className="space-y-0.5 text-[10px]">
@@ -1088,6 +1101,18 @@ export default function ProcessPage() {
           );
           setEditingInd(null);
         }}
+      />
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Process"
+        message="Are you sure you want to delete this process? This will also delete all associated Use Cases."
+        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        isLoading={deleting}
       />
     </div>
   );

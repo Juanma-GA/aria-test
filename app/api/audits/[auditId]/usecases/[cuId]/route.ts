@@ -69,7 +69,7 @@ export async function GET(
 const EDITABLE_FIELDS = [
   'description', 'aiTypes', 'targetActivities', 'b2Compatible', 'requiresClientIT',
   'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'devRateEur', 'estimatedImplWeeks',
-  'status', 'blockedReason', 'blockedAxis', 'unblockCondition', 'reviewDate', 'notes',
+  'reviewDate', 'notes',
   'computeBreakdown', 'sovereigntyAnalysis', 'isArchived', 'requiredPreconditions', 'score', 'nDevs',
 ] as const;
 
@@ -137,6 +137,15 @@ export async function PATCH(
         total,
         category,
       };
+    }
+
+    // When archiving an eligible UC, set status to 'discarded'
+    if ($set.isArchived === true && existing.status === 'eligible') {
+      $set.status = 'discarded';
+    }
+    // When unarchiving a discarded UC, revert status to 'eligible'
+    if ($set.isArchived === false && existing.status === 'discarded') {
+      $set.status = 'eligible';
     }
 
     // Use native MongoDB driver to bypass Mongoose strict-mode stripping on $set

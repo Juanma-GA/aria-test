@@ -157,7 +157,7 @@ export interface B3_ProcessMap {
 
 // ── B5 USE CASES ───────────────────────────────────────────────────────────────
 export type AIType = 'generative_llm' | 'extraction_nlp' | 'classification_ml' | 'rag_semantic' | 'rag_lexical' | 'knowledge_graph' | 'validation' | 'prediction_ml' | 'intelligent_automation' | 'agentic_ai_workflow' | 'mcp_client' | 'mcp_server' | 'function_tool' | 'chatbot' | 'multimodal_vlm' | 'other';
-export type UseCaseStatus = 'eligible' | 'blocked' | 'pending_review';
+export type UseCaseStatus = 'eligible' | 'in_poc' | 'discarded';
 export type B2CompatibilityType = 'yes' | 'no' | 'partial';
 
 export interface TimeSavedEntry {
@@ -188,9 +188,6 @@ export interface UseCase {
   };
   estimatedImplWeeks: number;
   status: UseCaseStatus;
-  blockedReason?: string;
-  blockedAxis?: string;
-  unblockCondition?: string;
   reviewDate?: Date;
   notes: string;
   sovereigntyAnalysis?: string;
@@ -282,7 +279,7 @@ export interface B7_Roadmap {
 }
 
 // ── B8 POC ─────────────────────────────────────────────────────────────────────
-export type POCPhase = 'design' | 'execution' | 'evaluation' | 'closed';
+export type POCPhase = 'design' | 'execution' | 'evaluation' | 'decision' | 'closed';
 export type POCDecisionType = 'go' | 'go_conditional' | 'no_go_redesign' | 'no_go_discard' | 'paused' | 'pending';
 
 export interface POCCriterion {
@@ -303,6 +300,9 @@ export interface POC_Design {
   requiredResources: string;
   activeB2Restrictions: string;
   estimatedDevCostEur?: number;
+  estimatedImplWeeks?: number;
+  nDevs?: number;
+  devRateEur?: number;
   successCriteria: POCCriterion[];
 }
 

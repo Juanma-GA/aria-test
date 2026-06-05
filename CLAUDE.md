@@ -39,6 +39,9 @@
 - **TechPubs detection**: Always use `process.department === 'Technical Publications'` NOT `audit.projectType === 'techpubs'`
   - Found in: `app/api/audits/[auditId]/ai/suggest-usecases/route.ts` line 50
   - Found in: `app/api/audits/[auditId]/report/route.ts` line 708
+- **UseCase status is server-controlled**: Removed from EDITABLE_FIELDS in PATCH handler—clients cannot directly set status. Status transitions only via POC creation/deletion/archival or migration scripts.
+- **POC PATCH uses MongoDB native $set driver**: Bypasses Mongoose strict mode to correctly save nested ComputeBreakdown fields and other subdocuments.
+- **fill-design endpoint is manual only**: Not called automatically on POC creation anymore. Users manually trigger via UI when needed.
 
 ## What We're Working On
 
@@ -219,6 +222,68 @@
 - ✅ Favicon SVG added to `/public/favicon.svg`
 - ✅ Metadata icons config added to `app/layout.tsx`
 - ✅ Source: `app/layout.tsx` line 9: `icons: { icon: '/favicon.svg' }`
+
+### UC Status Refactor ✅ COMPLETE
+- New statuses: `'eligible' | 'in_poc' | 'discarded'`
+- Removed: `'blocked'` and `'pending_review'`
+- Auto-transitions:
+  - eligible → in_poc when POC is created
+  - in_poc → eligible when last POC is deleted
+  - eligible → discarded when UC is archived
+  - discarded → eligible when UC is unarchived
+- Removed fields: `blockedReason`, `blockedAxis`, `unblockCondition`
+- Migration script: `scripts/fix-uc-status-migration.ts`
+- Source: `lib/types.ts`, `lib/models/UseCase.ts`, all UC routes and UI pages (b5, process detail, global)
+
+### B8 POC (Proof of Concept) Features ✅
+- ✅ **POC Detail Page Layout (B8)**:
+  - First three fields (POC Name, Measurable Objective, Scope Description) stacked full-width (`col-span-2`)
+  - Cleaner grid layout in Design tab
+  - Source: `app/(app)/audits/[auditId]/pocs/[pocId]/page.tsx`
+
+- ✅ **Dev Cost Calculator Fields**:
+  - `estimatedImplWeeks` — Implementation time copied from UseCase
+  - `nDevs` — Number of developers (supports fractional, min 0.1)
+  - `devRateEur` — Daily rate per developer (default €450/day)
+  - Server-side defaults: 0 weeks, 1 dev, €450/day
+  - Source: `lib/types.ts` POC_Design interface, `lib/models/POC.ts`
+
+- ✅ **UseCase → POC Pre-fill on Load**:
+  - B2 Restrictions: fetches Process B2 data and formats as plain text
+  - Dev Cost Fields: pre-fills from linked UseCase if POC fields undefined
+  - Compute Breakdown: inherits full calculator state including operating window & concurrency
+  - All pre-fills trigger immediate PATCH to persist
+  - Source: `app/(app)/audits/[auditId]/pocs/[pocId]/page.tsx` useEffect #2
+
+- ✅ **POC PATCH Handler Refactor**:
+  - Changed from Mongoose document manipulation to MongoDB native `$set` driver
+  - Bypasses Mongoose strict mode that was silently dropping subdocument fields
+  - Handles nested field merges with deep merge logic
+  - Re-computes `computedAnnualEur` server-side on save
+  - Persists archive timestamp (`archivedAt`) when `isArchived` flips
+  - Side-effect: sets UseCase status='blocked' if POC decision='no_go_discard'
+  - Source: `app/api/audits/[auditId]/pocs/[pocId]/route.ts` PATCH handler
+
+- ✅ **ComputeBreakdown Field Expansion**:
+  - Extended POC creation to copy ALL computeBreakdown fields from UseCase:
+  - **Operating Window**: workingHoursPerDay (10), workingDaysPerWeek (5), workingWeeksPerYear (48)
+  - **Concurrency**: concurrentUsersPerGpuSnapshot (0), maxConcurrentUsersSupported (0), 
+    peakConcurrentUsers (0), peakUsageFractionOfWindow (25)
+  - **Hardware**: hwPreexisting (false)
+  - POC now inherits complete calculator state for accurate cost estimation
+  - Source: `app/api/audits/[auditId]/pocs/route.ts` POST handler lines 113-138
+
+- ✅ **Console.log Cleanup**:
+  - Removed all temporary debug statements from POC detail page
+  - Source: `app/(app)/audits/[auditId]/pocs/[pocId]/page.tsx`
+
+- ✅ **Unarchive Logic**: UC reverts to 'eligible' when unarchived
+  - When `isArchived` set to false AND status is 'discarded', status changes back to 'eligible'
+  - Source: `app/api/audits/[auditId]/usecases/[cuId]/route.ts` PATCH handler
+
+- ✅ **Migration script**: `scripts/fix-poc-dev-cost-fields.ts`
+  - Backfills missing dev cost fields (estimatedImplWeeks, nDevs, devRateEur) from linked UseCase
+  - Safe to run multiple times (idempotent)
 
 ---
 

@@ -200,8 +200,8 @@ function buildPrompt(
   }
 
   const eligibleUCs = useCases.filter((u) => u.status === 'eligible');
-  const blockedUCs = useCases.filter((u) => u.status === 'blocked');
-  const pendingUCs = useCases.filter((u) => u.status === 'pending_review');
+  const inPocUCs = useCases.filter((u) => u.status === 'in_poc');
+  const discardedUCs = useCases.filter((u) => u.status === 'discarded');
 
   for (const uc of eligibleUCs) {
     const total = scoreTotal(uc.score);
@@ -234,8 +234,8 @@ function buildPrompt(
       p.decision?.decision === 'go' ||
       p.decision?.decision === 'go_conditional',
   ).length;
-  const pocClosed = pocs.filter((p) => p.phase === 'closed').length;
-  const pocActive = pocs.filter((p) => p.phase !== 'closed').length;
+  const pocClosed = pocs.filter((p) => p.phase === 'closed' || p.phase === 'decision').length;
+  const pocActive = pocs.filter((p) => p.phase !== 'closed' && p.phase !== 'decision').length;
 
   // ── Global sovereignty ──────────────────────────────────────────────────────
   const axisCountByStatus: Record<string, Record<string, number>> = {};
@@ -584,7 +584,7 @@ GLOBAL METRICS:
 - Audited processes: ${processes.length}
 - Total people impacted: ${totalPeople}
 - Total annual hours in scope: ${Math.round(totalAnnualHours)}h | Annual labour cost: ${fmtEur(totalAnnualCostEur)}
-- Use cases: ${useCases.length} total | ${eligibleUCs.length} eligible | ${blockedUCs.length} blocked | ${pendingUCs.length} pending
+- Use cases: ${useCases.length} total | ${eligibleUCs.length} eligible | ${inPocUCs.length} in_poc | ${discardedUCs.length} discarded
 - Quick Wins: ${qwCount} | Mid-term: ${mtCount} | Strategic: ${stCount}
 - Projected gross annual saving: ${fmtEur(totalAnnualSaving)}
 - Estimated annual compute cost: ${fmtEur(totalComputeCostEur)}

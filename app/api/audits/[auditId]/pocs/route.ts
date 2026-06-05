@@ -98,14 +98,16 @@ export async function POST(
     const sequence = String(existingCount + 1).padStart(2, '0');
     const pocId = `POC-${cuId}-${sequence}`;
 
+    // Fetch the UseCase once with all needed fields
+    const uc = await UseCase.findById(useCaseId)
+      .select('computeBreakdown estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
+      .lean() as any;
+
     // Inherit the upstream UseCase calculator state when the client did not
     // supply one. Snapshots (model / GPU specs) flow through unchanged so the
     // POC starts from the same hypothesis the use case captured. The user can
     // still edit any field afterwards.
     if (!rest.computeBreakdown || !rest.computeBreakdown.mode) {
-      const uc = (await UseCase.findById(useCaseId)
-        .select('computeBreakdown')
-        .lean()) as any;
       const sourceBreakdown = uc?.computeBreakdown;
       if (sourceBreakdown && sourceBreakdown.mode) {
         rest.computeBreakdown = {
@@ -125,6 +127,14 @@ export async function POST(
           amortizationYears: sourceBreakdown.amortizationYears ?? 4,
           electricityRateEur: sourceBreakdown.electricityRateEur ?? 0.15,
           onPremPct: sourceBreakdown.onPremPct ?? 100,
+          concurrentUsersPerGpuSnapshot: sourceBreakdown.concurrentUsersPerGpuSnapshot ?? 0,
+          workingHoursPerDay: sourceBreakdown.workingHoursPerDay ?? 10,
+          workingDaysPerWeek: sourceBreakdown.workingDaysPerWeek ?? 5,
+          workingWeeksPerYear: sourceBreakdown.workingWeeksPerYear ?? 48,
+          maxConcurrentUsersSupported: sourceBreakdown.maxConcurrentUsersSupported ?? 0,
+          peakConcurrentUsers: sourceBreakdown.peakConcurrentUsers ?? 0,
+          peakUsageFractionOfWindow: sourceBreakdown.peakUsageFractionOfWindow ?? 25,
+          hwPreexisting: sourceBreakdown.hwPreexisting ?? false,
         };
       }
     }
@@ -145,9 +155,19 @@ export async function POST(
       processId,
       pocId,
       ...rest,
+      design: {
+        ...(rest.design || {}),
+        estimatedImplWeeks: uc?.estimatedImplWeeks ?? 0,
+        nDevs: uc?.nDevs ?? 1,
+        devRateEur: uc?.devRateEur ?? 450,
+        estimatedDevCostEur: uc?.estimatedDevCostEur ?? 0,
+      },
     });
 
-    return NextResponse.json(poc, { status: 201 });
+    // Transition UC to 'in_poc' when first POC is created
+    await UseCase.findByIdAndUpdate(useCaseId, { $set: { status: 'in_poc' } });
+
+    return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(
