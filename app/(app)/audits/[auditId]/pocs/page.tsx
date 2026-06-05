@@ -50,6 +50,7 @@ export default function POCsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState<string | null>(null);
+  const [auditName, setAuditName] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -67,12 +68,19 @@ export default function POCsPage() {
       .catch(() => setLoading(false));
   }, [auditId, showArchived]);
 
+  useEffect(() => {
+    fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => setAuditName(data.name || data.clientName || auditId))
+      .catch(() => {});
+  }, [auditId]);
+
   const generatePocTrackerReport = () => {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-    let md = `# POC Tracker Report — ${auditId}\n\n`;
+    let md = `# POC Tracker Report — ${auditName || auditId}\n\n`;
     md += `**Generated:** ${dateStr} ${timeStr}  \n`;
     md += `**Total POCs:** ${pocs.length}\n\n`;
     md += `---\n\n`;
@@ -80,8 +88,12 @@ export default function POCsPage() {
     pocs.forEach((poc) => {
       md += `## ${poc.pocId}${poc.name ? ` — ${poc.name}` : ''}\n\n`;
       md += `**Phase:** ${poc.phase}\n`;
-      md += `**Process:** ${poc.processData?.name ?? '—'}\n`;
-      md += `**Use Case:** ${poc.cuId ?? '—'}\n\n`;
+      const processName = (poc.processData as any)?.name || (poc.processId as any)?.name || '—';
+      const uc = poc.useCaseId as any;
+      const ucId = uc?.cuId || poc.cuId || '—';
+      const ucDesc = uc?.description || '—';
+      md += `**Process:** ${processName}\n`;
+      md += `**Use Case:** ${ucId} · ${ucDesc}\n\n`;
 
       // Design Phase
       md += `### Design\n\n`;
