@@ -96,7 +96,7 @@ export default function POCsPage() {
       md += `**Use Case:** ${ucId} · ${ucDesc}\n\n`;
 
       // Design Phase
-      md += `### Design\n\n`;
+      md += `### 1. Design\n\n`;
       md += `**POC Name**  \n${poc.name || '—'}\n\n`;
       md += `**Measurable Objective**  \n${poc.design?.measurableObjective || '—'}\n\n`;
       md += `**Scope**  \n${poc.design?.scopeDescription || '—'}\n\n`;
@@ -142,7 +142,7 @@ export default function POCsPage() {
       }
 
       // Execution Phase
-      md += `### Execution\n\n`;
+      md += `### 2. Execution\n\n`;
       const milestones = poc.execution?.milestones ?? [];
 
       if (milestones.length > 0) {
@@ -163,7 +163,7 @@ export default function POCsPage() {
 
       // Evaluation Phase
       if (poc.phase === 'evaluation' || poc.phase === 'decision' || poc.phase === 'closed') {
-        md += `### Evaluation\n\n`;
+        md += `### 3. Evaluation\n\n`;
         md += `**Production Impact:** ${poc.evaluation?.estimatedProductionImpact || '—'}  \n`;
         md += `**Technical Lessons:** ${poc.evaluation?.technicalLessons || '—'}  \n`;
         md += `**Organisational Lessons:** ${poc.evaluation?.organisationalLessons || '—'}\n\n`;
@@ -171,7 +171,7 @@ export default function POCsPage() {
 
       // Decision Phase
       if (poc.phase === 'decision' || poc.phase === 'closed') {
-        md += `### Decision\n\n`;
+        md += `### 4. Decision\n\n`;
         const decisionMap = {
           go: '✅ GO — Scale to implementation',
           go_conditional: '⚠️ GO Conditional',
