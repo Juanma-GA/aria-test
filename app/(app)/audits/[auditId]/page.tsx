@@ -162,6 +162,9 @@ export default function AuditPage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [addProcessDialog, setAddProcessDialog] = useState(false);
+  const [copySourceId, setCopySourceId] = useState('');
+  const [copyingProcess, setCopyingProcess] = useState(false);
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
@@ -507,13 +510,13 @@ export default function AuditPage() {
 
       {/* Add process button only */}
       <div>
-        <Link
-          href={`/audits/${auditId}/processes/new`}
+        <button
+          onClick={() => setAddProcessDialog(true)}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-aria/90 transition-colors"
         >
           <Plus size={15} />
           Add Process
-        </Link>
+        </button>
       </div>
 
       {/* Team modal */}
@@ -523,6 +526,80 @@ export default function AuditPage() {
         auditId={auditId}
         onChanged={loadTeam}
       />
+
+      {/* Add Process Dialog */}
+      {addProcessDialog && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-sm p-6 max-w-md w-full shadow-lg">
+            <h2 className="text-lg font-semibold text-text mb-4">Add Process</h2>
+
+            {/* Option 1: New blank */}
+            <button
+              onClick={() => {
+                setAddProcessDialog(false);
+                router.push(`/audits/${auditId}/processes/new`);
+              }}
+              className="w-full p-3 border border-border rounded-sm text-left hover:bg-slate-50 transition-colors mb-3"
+            >
+              <p className="font-medium text-text">New blank process</p>
+              <p className="text-xs text-muted mt-1">Start from scratch</p>
+            </button>
+
+            {/* Option 2: Copy */}
+            <div className="border border-border rounded-sm p-3">
+              <p className="font-medium text-text mb-2">Copy from existing</p>
+              <select
+                value={copySourceId}
+                onChange={(e) => setCopySourceId(e.target.value)}
+                className="w-full border border-border rounded-sm px-2 py-1 text-sm mb-2"
+              >
+                <option value="">Select a process...</option>
+                {audit?.processes?.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.procId} — {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={async () => {
+                  if (!copySourceId) return;
+                  setCopyingProcess(true);
+                  try {
+                    const res = await fetch(
+                      apiUrl(`/api/audits/${auditId}/processes/copy/${copySourceId}`),
+                      { method: 'POST', credentials: 'include' }
+                    );
+                    if (!res.ok) throw new Error('Copy failed');
+                    const data = await res.json();
+                    setAddProcessDialog(false);
+                    setCopySourceId('');
+                    router.push(`/audits/${auditId}/processes/${data._id}/b1`);
+                  } catch (e: any) {
+                    toast.error(e.message || 'Failed to copy process');
+                  } finally {
+                    setCopyingProcess(false);
+                  }
+                }}
+                disabled={!copySourceId || copyingProcess}
+                className="w-full btn-primary disabled:opacity-50 text-sm"
+              >
+                {copyingProcess ? 'Copying...' : 'Copy'}
+              </button>
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setAddProcessDialog(false);
+                setCopySourceId('');
+              }}
+              className="w-full mt-3 px-3 py-1.5 text-sm border border-border rounded-sm text-muted hover:text-text transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Process grid */}
       <div>
