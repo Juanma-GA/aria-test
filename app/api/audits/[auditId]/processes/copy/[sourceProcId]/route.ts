@@ -40,7 +40,7 @@ export async function POST(
     const newProcess = await Process.create({
       auditId,
       procId,
-      name: '', // Empty name — user will fill in B1
+      name: `Copy of ${sourceProcess.name}`,
       department: sourceProcess.department,
       responsible: sourceProcess.responsible,
       sector: sourceProcess.sector,
