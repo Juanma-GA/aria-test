@@ -573,7 +573,7 @@ export default function AuditPage() {
                     const data = await res.json();
                     setAddProcessDialog(false);
                     setCopySourceId('');
-                    router.push(`/audits/${auditId}/processes/${data._id}/b1`);
+                    router.push(`/audits/${auditId}/processes/${data._id}`);
                   } catch (e: any) {
                     toast.error(e.message || 'Failed to copy process');
                   } finally {
