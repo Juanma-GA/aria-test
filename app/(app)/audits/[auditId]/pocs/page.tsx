@@ -79,10 +79,13 @@ export default function POCsPage() {
 
     pocs.forEach((poc) => {
       md += `## ${poc.pocId}${poc.name ? ` — ${poc.name}` : ''}\n\n`;
-      md += `**Phase:** ${poc.phase} · **Use Case:** ${poc.cuId ?? '—'} · **Process:** ${poc.processData?.name ?? '—'}\n\n`;
+      md += `**Phase:** ${poc.phase}\n`;
+      md += `**Process:** ${poc.processData?.name ?? '—'}\n`;
+      md += `**Use Case:** ${poc.cuId ?? '—'}\n\n`;
 
       // Design Phase
       md += `### Design\n\n`;
+      md += `**POC Name**  \n${poc.name || '—'}\n\n`;
       md += `**Measurable Objective**  \n${poc.design?.measurableObjective || '—'}\n\n`;
       md += `**Scope**  \n${poc.design?.scopeDescription || '—'}\n\n`;
 
@@ -93,40 +96,54 @@ export default function POCsPage() {
         ? new Date(poc.design.deadlineDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
         : '—';
 
-      md += `**Start:** ${startDate} · **Deadline:** ${deadline}  \n`;
-      md += `**Est. Dev Cost:** €${(poc.design?.estimatedDevCostEur ?? 0).toLocaleString('de-DE')} · **Impl. Time:** ${poc.design?.estimatedImplWeeks ?? 0} weeks\n\n`;
+      md += `**Start:** ${startDate} · **Deadline:** ${deadline}\n\n`;
+
+      md += `**Dev Cost Estimation:** €${(poc.design?.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}\n`;
+      md += `- Impl. Time: ${poc.design?.estimatedImplWeeks ?? 0} weeks\n`;
+      md += `- Nº Developers: ${poc.design?.nDevs ?? 1}\n`;
+      md += `- Developer Rate: €${poc.design?.devRateEur ?? 450}/day\n\n`;
+
+      if (poc.computeBreakdown?.computedAnnualEur) {
+        md += `**Annual recurring compute cost:** €${poc.computeBreakdown.computedAnnualEur.toLocaleString('de-DE')}\n`;
+        if (poc.computeBreakdown.mode?.includes('cloud') || poc.computeBreakdown.mode === 'hybrid') {
+          md += `- Cloud API Model: ${poc.computeBreakdown.modelNameSnapshot || '—'}\n`;
+        }
+        if (poc.computeBreakdown.mode?.includes('on_premise') || poc.computeBreakdown.mode === 'hybrid') {
+          md += `- On-premise GPU: ${poc.computeBreakdown.gpuNameSnapshot || '—'}\n`;
+        }
+        md += `\n`;
+      }
 
       md += `**Required Resources**  \n${poc.design?.requiredResources || '—'}\n\n`;
 
       md += `**Sovereignty Matrix (B2)**  \n${poc.design?.activeB2Restrictions || '—'}\n\n`;
 
-      // Success Criteria Table
+      // Success Criteria List
       if (poc.design?.successCriteria && poc.design.successCriteria.length > 0) {
-        md += `#### Success Criteria\n\n`;
-        md += `| # | Criterion | Threshold | Result | Passed |\n`;
-        md += `|---|-----------|-----------|--------|--------|\n`;
+        md += `**Success Criteria**\n\n`;
         poc.design.successCriteria.forEach((c, i) => {
-          md += `| ${i + 1} | ${c.criterion || '—'} | ${c.successThreshold || '—'} | ${c.actualResult || '—'} | ${c.passed !== undefined ? (c.passed ? '✅' : '❌') : '—'} |\n`;
+          md += `${i + 1}. **${c.criterion || '—'}**\n`;
+          md += `   - Threshold: ${c.successThreshold || '—'}\n`;
+          md += `   - Result: ${c.actualResult || '—'}\n`;
+          md += `   - Passed: ${c.passed !== undefined ? (c.passed ? '✅' : '❌') : '—'}\n\n`;
         });
-        md += `\n`;
       }
 
       // Execution Phase
       md += `### Execution\n\n`;
       const milestones = poc.execution?.milestones ?? [];
-      const done = milestones.filter((m) => m.status === 'done').length;
-      const total = milestones.length;
-      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-      md += `**Progress:** ${done}/${total} · ${pct}%\n\n`;
 
       if (milestones.length > 0) {
-        md += `| Milestone | Due | Effort (h) | Status | Progress |\n`;
-        md += `|-----------|-----|------------|--------|----------|\n`;
+        md += `**Milestones**\n\n`;
         milestones.forEach((m) => {
           const dueDate = m.dueDate ? new Date(m.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
-          md += `| ${m.name || '—'} | ${dueDate} | ${m.effortHours || 0} | ${m.status} | ${m.progressPct ?? 0}% |\n`;
+          md += `1. **${m.name || '—'}**\n`;
+          md += `   - Due: ${dueDate}\n`;
+          md += `   - Effort: ${m.effortHours || 0}h\n`;
+          md += `   - Progress: ${m.progressPct ?? 0}%\n`;
+          if (m.notes) md += `   - Notes: ${m.notes}\n`;
+          md += `\n`;
         });
-        md += `\n`;
       }
 
       md += `**Incidents:** ${poc.execution?.incidents || '—'}  \n`;
@@ -135,20 +152,9 @@ export default function POCsPage() {
       // Evaluation Phase
       if (poc.phase === 'evaluation' || poc.phase === 'decision' || poc.phase === 'closed') {
         md += `### Evaluation\n\n`;
-        md += `**Actual Cost:** €${(poc.evaluation?.actualCostEur ?? 0).toLocaleString('de-DE')}  \n`;
         md += `**Production Impact:** ${poc.evaluation?.estimatedProductionImpact || '—'}  \n`;
         md += `**Technical Lessons:** ${poc.evaluation?.technicalLessons || '—'}  \n`;
         md += `**Organisational Lessons:** ${poc.evaluation?.organisationalLessons || '—'}\n\n`;
-
-        if (poc.design?.successCriteria && poc.design.successCriteria.length > 0) {
-          md += `#### Results vs. Criteria\n\n`;
-          md += `| # | Criterion | Threshold | Actual Result | Passed |\n`;
-          md += `|---|-----------|-----------|---------------|--------|\n`;
-          poc.design.successCriteria.forEach((c, i) => {
-            md += `| ${i + 1} | ${c.criterion || '—'} | ${c.successThreshold || '—'} | ${c.actualResult || '—'} | ${c.passed !== undefined ? (c.passed ? '✅' : '❌') : '—'} |\n`;
-          });
-          md += `\n`;
-        }
       }
 
       // Decision Phase
