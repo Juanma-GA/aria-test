@@ -74,8 +74,8 @@ export default function POCDetailPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/audits/${auditId}/pocs/${pocId}`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/audits/${auditId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), { credentials: 'include' }).then(r => r.json()),
+      fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' }).then(r => r.ok ? r.json() : null),
     ])
       .then(([pocData, auditData]) => {
         setPoc(pocData);
@@ -94,8 +94,8 @@ export default function POCDetailPage() {
     const useCaseId = typeof poc.useCaseId === 'object' ? (poc.useCaseId as any)._id : poc.useCaseId;
 
     Promise.all([
-      fetch(`/api/audits/${auditId}/processes/${procesId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      useCaseId ? fetch(`/api/audits/${auditId}/usecases/${useCaseId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
+      fetch(apiUrl(`/api/audits/${auditId}/processes/${procesId}`), { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      useCaseId ? fetch(apiUrl(`/api/audits/${auditId}/usecases/${useCaseId}`), { credentials: 'include' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
     ])
       .then(([processData, useCaseData]) => {
         const updates: Partial<POC> = {};
@@ -297,7 +297,7 @@ export default function POCDetailPage() {
   const requestDelete = () => setConfirmDelete({ open: true, cascade: false, indCount: 0 });
 
   const handleDelete = async () => {
-    const url = `/api/audits/${auditId}/pocs/${pocId}${confirmDelete.cascade ? '?cascade=true' : ''}`;
+    const url = apiUrl(`/api/audits/${auditId}/pocs/${pocId}${confirmDelete.cascade ? '?cascade=true' : ''}`);
     const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
     if (res.ok) {
       router.push(`/audits/${auditId}/pocs`);
@@ -315,7 +315,7 @@ export default function POCDetailPage() {
     if (!poc) return;
     const next = !(poc as any).isArchived;
     setSaveStatus('saving');
-    const res = await fetch(`/api/audits/${auditId}/pocs/${pocId}`, {
+    const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isArchived: next }),
