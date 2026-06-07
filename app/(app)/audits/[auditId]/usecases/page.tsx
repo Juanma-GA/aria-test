@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { AI_TYPE_LABELS } from '@/lib/types';
 import { apiUrl } from '@/lib/utils';
 import type { AIType, UseCaseStatus, B2CompatibilityType } from '@/lib/types';
-import { calculateScore } from '@/lib/calculations';
+import { calculateScore, computeAnnualCompute } from '@/lib/calculations';
 import { TrendingUp, Download } from 'lucide-react';
 
 interface AuditUseCase {
@@ -26,11 +26,14 @@ interface AuditUseCase {
     role: string;
     hoursPerExecution: number;
   }[];
+  targetActivities?: string[];
+  computeBreakdown?: any;
   processId: {
     _id: string;
     procId: string;
     name?: string;
-    b1?: { profiles: { id: string; count: number }[] };
+    b1?: { profiles: { id: string; count: number; role: string; hourlyRateEur: number }[] };
+    b3?: { activities: { id: string; estimatedTimeHours: number }[]; annualRepetitions: number };
   } | null;
   score?: {
     dimensions: {
@@ -73,13 +76,58 @@ function peopleImpacted(uc: AuditUseCase): number {
   }, 0);
 }
 
-function calcRoi(uc: AuditUseCase): string | null {
-  const saved = (uc.timeSavedPerProfile ?? []).reduce(
-    (s, e) => s + e.hoursPerExecution,
-    0,
+function computeRoi(
+  timeSaved: any[],
+  b1Profiles: any[],
+  devCost: number,
+  annualReps: number,
+  targetHours: number,
+  computeCostPerYear: number = 0,
+): { totalHours: number; annualSaving: number; computeCostPerYear: number; netAnnualSaving: number; paybackMonths: number; savingPct: number | null; avgRate: number; targetHours: number } | null {
+  const totalHours = timeSaved.reduce((s: number, e: any) => s + (e.hoursPerExecution ?? 0), 0);
+  if (totalHours === 0 || annualReps === 0) return null;
+  const weightedSum = timeSaved.reduce((sum: number, e: any) => {
+    const profile = b1Profiles.find(p => p.id === e.profileId);
+    if (!profile || !profile.hourlyRateEur) return sum;
+    return sum + (profile.count ?? 1) * profile.hourlyRateEur;
+  }, 0);
+  const totalCount = timeSaved.reduce((sum: number, e: any) => {
+    const profile = b1Profiles.find(p => p.id === e.profileId);
+    return sum + (profile?.count ?? 1);
+  }, 0);
+  const avgRate = totalCount > 0 ? weightedSum / totalCount : 0;
+  if (avgRate === 0) return null;
+  const annualSaving = totalHours * avgRate * annualReps;
+  const netAnnualSaving = Math.max(annualSaving - computeCostPerYear, 0);
+  const paybackMonths = devCost > 0 && netAnnualSaving > 0 ? (devCost / netAnnualSaving) * 12 : 0;
+  const savingPct = targetHours > 0 ? Math.round((totalHours / targetHours) * 100) : null;
+  return { totalHours, annualSaving, computeCostPerYear, netAnnualSaving, paybackMonths, savingPct, avgRate, targetHours };
+}
+
+function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: AuditUseCase; b1Profiles: any[]; annualReps: number; activities: any[] }) {
+  const targetHours = activities
+    .filter((a) => (uc.targetActivities ?? []).includes(a.id))
+    .reduce((s, a) => s + (a.estimatedTimeHours ?? 0), 0);
+  const ccPerYear = computeAnnualCompute((uc as any).computeBreakdown ?? null).totalEur;
+  const roi = computeRoi(uc.timeSavedPerProfile ?? [], b1Profiles, uc.estimatedDevCostEur ?? 0, annualReps, targetHours, ccPerYear);
+  if (!roi) return <span className="text-xs text-muted">—</span>;
+  return (
+    <div className="text-xs space-y-0.5">
+      <div className="flex items-center gap-1 text-green-600">
+        <TrendingUp size={10} />
+        <span className="font-medium">Net: €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr</span>
+      </div>
+      {roi.computeCostPerYear > 0 && (
+        <div className="text-amber-600">Compute: −€{Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr</div>
+      )}
+      {roi.savingPct !== null && (
+        <div className="text-muted">{roi.savingPct}% of targeted activities</div>
+      )}
+      {roi.paybackMonths > 0 && (
+        <div className="text-muted">Payback: {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} mo</div>
+      )}
+    </div>
   );
-  if (saved === 0 || !uc.estimatedDevCostEur) return null;
-  return `${saved}h/run · €${uc.estimatedDevCostEur.toLocaleString()}`;
 }
 
 export default function AuditUseCasesPage() {
@@ -228,7 +276,6 @@ export default function AuditUseCasesPage() {
                   : null;
                 const total = scoreResult?.total ?? null;
                 const cat = scoreResult?.category;
-                const roi = calcRoi(uc);
                 const people = peopleImpacted(uc);
                 const proc = uc.processId as any;
                 const editHref = proc
@@ -305,15 +352,13 @@ export default function AuditUseCasesPage() {
                         {uc.status.replace('_', ' ')}
                       </Badge>
                     </td>
-                    <td className="py-3 px-4 text-xs whitespace-nowrap">
-                      {roi ? (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <TrendingUp size={11} />
-                          {roi}
-                        </span>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
+                    <td className="py-3 px-4">
+                      <UCRoi
+                        uc={uc}
+                        b1Profiles={(uc.processId as any)?.b1?.profiles ?? []}
+                        annualReps={(uc.processId as any)?.b3?.annualRepetitions ?? 0}
+                        activities={(uc.processId as any)?.b3?.activities ?? []}
+                      />
                     </td>
                   </tr>
                 );
