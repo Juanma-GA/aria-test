@@ -54,7 +54,7 @@ export async function GET(
     query.isArchived = showArchived ? true : { $ne: true };
 
     const useCases = await UseCase.find(query)
-      .populate('processId', 'procId name b1')
+      .populate('processId', 'procId name b1 b3')
       .lean();
 
     return NextResponse.json(useCases);
