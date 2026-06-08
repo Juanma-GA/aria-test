@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -11,6 +11,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/ComputeCalculator';
 import { useAuditAccess } from '@/context/AuditAccessContext';
 import { apiUrl } from '@/lib/utils';
+import { computeAnnualCompute } from '@/lib/calculations';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -68,6 +69,7 @@ export default function POCDetailPage() {
   const [activeTab, setActiveTab] = useState<POCPhase>('design');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; cascade: boolean; indCount: number; error?: string }>({ open: false, cascade: false, indCount: 0 });
+  const [roiOpen, setRoiOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { canEdit } = useAuditAccess();
 
@@ -370,7 +372,7 @@ export default function POCDetailPage() {
       </div>
 
       {/* Process and UseCase reference */}
-      <div className="text-xs text-muted flex flex-col gap-0.5 px-4 py-2 border-b border-border bg-slate-50 mb-5">
+      <div className="text-xs text-muted flex flex-col gap-0.5 px-4 py-2 border-b border-border bg-slate-50">
         <span>
           <span className="font-medium text-text">Process:</span>{' '}
           {(poc.processId as any)?.name ?? '—'}
@@ -379,6 +381,82 @@ export default function POCDetailPage() {
           <span className="font-medium text-text">UC:</span>{' '}
           {(poc.useCaseId as any)?.description ?? '—'}
         </span>
+      </div>
+
+      {/* Collapsible ROI Estimate */}
+      <div className="px-4 py-2 border-b border-border bg-slate-50 mb-5">
+        <button
+          onClick={() => setRoiOpen(r => !r)}
+          className="flex items-center gap-2 text-xs font-medium text-text hover:text-blue-aria transition-colors"
+        >
+          <TrendingUp size={12} />
+          ROI Estimate
+          <ChevronDown size={12} className={`transition-transform ${roiOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {roiOpen && (() => {
+          const uc = poc.useCaseId as any;
+          const proc = poc.processId as any;
+          const b1Profiles = proc?.b1?.profiles ?? [];
+          const annualReps = proc?.b3?.annualRepetitions ?? 0;
+          const activities = proc?.b3?.activities ?? [];
+          const targetHours = activities
+            .filter((a: any) => (uc?.targetActivities ?? []).includes(a.id))
+            .reduce((s: number, a: any) => s + (a.estimatedTimeHours ?? 0), 0);
+          const ccPerYear = computeAnnualCompute(uc?.computeBreakdown ?? null).totalEur;
+          const timeSaved = uc?.timeSavedPerProfile ?? [];
+          const totalHours = timeSaved.reduce((s: number, e: any) => s + (e.hoursPerExecution ?? 0), 0);
+          const weightedSum = timeSaved.reduce((sum: number, e: any) => {
+            const p = b1Profiles.find((p: any) => p.id === e.profileId);
+            if (!p?.hourlyRateEur) return sum;
+            return sum + (p.count ?? 1) * p.hourlyRateEur;
+          }, 0);
+          const totalCount = timeSaved.reduce((sum: number, e: any) => {
+            const p = b1Profiles.find((p: any) => p.id === e.profileId);
+            return sum + (p?.count ?? 1);
+          }, 0);
+          const avgRate = totalCount > 0 ? weightedSum / totalCount : 0;
+          if (totalHours === 0 || annualReps === 0 || avgRate === 0) {
+            return <p className="text-xs text-muted mt-2">No ROI data available.</p>;
+          }
+          const annualSaving = totalHours * avgRate * annualReps;
+          const netAnnualSaving = Math.max(annualSaving - ccPerYear, 0);
+          const devCost = uc?.estimatedDevCostEur ?? 0;
+          const paybackMonths = devCost > 0 && netAnnualSaving > 0 ? (devCost / netAnnualSaving) * 12 : 0;
+          const savingPct = targetHours > 0 ? Math.round((totalHours / targetHours) * 100) : null;
+
+          return (
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-green-50 border border-green-200 rounded p-2">
+                <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Gross Annual Saving</p>
+                <p className="font-bold text-green-700 text-sm">€{Math.round(annualSaving).toLocaleString('de-DE')}/yr</p>
+                {savingPct !== null && <p className="text-muted">{savingPct}% of targeted activities</p>}
+              </div>
+              {ccPerYear > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded p-2">
+                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Compute Cost/yr</p>
+                  <p className="font-bold text-amber-700 text-sm">€{Math.round(ccPerYear).toLocaleString('de-DE')}/yr</p>
+                </div>
+              )}
+              <div className="bg-green-50 border border-green-200 rounded p-2">
+                <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Net Annual Saving</p>
+                <p className="font-bold text-green-700 text-sm">€{Math.round(netAnnualSaving).toLocaleString('de-DE')}/yr</p>
+              </div>
+              {devCost > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded p-2">
+                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Dev Cost (one-time)</p>
+                  <p className="font-bold text-red-700 text-sm">€{devCost.toLocaleString('de-DE')}</p>
+                </div>
+              )}
+              {paybackMonths > 0 && (
+                <div className="bg-slate-50 border border-border rounded p-2 col-span-2">
+                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
+                  <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <fieldset disabled={!canEdit} className="contents">
