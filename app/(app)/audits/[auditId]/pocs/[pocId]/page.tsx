@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { SaveIndicator } from '@/components/ui/SaveIndicator';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { OriginTrace, type OriginNode } from '@/components/ui/OriginTrace';
 import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/ComputeCalculator';
 import { useAuditAccess } from '@/context/AuditAccessContext';
 import { apiUrl } from '@/lib/utils';
@@ -370,17 +369,17 @@ export default function POCDetailPage() {
         </div>
       </div>
 
-      {/* Origin trace */}
-      {(() => {
-        const uc = (poc as any).useCaseId;
-        const proc = (poc as any).processId;
-        const nodes: OriginNode[] = [];
-        if (audit) nodes.push({ kind: 'audit', code: audit.auditCode ?? '—', label: audit.name, href: `/audits/${audit._id}` });
-        if (proc && typeof proc === 'object' && proc.procId) nodes.push({ kind: 'process', code: proc.procId, label: proc.name, href: `/audits/${auditId}/processes/${typeof proc === 'object' ? (proc as any)._id ?? '' : proc}` });
-        if (uc && typeof uc === 'object' && uc.cuId) nodes.push({ kind: 'usecase', code: uc.cuId, label: uc.description, href: `/audits/${auditId}/usecases` });
-        nodes.push({ kind: 'poc', code: poc.pocId, label: poc.name });
-        return <div className="mb-5"><OriginTrace nodes={nodes} /></div>;
-      })()}
+      {/* Process and UseCase reference */}
+      <div className="text-xs text-muted flex flex-col gap-0.5 px-4 py-2 border-b border-border bg-slate-50 mb-5">
+        <span>
+          <span className="font-medium text-text">Process:</span>{' '}
+          {(poc.processId as any)?.name ?? '—'}
+        </span>
+        <span>
+          <span className="font-medium text-text">UC:</span>{' '}
+          {(poc.useCaseId as any)?.description ?? '—'}
+        </span>
+      </div>
 
       <fieldset disabled={!canEdit} className="contents">
 
