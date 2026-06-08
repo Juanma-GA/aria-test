@@ -342,6 +342,7 @@ function SlideOver({
 
   // Auto-derive timeSavedPerProfile from targetActivities changes
   useEffect(() => {
+    if (!activities?.length) return;
     if (!form.targetActivities?.length) {
       set('timeSavedPerProfile', []);
       return;
