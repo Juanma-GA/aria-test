@@ -251,6 +251,7 @@ function SlideOver({
   const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
+  const isFirstDeriveRun = useRef(true);
 
   useEffect(() => {
     // Compute D5 autofill from B2 axes
@@ -304,6 +305,7 @@ function SlideOver({
       };
       setForm(newForm);
       setOriginalForm(newForm);
+      isFirstDeriveRun.current = true;
       if (editUC.score?.dimensions) {
         const existingDims = editUC.score.dimensions as any;
         // Re-autofill D5 unless manually edited
@@ -343,6 +345,11 @@ function SlideOver({
   // Auto-derive timeSavedPerProfile from targetActivities changes
   useEffect(() => {
     if (!activities?.length) return;
+    if (isFirstDeriveRun.current) {
+      isFirstDeriveRun.current = false;
+      return;
+    }
+
     if (!form.targetActivities?.length) {
       set('timeSavedPerProfile', []);
       return;
