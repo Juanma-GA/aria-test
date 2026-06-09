@@ -64,6 +64,11 @@ export const createUseCaseSchema = z.object({
   status: z.string().optional(),
   notes: z.string().optional(),
   score: z.any().optional(),
+  parentUCId: z.string().optional(),
+  isInstance: z.boolean().optional(),
+  additionalDevCostEur: z.number().optional(),
+  devRateEur: z.number().optional(),
+  nDevs: z.number().optional(),
 });
 
 export const INDUSTRIALIZATION_STATUSES = [
