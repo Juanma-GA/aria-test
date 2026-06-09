@@ -90,14 +90,14 @@ export async function POST(
     }
 
     // Instance validation: if creating an instance, parent must exist and not be an instance
-    if (body.isInstance === true) {
-      if (!body.parentUCId) {
+    if (parsed.data.isInstance === true) {
+      if (!parsed.data.parentUCId) {
         return NextResponse.json(
           { error: 'isInstance requires parentUCId' },
           { status: 400 },
         );
       }
-      const parent = await UseCase.findById(body.parentUCId).lean() as any;
+      const parent = await UseCase.findById(parsed.data.parentUCId).lean() as any;
       if (!parent) {
         return NextResponse.json(
           { error: 'Parent use case not found' },
@@ -167,9 +167,9 @@ export async function POST(
       status,
       notes: body.notes || '',
       requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
-      parentUCId: body.parentUCId || null,
-      isInstance: body.isInstance ?? false,
-      additionalDevCostEur: body.additionalDevCostEur ?? 0,
+      parentUCId: parsed.data.parentUCId || null,
+      isInstance: parsed.data.isInstance ?? false,
+      additionalDevCostEur: parsed.data.additionalDevCostEur ?? 0,
     };
 
     // Carry the calculator state from the create payload, recomputing the

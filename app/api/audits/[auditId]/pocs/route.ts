@@ -28,7 +28,6 @@ export async function GET(
     const pocs = await POC.find(query)
       .populate('processId', 'procId name')
       .populate('useCaseIds', 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur')
-      .populate('useCaseId', 'cuId description')
       .lean();
 
     // POC.design.responsibleUserId is stored as a String (not a Mongoose ref),
