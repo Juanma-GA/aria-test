@@ -1066,7 +1066,14 @@ function SlideOver({
             </div>
 
             {/* Dev Cost Calculator Box */}
-            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+            <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
+              instanceMode ? 'pointer-events-none opacity-50' : ''
+            }`}>
+              {instanceMode && (
+                <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
+                  <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
+                </div>
+              )}
 
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -1171,7 +1178,14 @@ function SlideOver({
             )}
 
             {/* Compute Cost Simulator */}
-            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+            <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
+              instanceMode ? 'pointer-events-none opacity-50' : ''
+            }`}>
+              {instanceMode && (
+                <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
+                  <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text">
                   <span>🖥️</span> Compute cost calculator
@@ -1482,7 +1496,25 @@ export default function B5Page() {
     load();
   }, [load]);
 
-  // Fetch parent UCs when modal opens
+  // Fetch parent UCs on component mount for dropdown menu
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCsOnMount]', err);
+      }
+    })();
+  }, [auditId, procId]);
+
+  // Fetch parent UCs when modal opens (refresh for latest)
   useEffect(() => {
     if (!slideOver) return;
     setLoadingParents(true);
@@ -1682,24 +1714,23 @@ export default function B5Page() {
                 >
                   ➕ Add New Use Case
                 </button>
-                {parentUCs.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setInstanceMode(true);
-                      setShowInstancePicker(true);
-                      setShowUcMenu(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-text hover:bg-slate-50"
-                  >
-                    <GitFork size={12} className="inline mr-2" />
-                    Add as Instance
-                  </button>
-                )}
-                {parentUCs.length === 0 && (
-                  <div className="px-4 py-2 text-xs text-muted italic">
-                    Create parent UCs first
-                  </div>
-                )}
+                <button
+                  disabled={parentUCs.length === 0}
+                  onClick={() => {
+                    setInstanceMode(true);
+                    setShowInstancePicker(true);
+                    setShowUcMenu(false);
+                  }}
+                  className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                    parentUCs.length === 0
+                      ? 'text-muted cursor-not-allowed bg-slate-50'
+                      : 'text-text hover:bg-slate-50'
+                  }`}
+                  title={parentUCs.length === 0 ? 'Create parent UCs first' : 'Create an instance from a parent UC'}
+                >
+                  <GitFork size={12} className="inline mr-2" />
+                  Add as Instance
+                </button>
               </div>
             )}
           </div>
@@ -1819,23 +1850,39 @@ export default function B5Page() {
                 return (
                   <tr
                     key={uc._id}
-                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''} ${(uc as any).isInstance ? 'bg-blue-50' : ''}`}
+                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''} ${
+                      (uc as any).isInstance ? 'bg-blue-50 border-l-4 border-l-blue-400' : ''
+                    }`}
                   >
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        {(uc as any).isInstance && (
-                          <GitFork size={12} className="text-blue-aria flex-shrink-0" aria-label="Instance of parent UC" />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          {(uc as any).isInstance && (
+                            <GitFork size={13} className="text-blue-500 flex-shrink-0" />
+                          )}
+                          <button
+                            onClick={() => {
+                              setEditUC(uc);
+                              setInitialDesc('');
+                              setSlideOver(true);
+                            }}
+                            className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
+                          >
+                            <span className={`${(uc as any).isInstance ? 'font-semibold' : ''}`}>
+                              {uc.cuId}
+                            </span>
+                          </button>
+                        </div>
+                        {(uc as any).isInstance && (uc as any).parentUCId && (
+                          <div className="text-xs text-blue-500 mt-0.5 flex items-center gap-1">
+                            Instance of{' '}
+                            <span className="font-mono text-[10px] bg-blue-100 px-1.5 py-0.5 rounded">
+                              {typeof (uc as any).parentUCId === 'object'
+                                ? (uc as any).parentUCId.cuId
+                                : (uc as any).parentUCId}
+                            </span>
+                          </div>
                         )}
-                        <button
-                          onClick={() => {
-                            setEditUC(uc);
-                            setInitialDesc('');
-                            setSlideOver(true);
-                          }}
-                          className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
-                        >
-                          {uc.cuId}
-                        </button>
                       </div>
                     </td>
                     <td className="px-3 py-3">

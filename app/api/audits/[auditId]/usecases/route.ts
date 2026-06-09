@@ -57,6 +57,7 @@ export async function GET(
 
     const useCases = await UseCase.find(query)
       .populate('processId', 'procId name b1 b3')
+      .populate('parentUCId', 'cuId')
       .lean();
 
     return NextResponse.json(useCases);
