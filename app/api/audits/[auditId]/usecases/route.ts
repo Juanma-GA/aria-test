@@ -48,10 +48,12 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
     const showArchived = searchParams.get('archived') === 'true';
+    const isInstanceParam = searchParams.get('isInstance');
 
     const query: Record<string, any> = { auditId };
     if (processId) query.processId = processId;
     query.isArchived = showArchived ? true : { $ne: true };
+    if (isInstanceParam !== null) query.isInstance = isInstanceParam === 'true';
 
     const useCases = await UseCase.find(query)
       .populate('processId', 'procId name b1 b3')
