@@ -71,6 +71,7 @@ const EDITABLE_FIELDS = [
   'timeSavedPerProfile', 'estimatedDevCostEur', 'devCostExplanation', 'devRateEur', 'estimatedImplWeeks',
   'reviewDate', 'notes',
   'computeBreakdown', 'sovereigntyAnalysis', 'isArchived', 'requiredPreconditions', 'score', 'nDevs',
+  'parentUCId', 'isInstance', 'additionalDevCostEur',
 ] as const;
 
 export async function PATCH(
@@ -99,6 +100,23 @@ export async function PATCH(
         { error: 'Use case not found' },
         { status: 404 },
       );
+    }
+
+    // Instance validation: prevent creating instances of instances
+    if (body.isInstance === true && body.parentUCId) {
+      const parent = await UseCase.findById(body.parentUCId).lean() as any;
+      if (!parent) {
+        return NextResponse.json(
+          { error: 'Parent use case not found' },
+          { status: 400 },
+        );
+      }
+      if (parent.isInstance === true) {
+        return NextResponse.json(
+          { error: 'Cannot create instance of an instance. Parent must be an original use case.' },
+          { status: 400 },
+        );
+      }
     }
 
     // Build $set from allowed fields only — avoids Mongoose errors on immutable fields (_id, etc.)

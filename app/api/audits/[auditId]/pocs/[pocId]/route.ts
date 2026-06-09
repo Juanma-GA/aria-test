@@ -20,7 +20,8 @@ export async function GET(
     if (!isAccessGranted(access)) return access;
 
     const poc = await POC.findOne({ auditId, _id: pocId })
-      .populate('useCaseId', 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur')
+      .populate('useCaseIds', 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur')
+      .populate('useCaseId', 'cuId description')
       .populate('processId', 'procId name b1 b3')
       .lean();
     if (!poc) {
@@ -149,8 +150,12 @@ export async function DELETE(
     await poc.deleteOne();
 
     // Revert UC to 'eligible' if no other POCs remain
+    // Check both old useCaseId and new useCaseIds fields for backward compat
     const remainingPocs = await POC.countDocuments({
-      useCaseId: (poc as any).useCaseId,
+      $or: [
+        { useCaseIds: { $in: [(poc as any).useCaseId] } },
+        { useCaseId: (poc as any).useCaseId }
+      ],
       _id: { $ne: poc._id }
     });
     if (remainingPocs === 0) {

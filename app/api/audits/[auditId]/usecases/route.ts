@@ -86,6 +86,29 @@ export async function POST(
       });
     }
 
+    // Instance validation: if creating an instance, parent must exist and not be an instance
+    if (body.isInstance === true) {
+      if (!body.parentUCId) {
+        return NextResponse.json(
+          { error: 'isInstance requires parentUCId' },
+          { status: 400 },
+        );
+      }
+      const parent = await UseCase.findById(body.parentUCId).lean() as any;
+      if (!parent) {
+        return NextResponse.json(
+          { error: 'Parent use case not found' },
+          { status: 400 },
+        );
+      }
+      if (parent.isInstance === true) {
+        return NextResponse.json(
+          { error: 'Cannot create instance of an instance. Parent must be an original use case.' },
+          { status: 400 },
+        );
+      }
+    }
+
     // Auto-generate cuId unique per process, compound with procId
     const proc = body.processId
       ? ((await Process.findById(body.processId)
@@ -141,6 +164,9 @@ export async function POST(
       status,
       notes: body.notes || '',
       requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
+      parentUCId: body.parentUCId || null,
+      isInstance: body.isInstance ?? false,
+      additionalDevCostEur: body.additionalDevCostEur ?? 0,
     };
 
     // Carry the calculator state from the create payload, recomputing the

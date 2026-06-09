@@ -27,6 +27,7 @@ export async function GET(
 
     const pocs = await POC.find(query)
       .populate('processId', 'procId name')
+      .populate('useCaseIds', 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur')
       .populate('useCaseId', 'cuId description')
       .lean();
 
@@ -94,7 +95,11 @@ export async function POST(
     }
 
     // Determine sequence number for this use case's POCs
-    const existingCount = await POC.countDocuments({ auditId, useCaseId });
+    // Count both old useCaseId and new useCaseIds fields for backward compat
+    const existingCount = await POC.countDocuments({
+      auditId,
+      $or: [{ useCaseIds: useCaseId }, { useCaseId }],
+    });
     const sequence = String(existingCount + 1).padStart(2, '0');
     const pocId = `POC-${cuId}-${sequence}`;
 
@@ -151,6 +156,7 @@ export async function POST(
 
     const poc = await POC.create({
       auditId,
+      useCaseIds: [useCaseId],
       useCaseId,
       processId,
       pocId,
