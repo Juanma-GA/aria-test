@@ -251,6 +251,8 @@ function SlideOver({
   const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
+  const isFirstDeriveRun = useRef(true);
+  const savedHoursRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     // Compute D5 autofill from B2 axes
@@ -302,8 +304,14 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
+      savedHoursRef.current = Object.fromEntries(
+        (editUC.timeSavedPerProfile ?? []).map(e => [e.profileId, e.hoursPerExecution])
+      );
+      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
+
       setForm(newForm);
       setOriginalForm(newForm);
+      isFirstDeriveRun.current = true;
       if (editUC.score?.dimensions) {
         const existingDims = editUC.score.dimensions as any;
         // Re-autofill D5 unless manually edited
@@ -327,6 +335,9 @@ function SlideOver({
       (base as any).requiredPreconditions = { requiresClientIT: requiresClientITAuto, text: '' };
       (base as any).sovereigntyAnalysis = '';
       (base as any).computeBreakdown = { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '', annualReps };
+      savedHoursRef.current = {};
+      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
+
       setForm(base as any);
       setOriginalForm(base as any);
       const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
@@ -342,7 +353,21 @@ function SlideOver({
 
   // Auto-derive timeSavedPerProfile from targetActivities changes
   useEffect(() => {
+    console.log('[Derive] run start', {
+      activitiesLen: activities?.length,
+      isFirstDeriveRun: isFirstDeriveRun.current,
+      savedHoursRef: savedHoursRef.current,
+      formHours: form.timeSavedPerProfile?.map(e => ({
+        profileId: e.profileId,
+        hoursPerExecution: e.hoursPerExecution
+      }))
+    });
     if (!activities?.length) return;
+    if (isFirstDeriveRun.current) {
+      isFirstDeriveRun.current = false;
+      return;
+    }
+
     if (!form.targetActivities?.length) {
       set('timeSavedPerProfile', []);
       return;
@@ -370,14 +395,21 @@ function SlideOver({
       const existing = form.timeSavedPerProfile?.find(
         e => e.profileId === derived.profileId
       );
-      return existing ?? derived;
+      return {
+        ...derived,
+        hoursPerExecution: existing?.hoursPerExecution
+          ?? savedHoursRef.current[derived.profileId]
+          ?? 0,
+      };
     });
 
     // Only update if profiles actually changed (prevent infinite loop)
     const currentIds = (form.timeSavedPerProfile ?? []).map(e => e.profileId).sort().join(',');
     const mergedIds = merged.map(e => e.profileId).sort().join(',');
     if (currentIds !== mergedIds) {
+      console.log('[Derive] merged result:', merged);
       set('timeSavedPerProfile', merged);
+      savedHoursRef.current = {};
     }
   }, [form.targetActivities, activities]);
 
