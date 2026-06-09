@@ -2,15 +2,48 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Plus, X, Pencil, Trash2, CheckCircle2, ArrowLeft, AlertTriangle, FlaskConical, TrendingUp, Bot, RefreshCw, Sparkles, Archive, ArchiveRestore } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  ArrowLeft,
+  AlertTriangle,
+  FlaskConical,
+  TrendingUp,
+  Bot,
+  RefreshCw,
+  Sparkles,
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+  Lock,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
-import type { UseCase, AIType, ProcessActivity, TimeSavedEntry, ScoreValue, ProfileEntry, ComputeBreakdown } from '@/lib/types';
+import type {
+  UseCase,
+  AIType,
+  ProcessActivity,
+  TimeSavedEntry,
+  ScoreValue,
+  ProfileEntry,
+  ComputeBreakdown,
+} from '@/lib/types';
+import { apiUrl } from '@/lib/utils';
 import { AI_TYPE_LABELS } from '@/lib/types';
-import { calculateSovereigntyIndex, calculateScore, computeAnnualCompute } from '@/lib/calculations';
-import { ComputeCalculator, DEFAULT_COMPUTE_BREAKDOWN } from '@/components/cost/ComputeCalculator';
+import {
+  calculateSovereigntyIndex,
+  calculateScore,
+  computeAnnualCompute,
+} from '@/lib/calculations';
+import {
+  ComputeCalculator,
+  DEFAULT_COMPUTE_BREAKDOWN,
+} from '@/components/cost/ComputeCalculator';
 import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 
 const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'green' | 'slate'> = {
@@ -20,25 +53,63 @@ const AI_TYPE_COLORS: Record<AIType, 'purple' | 'blue' | 'teal' | 'amber' | 'gre
   agentic_ai_workflow: 'purple', mcp_client: 'teal', mcp_server: 'teal',
   function_tool: 'slate', chatbot: 'blue', multimodal_vlm: 'purple', other: 'slate',
 };
-const STATUS_VARIANTS: Record<string, 'green' | 'red' | 'amber' | 'slate'> = {
-  eligible: 'green', blocked: 'red', pending_review: 'amber',
+const STATUS_VARIANTS: Record<string, 'green' | 'blue' | 'slate'> = {
+  eligible: 'green',
+  in_poc: 'blue',
+  discarded: 'slate',
 };
 
-const DIMENSIONS: { key: string; label: string; hint: string; scale: string }[] = [
-  { key: 'd1_efficiencyImpact', label: 'D1 Efficiency', hint: 'How much does AI improve speed or reduce manual effort?', scale: '1 = <10% saving · 3 = 20–35% · 5 = >50%' },
-  { key: 'd2_qualityImpact', label: 'D2 Quality', hint: 'Does AI reduce errors or improve output quality?', scale: '1 = Marginal · 3 = Reduces rework significantly · 5 = Full consistency guaranteed' },
-  { key: 'd3_techMaturity', label: 'D3 Tech Maturity', hint: 'How mature is the AI technology for this use case?', scale: '1 = Experimental · 3 = Pilot · 5 = Market standard' },
-  { key: 'd4_dataReadiness', label: 'D4 Data Readiness', hint: 'Is the data available, clean, and accessible?', scale: "1 = Doesn't exist · 3 = Available with effort · 5 = Structured & clean" },
-  { key: 'd5_sovereigntyIndex', label: 'D5 Sovereignty', hint: 'Compliance with sovereignty constraints (auto-filled from B2)', scale: '1 = Critical · 2 = Restricted · 3 = Conditioned · 4 = Managed · 5 = Full Autonomy' },
+const DIMENSIONS: {
+  key: string;
+  label: string;
+  hint: string;
+  scale: string;
+}[] = [
+  {
+    key: 'd1_efficiencyImpact',
+    label: 'D1 Efficiency',
+    hint: 'How much does AI improve speed or reduce manual effort?',
+    scale: '1 = <10% saving · 3 = 20–35% · 5 = >50%',
+  },
+  {
+    key: 'd2_qualityImpact',
+    label: 'D2 Quality',
+    hint: 'Does AI reduce errors or improve output quality?',
+    scale:
+      '1 = Marginal · 3 = Reduces rework significantly · 5 = Full consistency guaranteed',
+  },
+  {
+    key: 'd3_techMaturity',
+    label: 'D3 Tech Maturity',
+    hint: 'How mature is the AI technology for this use case?',
+    scale: '1 = Experimental · 3 = Pilot · 5 = Market standard',
+  },
+  {
+    key: 'd4_dataReadiness',
+    label: 'D4 Data Readiness',
+    hint: 'Is the data available, clean, and accessible?',
+    scale:
+      "1 = Doesn't exist · 3 = Available with effort · 5 = Structured & clean",
+  },
+  {
+    key: 'd5_sovereigntyIndex',
+    label: 'D5 Sovereignty',
+    hint: 'Compliance with sovereignty constraints (auto-filled from B2)',
+    scale:
+      '1 = Critical · 2 = Restricted · 3 = Conditioned · 4 = Managed · 5 = Full Autonomy',
+  },
 ];
 
 const SUGGEST_USECASES_STEPS = [
   { text: 'Analyzing process context...', startPercent: 0, endPercent: 20 },
   { text: 'Loading knowledge base...', startPercent: 20, endPercent: 40 },
-  { text: 'Generating use case proposals...', startPercent: 40, endPercent: 90 },
+  {
+    text: 'Generating use case proposals...',
+    startPercent: 40,
+    endPercent: 90,
+  },
   { text: 'Finalizing suggestions...', startPercent: 90, endPercent: 100 },
 ];
-
 
 function emptyScore() {
   const dim = { value: 3 as ScoreValue, justification: '' };
@@ -53,7 +124,11 @@ function emptyScore() {
 
 function sovereigntyLevelToD5(level: string): ScoreValue {
   const map: Record<string, ScoreValue> = {
-    full_autonomy: 5, managed: 4, conditioned: 3, restricted: 2, critical: 1,
+    full_autonomy: 5,
+    managed: 4,
+    conditioned: 3,
+    restricted: 2,
+    critical: 1,
   };
   return map[level] ?? 3;
 }
@@ -78,7 +153,11 @@ function d1FromPct(pct: number): ScoreValue {
   return 5;
 }
 
-function emptyForm(processId: string): Partial<UseCase> & { aiTypes: AIType[]; timeSavedPerProfile: TimeSavedEntry[]; targetActivities: string[] } {
+function emptyForm(processId: string): Partial<UseCase> & {
+  aiTypes: AIType[];
+  timeSavedPerProfile: TimeSavedEntry[];
+  targetActivities: string[];
+} {
   return {
     description: '',
     aiTypes: ['generative_llm'],
@@ -90,6 +169,7 @@ function emptyForm(processId: string): Partial<UseCase> & { aiTypes: AIType[]; t
     devRateEur: 450,
     nDevs: 1,
     estimatedImplWeeks: 0,
+    additionalDevCostEur: 0,
     requiredPreconditions: { requiresClientIT: false, text: '' },
     computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
     processId,
@@ -125,7 +205,21 @@ function computeRoi(
 }
 
 function SlideOver({
-  open, onClose, processId, auditId, activities, b1Profiles, annualReps, editUC, onSaved, initialDesc, b2Axes,
+  open,
+  onClose,
+  processId,
+  auditId,
+  activities,
+  b1Profiles,
+  annualReps,
+  editUC,
+  onSaved,
+  initialDesc,
+  b2Axes,
+  showCalculateDialog,
+  setShowCalculateDialog,
+  instanceMode = false,
+  selectedParentUC = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -138,8 +232,17 @@ function SlideOver({
   onSaved: (uc: UseCase, blocked: boolean) => void;
   initialDesc?: string;
   b2Axes?: Record<string, any>;
+  showCalculateDialog: boolean;
+  setShowCalculateDialog: (open: boolean) => void;
+  instanceMode?: boolean;
+  selectedParentUC?: UseCase | null;
 }) {
-  type FormType = Partial<UseCase> & { aiTypes: AIType[]; timeSavedPerProfile: TimeSavedEntry[]; targetActivities: string[]; sovereigntyAnalysis?: string };
+  type FormType = Partial<UseCase> & {
+    aiTypes: AIType[];
+    timeSavedPerProfile: TimeSavedEntry[];
+    targetActivities: string[];
+    sovereigntyAnalysis?: string;
+  };
   const [form, setForm] = useState<FormType>(emptyForm(processId));
   const [originalForm, setOriginalForm] = useState<FormType>(emptyForm(processId));
   const [dims, setDims] = useState(emptyScore());
@@ -155,6 +258,8 @@ function SlideOver({
   const [phase1ChangeDetected, setPhase1ChangeDetected] = useState(false);
   const d1ManualRef = useRef(false);
   const d5ManualRef = useRef(false);
+  const isFirstDeriveRun = useRef(true);
+  const savedHoursRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     // Compute D5 autofill from B2 axes
@@ -163,14 +268,18 @@ function SlideOver({
     let requiresClientITAuto = false;
     if (b2Axes && Object.keys(b2Axes).length > 0) {
       try {
-        const sovResult = calculateSovereigntyIndex(b2Axes);
+        const sovResult = calculateSovereigntyIndex(b2Axes as any);
         d5AutoValue = sovereigntyLevelToD5(sovResult.level);
         const LEVEL_LABELS: Record<string, string> = {
-          full_autonomy: 'Full Autonomy', managed: 'Managed', conditioned: 'Conditioned',
-          restricted: 'Restricted', critical: 'Critical',
+          full_autonomy: 'Full Autonomy',
+          managed: 'Managed',
+          conditioned: 'Conditioned',
+          restricted: 'Restricted',
+          critical: 'Critical',
         };
         d5AutoJustification = `Auto from B2: ${LEVEL_LABELS[sovResult.level] ?? sovResult.level} (index ${sovResult.index.toFixed(2)}/5)`;
-        requiresClientITAuto = sovResult.level === 'restricted' || sovResult.level === 'critical';
+        requiresClientITAuto =
+          sovResult.level === 'restricted' || sovResult.level === 'critical';
       } catch {}
     }
 
@@ -180,7 +289,9 @@ function SlideOver({
       const preconditionsText = (editUC as any).requiredPreconditions?.text || (editUC as any).notes || (editUC as any).sovereigntyAnalysis || '';
       const newForm = {
         ...editUC,
-        aiTypes: editUC.aiTypes?.length ? editUC.aiTypes : [(editUC as any).aiType ?? 'generative_llm'],
+        aiTypes: editUC.aiTypes?.length
+          ? editUC.aiTypes
+          : [(editUC as any).aiType ?? 'generative_llm'],
         timeSavedPerProfile: editUC.timeSavedPerProfile ?? [],
         targetActivities: editUC.targetActivities?.length
           ? editUC.targetActivities
@@ -200,8 +311,14 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
+      savedHoursRef.current = Object.fromEntries(
+        (editUC.timeSavedPerProfile ?? []).map(e => [e.profileId, e.hoursPerExecution])
+      );
+      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
+
       setForm(newForm);
       setOriginalForm(newForm);
+      isFirstDeriveRun.current = true;
       if (editUC.score?.dimensions) {
         const existingDims = editUC.score.dimensions as any;
         // Re-autofill D5 unless manually edited
@@ -218,6 +335,22 @@ function SlideOver({
         setDims(newDims);
         setOriginalDims(newDims);
       }
+    } else if (instanceMode && selectedParentUC) {
+      const base = { ...selectedParentUC } as any;
+      base.parentUCId = selectedParentUC._id;
+      base.isInstance = true;
+      base.additionalDevCostEur = 0;
+      base.timeSavedPerProfile = [];
+      delete base._id;
+      delete base.cuId;
+      savedHoursRef.current = {};
+
+      setForm(base);
+      setOriginalForm(base);
+      // Use parent's dimensions
+      const parentDims = selectedParentUC.score?.dimensions ?? emptyScore();
+      setDims(parentDims as any);
+      setOriginalDims(parentDims as any);
     } else {
       const base = emptyForm(processId);
       if (initialDesc) base.description = initialDesc;
@@ -225,6 +358,9 @@ function SlideOver({
       (base as any).requiredPreconditions = { requiresClientIT: requiresClientITAuto, text: '' };
       (base as any).sovereigntyAnalysis = '';
       (base as any).computeBreakdown = { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '', annualReps };
+      savedHoursRef.current = {};
+      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
+
       setForm(base as any);
       setOriginalForm(base as any);
       const newDims = { ...emptyScore(), d5_sovereigntyIndex: { value: d5AutoValue, justification: d5AutoJustification, autoFilled: true } };
@@ -236,10 +372,25 @@ function SlideOver({
     setError('');
     setComputeRationale('');
     setIsPhase2Visible(false);
-  }, [editUC, processId, open, initialDesc, b2Axes]);
+  }, [editUC, processId, open, initialDesc, b2Axes, instanceMode, selectedParentUC]);
 
   // Auto-derive timeSavedPerProfile from targetActivities changes
   useEffect(() => {
+    console.log('[Derive] run start', {
+      activitiesLen: activities?.length,
+      isFirstDeriveRun: isFirstDeriveRun.current,
+      savedHoursRef: savedHoursRef.current,
+      formHours: form.timeSavedPerProfile?.map(e => ({
+        profileId: e.profileId,
+        hoursPerExecution: e.hoursPerExecution
+      }))
+    });
+    if (!activities?.length) return;
+    if (isFirstDeriveRun.current) {
+      isFirstDeriveRun.current = false;
+      return;
+    }
+
     if (!form.targetActivities?.length) {
       set('timeSavedPerProfile', []);
       return;
@@ -267,14 +418,21 @@ function SlideOver({
       const existing = form.timeSavedPerProfile?.find(
         e => e.profileId === derived.profileId
       );
-      return existing ?? derived;
+      return {
+        ...derived,
+        hoursPerExecution: existing?.hoursPerExecution
+          ?? savedHoursRef.current[derived.profileId]
+          ?? 0,
+      };
     });
 
     // Only update if profiles actually changed (prevent infinite loop)
     const currentIds = (form.timeSavedPerProfile ?? []).map(e => e.profileId).sort().join(',');
     const mergedIds = merged.map(e => e.profileId).sort().join(',');
     if (currentIds !== mergedIds) {
+      console.log('[Derive] merged result:', merged);
       set('timeSavedPerProfile', merged);
+      savedHoursRef.current = {};
     }
   }, [form.targetActivities, activities]);
 
@@ -282,30 +440,41 @@ function SlideOver({
 
   const toggleAiType = (t: AIType) => {
     const current = form.aiTypes ?? [];
-    const next = current.includes(t) ? current.filter(x => x !== t) : [...current, t];
+    const next = current.includes(t)
+      ? current.filter((x) => x !== t)
+      : [...current, t];
     if (next.length > 0) set('aiTypes', next);
   };
 
   const toggleActivity = (id: string) => {
     const current = form.targetActivities ?? [];
-    const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id];
+    const next = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id];
     set('targetActivities', next);
   };
 
   const addTimeSaved = () => {
     const firstProfile = b1Profiles[0];
-    set('timeSavedPerProfile', [...(form.timeSavedPerProfile ?? []), {
-      profileId: firstProfile?.id ?? crypto.randomUUID(),
-      role: firstProfile?.role ?? '',
-      hoursPerExecution: 0,
-    }]);
+    set('timeSavedPerProfile', [
+      ...(form.timeSavedPerProfile ?? []),
+      {
+        profileId: firstProfile?.id ?? crypto.randomUUID(),
+        role: firstProfile?.role ?? '',
+        hoursPerExecution: 0,
+      },
+    ]);
   };
 
-  const updateTimeSaved = (i: number, field: string, value: string | number) => {
+  const updateTimeSaved = (
+    i: number,
+    field: string,
+    value: string | number,
+  ) => {
     const next = (form.timeSavedPerProfile ?? []).map((e, idx) => {
       if (idx !== i) return e;
       if (field === 'profileId') {
-        const prof = b1Profiles.find(p => p.id === value);
+        const prof = b1Profiles.find((p) => p.id === value);
         return { ...e, profileId: value as string, role: prof?.role ?? e.role };
       }
       return { ...e, [field]: value };
@@ -314,19 +483,31 @@ function SlideOver({
   };
 
   const removeTimeSaved = (i: number) =>
-    set('timeSavedPerProfile', (form.timeSavedPerProfile ?? []).filter((_, idx) => idx !== i));
+    set(
+      'timeSavedPerProfile',
+      (form.timeSavedPerProfile ?? []).filter((_, idx) => idx !== i),
+    );
 
-  const updateDim = (key: string, field: 'value' | 'justification', value: string | number) => {
-    if (key === 'd1_efficiencyImpact' && field === 'value') d1ManualRef.current = true;
-    if (key === 'd5_sovereigntyIndex' && field === 'value') d5ManualRef.current = true;
-    setDims(d => ({ ...d, [key]: { ...d[key as keyof typeof d], [field]: value, autoFilled: false } }));
+  const updateDim = (
+    key: string,
+    field: 'value' | 'justification',
+    value: string | number,
+  ) => {
+    if (key === 'd1_efficiencyImpact' && field === 'value')
+      d1ManualRef.current = true;
+    if (key === 'd5_sovereigntyIndex' && field === 'value')
+      d5ManualRef.current = true;
+    setDims((d) => ({
+      ...d,
+      [key]: { ...d[key as keyof typeof d], [field]: value, autoFilled: false },
+    }));
   };
 
   const total = scoreTotal(dims);
   const cat = scoreCategory(total);
 
   const targetActivityHours = activities
-    .filter(a => (form.targetActivities ?? []).includes(a.id))
+    .filter((a) => (form.targetActivities ?? []).includes(a.id))
     .reduce((s, a) => s + (a.estimatedTimeHours ?? 0), 0);
 
   const roi = computeRoi(
@@ -344,9 +525,13 @@ function SlideOver({
     if (roi?.savingPct === null || roi?.savingPct === undefined) return;
     const autoVal = d1FromPct(roi.savingPct);
     const autoJustification = `Auto: ${roi.savingPct}% of targeted activity time saved (${roi.totalHours}h/run × ${annualReps} runs/yr)`;
-    setDims(d => ({
+    setDims((d) => ({
       ...d,
-      d1_efficiencyImpact: { value: autoVal, justification: autoJustification, autoFilled: true },
+      d1_efficiencyImpact: {
+        value: autoVal,
+        justification: autoJustification,
+        autoFilled: true,
+      },
     }));
   }, [roi?.savingPct, roi?.totalHours, annualReps]);
 
@@ -371,11 +556,14 @@ function SlideOver({
   const handleSave_Phase1 = async () => {
     if (!form.description?.trim()) { setError('Description is required.'); return; }
     if (!form.aiTypes?.length) { setError('Select at least one AI type.'); return; }
+    if (instanceMode && !selectedParentUC?._id) { setError('Parent use case not selected'); return; }
     setSaving(true);
     try {
-      const url = editUC ? `/api/audits/${auditId}/usecases/${editUC._id}` : `/api/audits/${auditId}/usecases`;
+      const url = editUC
+        ? `/api/audits/${auditId}/usecases/${editUC._id}`
+        : `/api/audits/${auditId}/usecases`;
       const method = editUC ? 'PATCH' : 'POST';
-      const bodyData = {
+      const bodyData: any = {
         ...form,
         processId,
         targetActivities: form.targetActivities ?? [],
@@ -386,6 +574,10 @@ function SlideOver({
           scoredAt: new Date().toISOString(),
         },
       };
+      if (instanceMode && !editUC && selectedParentUC?._id) {
+        bodyData.parentUCId = selectedParentUC._id;
+        bodyData.isInstance = true;
+      }
 
       let bodyStr = '';
       try {
@@ -395,7 +587,7 @@ function SlideOver({
         throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
       }
 
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl(url), {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: bodyStr,
@@ -419,82 +611,89 @@ function SlideOver({
       setError('');
       setPhase1ChangeDetected(false);
 
-      // Recalculate Phase 2 with LLM
-      setIsRecalculating(true);
-      try {
-        const recalcRes = await fetch(
-          `/api/audits/${auditId}/usecases/${data._id}/ai/recalculate`,
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              description: data.description,
-              aiTypes: data.aiTypes,
-              targetActivities: data.targetActivities,
-              requiredPreconditions: data.requiredPreconditions,
-              devRateEur: form.devRateEur ?? data.devRateEur ?? 450,
-              estimatedImplWeeks: form.estimatedImplWeeks ?? data.estimatedImplWeeks ?? 0,
-              nDevs: form.nDevs ?? data.nDevs ?? 1,
-              score: { dimensions: dims },
-            }),
-          }
-        );
-
-        if (!recalcRes.ok) {
-          throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
-        }
-
-        const result = await recalcRes.json();
-
-        // Map roles to profileIds and consolidate duplicates (same logic as import handler)
-        const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
-          const matched = b1Profiles.find(
-            p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
-          );
-          return {
-            profileId: matched?.id ?? crypto.randomUUID(),
-            role: matched?.role ?? entry.role ?? '',
-            hoursPerExecution: entry.hoursPerExecution ?? 0,
-          };
-        });
-
-        const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
-          const existing = acc.find(e => e.profileId === entry.profileId);
-          if (existing) {
-            existing.hoursPerExecution += entry.hoursPerExecution;
-          } else {
-            acc.push({ ...entry });
-          }
-          return acc;
-        }, [] as typeof mapped);
-
-        // Update form with recalculated Phase 2 values
-        setForm(f => ({
-          ...f,
-          timeSavedPerProfile: consolidated,
-          estimatedDevCostEur: result.estimatedDevCostEur ?? 0,
-          estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
-          devCostExplanation: result.devCostExplanation ?? '',
-        }));
-
-        setIsPhase2Visible(true);
-      } catch (recalcErr) {
-        setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
-        setIsPhase2Visible(true);
-      } finally {
-        setIsRecalculating(false);
-      }
+      // Show confirmation dialog to recalculate Phase 2
+      setShowCalculateDialog(true);
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
     finally { setSaving(false); }
+  };
+
+  const handleRecalculate = async () => {
+    if (!form._id) return;
+    setIsRecalculating(true);
+    try {
+      const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${form._id}/ai/recalculate`),
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: form.description,
+            aiTypes: form.aiTypes,
+            targetActivities: form.targetActivities,
+            requiredPreconditions: form.requiredPreconditions,
+            devRateEur: form.devRateEur ?? 450,
+            estimatedImplWeeks: form.estimatedImplWeeks ?? 0,
+            nDevs: form.nDevs ?? 1,
+            score: { dimensions: dims },
+          }),
+        }
+      );
+
+      if (!recalcRes.ok) {
+        throw new Error((await recalcRes.json())?.error ?? 'Recalculation failed');
+      }
+
+      const result = await recalcRes.json();
+
+      // Map roles to profileIds and consolidate duplicates
+      const mapped = (result.timeSavedPerProfile ?? []).map((entry: any) => {
+        const matched = b1Profiles.find(
+          p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
+        );
+        return {
+          profileId: matched?.id ?? crypto.randomUUID(),
+          role: matched?.role ?? entry.role ?? '',
+          hoursPerExecution: entry.hoursPerExecution ?? 0,
+        };
+      });
+
+      const consolidated = mapped.reduce((acc: typeof mapped, entry: typeof mapped[number]) => {
+        const existing = acc.find((e: typeof mapped[number]) => e.profileId === entry.profileId);
+        if (existing) {
+          existing.hoursPerExecution += entry.hoursPerExecution;
+        } else {
+          acc.push({ ...entry });
+        }
+        return acc;
+      }, [] as typeof mapped);
+
+      // Compute Dev Cost deterministically (weeks × 5 × devRateEur × nDevs)
+      const devCost = (result.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+
+      // Update form with recalculated Phase 2 values
+      setForm(f => ({
+        ...f,
+        timeSavedPerProfile: consolidated,
+        estimatedDevCostEur: devCost,
+        estimatedImplWeeks: result.estimatedImplWeeks ?? 0,
+        devCostExplanation: result.devCostExplanation ?? '',
+      }));
+
+      setIsPhase2Visible(true);
+    } catch (recalcErr) {
+      setError((recalcErr instanceof Error ? recalcErr.message : 'Phase 2 recalculation failed. You can fill it manually.'));
+      setIsPhase2Visible(true);
+    } finally {
+      setIsRecalculating(false);
+      setShowCalculateDialog(false);
+    }
   };
 
   const handleRecalculateOnly = async () => {
     if (!editUC?._id) return;
     setIsRecalculating(true);
     try {
-      const recalcRes = await fetch(
-        `/api/audits/${auditId}/usecases/${editUC._id}/ai/recalculate`,
+      const recalcRes = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${editUC._id}/ai/recalculate`),
         {
           method: 'POST',
           credentials: 'include',
@@ -513,9 +712,12 @@ function SlideOver({
       if (!recalcRes.ok) throw new Error('Recalculation failed');
       const result = await recalcRes.json();
 
+      // Compute Dev Cost deterministically (weeks × 5 × devRateEur × nDevs)
+      const devCost = (result.estimatedImplWeeks ?? 0) * 5 * (form.devRateEur ?? 450) * (form.nDevs ?? 1);
+
       setForm(f => ({
         ...f,
-        estimatedDevCostEur: result.estimatedDevCostEur ?? f.estimatedDevCostEur,
+        estimatedDevCostEur: devCost,
         estimatedImplWeeks: result.estimatedImplWeeks ?? f.estimatedImplWeeks,
         devCostExplanation: result.devCostExplanation ?? f.devCostExplanation,
       }));
@@ -555,7 +757,7 @@ function SlideOver({
         throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
       }
 
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl(url), {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: bodyStr,
@@ -572,10 +774,13 @@ function SlideOver({
 
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
-      onSaved(data, data.status === 'blocked' && !editUC);
+      onSaved(data, false);
       onClose();
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Save failed'); }
-    finally { setSaving(false); }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!open) return null;
@@ -585,34 +790,65 @@ function SlideOver({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-3xl bg-white shadow-xl flex flex-col max-h-[90vh] rounded-sm">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold text-base">{editUC ? 'Edit Use Case' : 'Add Use Case'}</h2>
-          <button onClick={onClose} className="text-muted hover:text-text"><X size={18} /></button>
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-base">
+              {editUC ? 'Edit Use Case' : instanceMode ? 'Create Instance' : 'Add Use Case'}
+            </h2>
+            {instanceMode && selectedParentUC && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-aria font-medium">
+                {selectedParentUC.cuId}
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} className="text-muted hover:text-text">
+            <X size={18} />
+          </button>
         </div>
 
         <div className="flex-1 p-5 space-y-5 overflow-y-auto">
-          {error && <div className="text-xs text-red-sov bg-red-sov-light rounded p-2">{error}</div>}
+          {error && (
+            <div className="text-xs text-red-sov bg-red-sov-light rounded p-2">
+              {error}
+            </div>
+          )}
 
           {/* === PHASE 1: AI Strategy & Sovereignty === */}
 
           {/* Description */}
-          <div>
-            <label className="form-label">Description <span className="text-red-sov">*</span></label>
-            <textarea rows={3} className="form-textarea" placeholder="Describe the AI opportunity…"
-              value={form.description || ''} onChange={e => set('description', e.target.value)} />
+          <div className={instanceMode ? 'opacity-50 pointer-events-none' : ''}>
+            <label className="form-label flex items-center gap-1">
+              Description <span className="text-red-sov">*</span>
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+            </label>
+            <textarea
+              rows={3}
+              className="form-textarea"
+              placeholder="Describe the AI opportunity…"
+              value={form.description || ''}
+              onChange={(e) => set('description', e.target.value)}
+            />
           </div>
 
           {/* AI Types — multi-select chips */}
-          <div>
-            <label className="form-label">AI Types <span className="text-red-sov">*</span></label>
+          <div className={instanceMode ? 'opacity-50 pointer-events-none' : ''}>
+            <label className="form-label flex items-center gap-1">
+              AI Types <span className="text-red-sov">*</span>
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+            </label>
             <div className="flex flex-wrap gap-2 mt-1">
-              {(Object.keys(AI_TYPE_LABELS) as AIType[]).map(t => {
+              {(Object.keys(AI_TYPE_LABELS) as AIType[]).map((t) => {
                 const active = (form.aiTypes ?? []).includes(t);
                 return (
-                  <button key={t} onClick={() => toggleAiType(t)}
+                  <button
+                    key={t}
+                    onClick={() => toggleAiType(t)}
                     title={AI_TYPE_LABELS[t].description}
                     className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                      active ? 'bg-blue-aria text-white border-blue-aria' : 'border-border text-muted hover:border-blue-aria'
-                    }`}>
+                      active
+                        ? 'bg-blue-aria text-white border-blue-aria'
+                        : 'border-border text-muted hover:border-blue-aria'
+                    }`}
+                  >
                     {AI_TYPE_LABELS[t].label}
                   </button>
                 );
@@ -624,18 +860,31 @@ function SlideOver({
           <div>
             <label className="form-label">Target Steps</label>
             {activities.length === 0 ? (
-              <p className="text-xs text-muted italic mt-1">No activities defined in B3 yet.</p>
+              <p className="text-xs text-muted italic mt-1">
+                No activities defined in B3 yet.
+              </p>
             ) : (
               <div className="mt-1 space-y-1 max-h-40 overflow-y-auto border border-border rounded p-2">
-                {activities.map(a => {
+                {activities.map((a) => {
                   const checked = (form.targetActivities ?? []).includes(a.id);
                   return (
-                    <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
-                      <input type="checkbox" checked={checked} onChange={() => toggleActivity(a.id)}
-                        className="accent-blue-aria" />
-                      <span className="text-xs text-text">{a.name || `Activity ${a.order + 1}`}</span>
+                    <label
+                      key={a.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleActivity(a.id)}
+                        className="accent-blue-aria"
+                      />
+                      <span className="text-xs text-text">
+                        {a.name || `Activity ${a.order + 1}`}
+                      </span>
                       {a.estimatedTimeHours > 0 && (
-                        <span className="text-xs text-muted ml-auto">{a.estimatedTimeHours}h/run</span>
+                        <span className="text-xs text-muted ml-auto">
+                          {a.estimatedTimeHours}h/run
+                        </span>
                       )}
                     </label>
                   );
@@ -645,8 +894,11 @@ function SlideOver({
           </div>
 
           {/* Required Preconditions — NEW combined section */}
-          <div className="border-t pt-4 mt-4 space-y-3">
-            <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
+          <div className={`border-t pt-4 mt-4 space-y-3 ${instanceMode ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className="flex items-center gap-1">
+              <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+            </div>
 
             {/* Requires Client IT toggle switch (Yes/No) */}
             <div className="flex items-center gap-3">
@@ -695,22 +947,38 @@ function SlideOver({
           </div>
 
           {/* Scoring B6 (moved to end of Phase 1) */}
-          <div className="border border-border rounded p-4 space-y-3 mt-4">
+          <div className={`border border-border rounded p-4 space-y-3 mt-4 ${instanceMode ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-lg text-text">{total}/25</span>
-                <Badge variant={cat === 'Quick Win' ? 'green' : cat === 'Mid-term' ? 'amber' : 'blue'}>{cat}</Badge>
+              <div className="flex items-center gap-1">
+                <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
+                {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
               </div>
+              <span className="font-mono font-bold text-lg text-text">
+                {total}/25
+              </span>
             </div>
             {DIMENSIONS.map(({ key, label, hint, scale }) => {
               const dim = dims[key as keyof typeof dims];
-              const isAutoFilled = key === 'd1_efficiencyImpact' && (dim as any).autoFilled === true;
+              const isAutoFilled =
+                key === 'd1_efficiencyImpact' &&
+                (dim as any).autoFilled === true;
               return (
-                <div key={key} className={isAutoFilled ? 'bg-green-50 border border-green-200 rounded p-2 -mx-2' : ''}>
+                <div
+                  key={key}
+                  className={
+                    isAutoFilled
+                      ? 'bg-green-50 border border-green-200 rounded p-2 -mx-2'
+                      : ''
+                  }
+                >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-text" title={`${hint}\n\n${scale}`}>{label}</span>
+                      <span
+                        className="text-xs font-medium text-text"
+                        title={`${hint}\n\n${scale}`}
+                      >
+                        {label}
+                      </span>
                       {isAutoFilled && (
                         <span className="text-[9px] font-semibold text-green-700 bg-green-100 border border-green-300 px-1.5 py-0.5 rounded uppercase tracking-wide">
                           Auto
@@ -718,30 +986,43 @@ function SlideOver({
                       )}
                     </div>
                     <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map(v => (
-                        <button key={v} onClick={() => updateDim(key, 'value', v as ScoreValue)}
+                      {[1, 2, 3, 4, 5].map((v) => (
+                        <button
+                          key={v}
+                          onClick={() =>
+                            updateDim(key, 'value', v as ScoreValue)
+                          }
                           title={`${v} — ${scale.split(' · ')[v === 1 ? 0 : v === 3 ? 1 : v === 5 ? 2 : -1] ?? ''}`}
                           className={`w-6 h-6 rounded text-xs font-bold border transition-colors ${
                             dim.value === v
-                              ? isAutoFilled ? 'bg-green-600 text-white border-green-600' : 'bg-blue-aria text-white border-blue-aria'
+                              ? isAutoFilled
+                                ? 'bg-green-600 text-white border-green-600'
+                                : 'bg-blue-aria text-white border-blue-aria'
                               : 'border-border text-muted hover:border-blue-aria'
-                          }`}>
+                          }`}
+                        >
                           {v}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <input className="form-input text-xs" placeholder="Justification…"
-                    value={dim.justification} onChange={e => updateDim(key, 'justification', e.target.value)} />
+                  <input
+                    className="form-input text-xs"
+                    placeholder="Justification…"
+                    value={dim.justification}
+                    onChange={(e) =>
+                      updateDim(key, 'justification', e.target.value)
+                    }
+                  />
                 </div>
               );
             })}
           </div>
 
-          {/* Save & Calculate button (Phase 1 action button) */}
+          {/* Save button (Phase 1 action button) */}
           <div className="flex gap-3">
-            <button onClick={handleSave_Phase1} disabled={isRecalculating} className="btn-primary flex-1">
-              {isRecalculating ? 'Calculating...' : 'Save & Calculate'}
+            <button onClick={handleSave_Phase1} disabled={saving} className="btn-primary flex-1">
+              {saving ? 'Saving...' : 'Save'}
             </button>
           </div>
 
@@ -784,7 +1065,14 @@ function SlideOver({
             </div>
 
             {/* Dev Cost Calculator Box */}
-            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+            <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
+              instanceMode ? 'pointer-events-none opacity-50' : ''
+            }`}>
+              {instanceMode && (
+                <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
+                  <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
+                </div>
+              )}
 
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -873,8 +1161,30 @@ function SlideOver({
 
             </div>
 
+            {/* Additional Dev Cost (Instance mode only) */}
+            {instanceMode && (
+              <div className="border border-amber-200 bg-amber-50 rounded p-4">
+                <label className="form-label">Additional Dev Cost (€)</label>
+                <p className="text-xs text-muted mb-2">One-time additional development cost specific to this instance</p>
+                <input type="number" min={0} className="form-input"
+                  disabled={!isPhase2Visible}
+                  value={form.additionalDevCostEur ?? 0}
+                  onChange={e => {
+                    const newValue = parseFloat(e.target.value) || 0;
+                    set('additionalDevCostEur', newValue);
+                  }} />
+              </div>
+            )}
+
             {/* Compute Cost Simulator */}
-            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+            <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
+              instanceMode ? 'pointer-events-none opacity-50' : ''
+            }`}>
+              {instanceMode && (
+                <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
+                  <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text">
                   <span>🖥️</span> Compute cost calculator
@@ -890,7 +1200,7 @@ function SlideOver({
                       };
                       const bodyStr = JSON.stringify(bodyData) || '{}';
 
-                      const res = await fetch('/api/ai/refresh-compute-estimates', {
+                      const res = await fetch(apiUrl('/api/ai/refresh-compute-estimates'), {
                         method: 'POST', credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: bodyStr,
@@ -1020,30 +1330,63 @@ function SlideOver({
             </button>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={showCalculateDialog}
+          onClose={() => {
+            setShowCalculateDialog(false);
+            setIsPhase2Visible(true);
+          }}
+          onConfirm={handleRecalculate}
+          title="Phase 1 saved"
+          message="Do you want to recalculate Phase 2 estimates with AI?"
+          confirmLabel={isRecalculating ? 'Calculating...' : 'Yes, Calculate'}
+          cancelLabel="No, skip"
+          isLoading={isRecalculating}
+        />
       </div>
     </div>
   );
 }
 
 function UCScore({ uc }: { uc: UseCase }) {
-  if (!uc.score?.dimensions) return <span className="text-xs text-muted">—</span>;
-  const { total, category } = calculateScore(uc.score.dimensions as Parameters<typeof calculateScore>[0]);
+  if (!uc.score?.dimensions)
+    return <span className="text-xs text-muted">—</span>;
+  const { total } = calculateScore(
+    uc.score.dimensions as Parameters<typeof calculateScore>[0],
+  );
   return (
     <div className="flex items-center gap-1.5 text-xs">
       <span className="font-mono font-bold text-text">{total}/30</span>
-      <Badge variant={category === 'quick_win' ? 'green' : category === 'mid_term' ? 'amber' : 'blue'} className="text-[10px]">
-        {category === 'quick_win' ? 'Quick Win' : category === 'mid_term' ? 'Mid-term' : 'Strategic'}
-      </Badge>
     </div>
   );
 }
 
-function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: UseCase; b1Profiles: ProfileEntry[]; annualReps: number; activities: ProcessActivity[] }) {
+function UCRoi({
+  uc,
+  b1Profiles,
+  annualReps,
+  activities,
+}: {
+  uc: UseCase;
+  b1Profiles: ProfileEntry[];
+  annualReps: number;
+  activities: ProcessActivity[];
+}) {
   const targetHours = activities
-    .filter(a => (uc.targetActivities ?? []).includes(a.id))
+    .filter((a) => (uc.targetActivities ?? []).includes(a.id))
     .reduce((s, a) => s + (a.estimatedTimeHours ?? 0), 0);
-  const ccPerYear = computeAnnualCompute((uc as any).computeBreakdown ?? null).totalEur;
-  const roi = computeRoi(uc.timeSavedPerProfile ?? [], b1Profiles, uc.estimatedDevCostEur ?? 0, annualReps, targetHours, ccPerYear);
+  const ccPerYear = computeAnnualCompute(
+    (uc as any).computeBreakdown ?? null,
+  ).totalEur;
+  const roi = computeRoi(
+    uc.timeSavedPerProfile ?? [],
+    b1Profiles,
+    uc.estimatedDevCostEur ?? 0,
+    annualReps,
+    targetHours,
+    ccPerYear,
+  );
   if (!roi) return <span className="text-xs text-muted">—</span>;
   return (
     <div className="text-xs space-y-0.5">
@@ -1055,7 +1398,9 @@ function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: UseCase; b1Prof
         <div className="text-amber-600">Compute: −€{Math.round(roi.computeCostPerYear).toLocaleString('de-DE')}/yr</div>
       )}
       {roi.savingPct !== null && (
-        <div className="text-muted">{roi.savingPct}% of targeted activities</div>
+        <div className="text-muted">
+          {roi.savingPct}% of targeted activities
+        </div>
       )}
       {roi.paybackMonths > 0 && (
         <div className="text-muted">Payback: {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} mo</div>
@@ -1076,29 +1421,46 @@ export default function B5Page() {
   const [annualReps, setAnnualReps] = useState(0);
   const [processName, setProcessName] = useState('');
   const [b2Axes, setB2Axes] = useState<Record<string, any>>({});
-  const [filter, setFilter] = useState<'all' | 'eligible' | 'blocked' | 'pending_review'>('all');
+  const [filter, setFilter] = useState<
+    'all' | 'eligible' | 'in_poc' | 'discarded'
+  >('all');
   const [slideOver, setSlideOver] = useState(false);
   const [editUC, setEditUC] = useState<UseCase | null>(null);
   const [initialDesc, setInitialDesc] = useState('');
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; uc: UseCase | null; cascade: boolean; pocs: number; industrializations: number; error?: string }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+  const [showCalculateDialog, setShowCalculateDialog] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    open: boolean;
+    uc: UseCase | null;
+    cascade: boolean;
+    pocs: number;
+    industrializations: number;
+    error?: string;
+  }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
   const [showArchived, setShowArchived] = useState(false);
-  const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [generateModal, setGenerateModal] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(
+    new Set(),
+  );
   const [importing, setImporting] = useState(false);
+  const [showUcMenu, setShowUcMenu] = useState(false);
+  const [showInstancePicker, setShowInstancePicker] = useState(false);
+  const [instanceMode, setInstanceMode] = useState(false);
+  const [selectedParentUC, setSelectedParentUC] = useState<UseCase | null>(null);
+  const [parentUCs, setParentUCs] = useState<UseCase[]>([]);
+  const [loadingParents, setLoadingParents] = useState(false);
 
   useBeforeUnload(slideOver || generateModal);
 
   const load = useCallback(async () => {
     try {
       const [procRes, ucRes] = await Promise.all([
-        fetch(`/api/audits/${auditId}/processes/${procId}`, { credentials: 'include' }),
-        fetch(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`, { credentials: 'include' }),
+        fetch(apiUrl(`/api/audits/${auditId}/processes/${procId}`), { credentials: 'include' }),
+        fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`), { credentials: 'include' }),
       ]);
 
-      let proc = {};
+      let proc: any = {};
       try {
         const procText = await procRes.text();
         proc = procText ? JSON.parse(procText) : {};
@@ -1129,12 +1491,56 @@ export default function B5Page() {
     }
   }, [auditId, procId, showArchived]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Fetch parent UCs on component mount for dropdown menu
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCsOnMount]', err);
+      }
+    })();
+  }, [auditId, procId]);
+
+  // Fetch parent UCs when modal opens (refresh for latest)
+  useEffect(() => {
+    if (!slideOver) return;
+    setLoadingParents(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCs]', err);
+      } finally {
+        setLoadingParents(false);
+      }
+    })();
+  }, [slideOver, auditId, procId]);
 
   // Handle ?newUC=1&desc=... from B3 "Create UC" button
   useEffect(() => {
     if (searchParams?.get('newUC') === '1') {
-      const desc = searchParams.get('desc') ? decodeURIComponent(searchParams.get('desc')!) : '';
+      const desc = searchParams.get('desc')
+        ? decodeURIComponent(searchParams.get('desc')!)
+        : '';
       setInitialDesc(desc);
       setEditUC(null);
       setSlideOver(true);
@@ -1158,21 +1564,19 @@ export default function B5Page() {
   }, [searchParams, useCases]);
 
   const handleSaved = (uc: UseCase, blocked: boolean) => {
-    setUseCases(prev => {
-      const idx = prev.findIndex(u => u._id === uc._id);
-      return idx >= 0 ? prev.map(u => u._id === uc._id ? uc : u) : [...prev, uc];
+    setUseCases((prev) => {
+      const idx = prev.findIndex((u) => u._id === uc._id);
+      return idx >= 0
+        ? prev.map((u) => (u._id === uc._id ? uc : u))
+        : [...prev, uc];
     });
-    if (blocked) {
-      setBlockedNotice('This use case has been automatically moved to Blocked due to B2 restrictions.');
-      setTimeout(() => setBlockedNotice(null), 5000);
-    }
   };
 
   const handleDelete = async () => {
     if (!deleteModal.uc) return;
     try {
       const url = `/api/audits/${auditId}/usecases/${deleteModal.uc._id}${deleteModal.cascade ? '?cascade=true' : ''}`;
-      const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(apiUrl(url), { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         const id = deleteModal.uc._id;
         setUseCases(prev => prev.filter(u => u._id !== id));
@@ -1203,7 +1607,7 @@ export default function B5Page() {
     try {
       const next = !uc.isArchived;
       const bodyStr = JSON.stringify({ isArchived: next }) || '{}';
-      const res = await fetch(`/api/audits/${auditId}/usecases/${uc._id}`, {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/usecases/${uc._id}`), {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: bodyStr,
@@ -1232,68 +1636,190 @@ export default function B5Page() {
   };
 
   const createPOC = (uc: UseCase) => {
-    router.push(`/audits/${auditId}/pocs/new?useCaseId=${uc._id}&processId=${procId}`);
+    router.push(
+      `/audits/${auditId}/pocs/new?useCaseId=${uc._id}&processId=${procId}`,
+    );
   };
 
-  const filtered = filter === 'all' ? useCases : useCases.filter(u => u.status === filter);
+  const filtered =
+    filter === 'all' ? useCases : useCases.filter((u) => u.status === filter);
   const counts = {
     all: useCases.length,
-    eligible: useCases.filter(u => u.status === 'eligible').length,
-    blocked: useCases.filter(u => u.status === 'blocked').length,
-    pending_review: useCases.filter(u => u.status === 'pending_review').length,
+    eligible: useCases.filter((u) => u.status === 'eligible').length,
+    in_poc: useCases.filter((u) => u.status === 'in_poc').length,
+    discarded: useCases.filter((u) => u.status === 'discarded').length,
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    );
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-muted hover:text-text"><ArrowLeft size={18} /></button>
+          <button
+            onClick={() => router.back()}
+            className="text-muted hover:text-text"
+          >
+            <ArrowLeft size={18} />
+          </button>
           <Badge variant="blue">B5</Badge>
-          <h1 className="text-xl font-display font-bold text-text">Use Cases</h1>
+          <h1 className="text-xl font-display font-bold text-text">
+            Use Cases
+          </h1>
           <span className="text-muted text-sm">— {processName}</span>
-          {useCases.length > 0 && <Badge variant="green"><CheckCircle2 size={12} className="mr-1" />Complete</Badge>}
+          {useCases.length > 0 && (
+            <Badge variant="green">
+              <CheckCircle2 size={12} className="mr-1" />
+              Complete
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setSuggestions([]); setSelectedSuggestions(new Set()); setGenerateModal(true); }}
+            onClick={() => {
+              setSuggestions([]);
+              setSelectedSuggestions(new Set());
+              setGenerateModal(true);
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-aria border border-blue-aria rounded-sm hover:bg-blue-50 transition-colors"
           >
             <Sparkles size={13} /> Generate with AI
           </button>
-          <button onClick={() => { setEditUC(null); setInitialDesc(''); setSlideOver(true); }} className="btn-primary flex items-center gap-1">
-            <Plus size={14} /> Add Use Case
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowUcMenu(!showUcMenu)}
+              className="btn-primary flex items-center gap-1"
+            >
+              <Plus size={14} /> Add Use Case
+              <ChevronDown size={14} />
+            </button>
+            {showUcMenu && (
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-border rounded shadow-lg z-10">
+                <button
+                  onClick={() => {
+                    setInstanceMode(false);
+                    setSelectedParentUC(null);
+                    setEditUC(null);
+                    setInitialDesc('');
+                    setShowUcMenu(false);
+                    setSlideOver(true);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-text hover:bg-slate-50 border-b border-border"
+                >
+                  ➕ Add New Use Case
+                </button>
+                <button
+                  disabled={parentUCs.length === 0}
+                  onClick={() => {
+                    setInstanceMode(true);
+                    setShowInstancePicker(true);
+                    setShowUcMenu(false);
+                  }}
+                  className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                    parentUCs.length === 0
+                      ? 'text-muted cursor-not-allowed bg-slate-50'
+                      : 'text-text hover:bg-slate-50'
+                  }`}
+                  title={parentUCs.length === 0 ? 'Create parent UCs first' : 'Create an instance from a parent UC'}
+                >
+                  Add as Instance
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      {blockedNotice && (
-        <div className="mb-4 flex items-center gap-2 p-3 bg-red-sov-light text-red-sov rounded text-sm">
-          <AlertTriangle size={16} />{blockedNotice}
-        </div>
-      )}
 
       {/* Filter tabs */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex gap-1 bg-white rounded-md border border-border p-1 w-fit">
-          {(['all', 'eligible', 'blocked', 'pending_review'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}>
-              {f === 'pending_review' ? 'Pending' : f} ({counts[f]})
-            </button>
-          ))}
+          {(['all', 'eligible', 'in_poc', 'discarded'] as const).map(
+            (f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-blue-aria text-white' : 'text-muted hover:text-text'}`}
+              >
+                {f === 'in_poc' ? 'In POC' : f} ({counts[f]})
+              </button>
+            ),
+          )}
         </div>
         <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
-          <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="accent-blue-aria" />
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            className="accent-blue-aria"
+          />
           Show archived
         </label>
       </div>
 
+      {/* Instance Picker Modal */}
+      {showInstancePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowInstancePicker(false)} />
+          <div className="relative w-full max-w-2xl bg-white shadow-xl rounded-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-base">Select Parent Use Case</h3>
+              <button
+                onClick={() => setShowInstancePicker(false)}
+                className="text-muted hover:text-text"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {loadingParents ? (
+              <div className="flex items-center justify-center py-12">
+                <Spinner size="md" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {parentUCs.map((uc) => (
+                  <button
+                    key={uc._id}
+                    onClick={() => {
+                      setSelectedParentUC(uc);
+                      setEditUC(null);
+                      setInitialDesc('');
+                      setShowInstancePicker(false);
+                      setSlideOver(true);
+                    }}
+                    className="w-full text-left p-3 border border-border rounded hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="font-mono text-xs text-blue-aria font-medium">{uc.cuId}</div>
+                    <div className="text-sm text-text line-clamp-2">{uc.description}</div>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {(uc.aiTypes?.length ? uc.aiTypes : [(uc as any).aiType]).map((t: AIType) => (
+                        <Badge
+                          key={t}
+                          variant={AI_TYPE_COLORS[t] ?? 'slate'}
+                          className="text-[10px]"
+                        >
+                          {AI_TYPE_LABELS[t]?.label ?? t}
+                        </Badge>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Use case table */}
       {filtered.length === 0 ? (
         <div className="card p-12 text-center text-muted text-sm">
-          {filter === 'all' ? 'No use cases yet. Click "Add Use Case" to identify AI opportunities.' : `No ${filter} use cases.`}
+          {filter === 'all'
+            ? 'No use cases yet. Click "Add Use Case" to identify AI opportunities.'
+            : `No ${filter} use cases.`}
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -1303,42 +1829,71 @@ export default function B5Page() {
                 <th className="px-3 py-2.5 font-medium w-20">ID</th>
                 <th className="px-3 py-2.5 font-medium">Description</th>
                 <th className="px-3 py-2.5 font-medium w-36">AI Types</th>
-                <th className="px-3 py-2.5 font-medium w-20 text-center">People</th>
+                <th className="px-3 py-2.5 font-medium w-20 text-center">
+                  People
+                </th>
                 <th className="px-3 py-2.5 font-medium w-28">Score</th>
                 <th className="px-3 py-2.5 font-medium w-28">ROI</th>
                 <th className="px-3 py-2.5 font-medium w-28">Status</th>
-                <th className="px-3 py-2.5 font-medium w-24 text-right">Actions</th>
+                <th className="px-3 py-2.5 font-medium w-24 text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map(uc => {
-                const aiTypes: AIType[] = uc.aiTypes?.length ? uc.aiTypes : [(uc as any).aiType].filter(Boolean);
+              {filtered.map((uc) => {
+                const aiTypes: AIType[] = uc.aiTypes?.length
+                  ? uc.aiTypes
+                  : [(uc as any).aiType].filter(Boolean);
                 return (
-                  <tr key={uc._id} className={`hover:bg-slate-50 transition-colors ${uc.status === 'blocked' ? 'opacity-70' : ''} ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}>
+                  <tr
+                    key={uc._id}
+                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''} ${
+                      (uc as any).isInstance ? 'bg-blue-50 border-l-4 border-l-blue-400' : ''
+                    }`}
+                  >
                     <td className="px-3 py-3">
-                      <button
-                        onClick={() => { setEditUC(uc); setInitialDesc(''); setSlideOver(true); }}
-                        className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
-                      >
-                        {uc.cuId}
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => {
+                            setEditUC(uc);
+                            setInitialDesc('');
+                            setSlideOver(true);
+                          }}
+                          className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
+                        >
+                          {uc.cuId}
+                        </button>
+                        {(uc as any).isInstance && (
+                          <div className="mt-0.5">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
+                              instance of{' '}
+                              {typeof (uc as any).parentUCId === 'object'
+                                ? (uc as any).parentUCId?.cuId
+                                : (uc as any).parentUCId}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="text-sm text-text line-clamp-2">{uc.description}</p>
-                      {uc.status === 'blocked' && uc.blockedReason && (
-                        <div className="mt-1 flex items-start gap-1 text-xs text-red-sov">
-                          <AlertTriangle size={10} className="mt-0.5 flex-shrink-0" />
-                          {uc.blockedReason}
-                        </div>
-                      )}
+                      <p className="text-sm text-text line-clamp-2" title={uc.description}>
+                        {uc.description}
+                      </p>
                       {uc.requiresClientIT && (
-                        <div className="mt-1 text-xs text-amber-sov">Client IT required</div>
+                        <div className="mt-1 text-xs text-amber-sov">
+                          Client IT required
+                        </div>
                       )}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {aiTypes.map(t => (
-                          <Badge key={t} variant={AI_TYPE_COLORS[t] ?? 'slate'} className="text-[10px]">
+                        {aiTypes.map((t) => (
+                          <Badge
+                            key={t}
+                            variant={AI_TYPE_COLORS[t] ?? 'slate'}
+                            className="text-[10px]"
+                          >
                             {AI_TYPE_LABELS[t]?.label ?? t}
                           </Badge>
                         ))}
@@ -1346,40 +1901,86 @@ export default function B5Page() {
                     </td>
                     <td className="px-3 py-3 text-center">
                       {(() => {
-                        const total = (uc.timeSavedPerProfile ?? []).reduce((sum, e) => {
-                          const p = b1Profiles.find(p => p.id === e.profileId);
-                          return sum + (p?.count ?? 0);
-                        }, 0);
-                        return total > 0
-                          ? <span className="font-bold text-text text-sm">{total}</span>
-                          : <span className="text-muted text-xs">—</span>;
+                        const total = (uc.timeSavedPerProfile ?? []).reduce(
+                          (sum, e) => {
+                            const p = b1Profiles.find(
+                              (p) => p.id === e.profileId,
+                            );
+                            return sum + (p?.count ?? 0);
+                          },
+                          0,
+                        );
+                        return total > 0 ? (
+                          <span className="font-bold text-text text-sm">
+                            {total}
+                          </span>
+                        ) : (
+                          <span className="text-muted text-xs">—</span>
+                        );
                       })()}
                     </td>
                     <td className="px-3 py-3">
                       <UCScore uc={uc} />
                     </td>
                     <td className="px-3 py-3">
-                      <UCRoi uc={uc} b1Profiles={b1Profiles} annualReps={annualReps} activities={activities} />
+                      <UCRoi
+                        uc={uc}
+                        b1Profiles={b1Profiles}
+                        annualReps={annualReps}
+                        activities={activities}
+                      />
                     </td>
                     <td className="px-3 py-3">
-                      <Badge variant={STATUS_VARIANTS[uc.status]}>{uc.status.replace('_', ' ')}</Badge>
+                      <Badge variant={STATUS_VARIANTS[uc.status]}>
+                        {uc.status.replace('_', ' ')}
+                      </Badge>
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {uc.status === 'eligible' && (
-                          <button onClick={() => createPOC(uc)}
+                        {(uc.status === 'eligible' || uc.status === 'in_poc') && (
+                          <button
+                            onClick={() => createPOC(uc)}
                             title="Create POC"
-                            className="text-muted hover:text-blue-aria p-1"><FlaskConical size={13} /></button>
+                            className="text-muted hover:text-blue-aria p-1"
+                          >
+                            <FlaskConical size={13} />
+                          </button>
                         )}
-                        <button onClick={() => { setEditUC(uc); setInitialDesc(''); setSlideOver(true); }}
-                          className="text-muted hover:text-blue-aria p-1"><Pencil size={13} /></button>
-                        <button onClick={() => toggleArchive(uc)}
-                          title={uc.isArchived ? 'Unarchive' : 'Archive'}
-                          className="text-muted hover:text-blue-aria p-1">
-                          {uc.isArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                        <button
+                          onClick={() => {
+                            setEditUC(uc);
+                            setInitialDesc('');
+                            setSlideOver(true);
+                          }}
+                          className="text-muted hover:text-blue-aria p-1"
+                        >
+                          <Pencil size={13} />
                         </button>
-                        <button onClick={() => setDeleteModal({ open: true, uc, cascade: false, pocs: 0, industrializations: 0 })}
-                          className="text-muted hover:text-red-sov p-1"><Trash2 size={13} /></button>
+                        <button
+                          onClick={() => toggleArchive(uc)}
+                          title={uc.isArchived ? 'Unarchive' : 'Archive'}
+                          className="text-muted hover:text-blue-aria p-1"
+                        >
+                          {uc.isArchived ? (
+                            <ArchiveRestore size={13} />
+                          ) : (
+                            <Archive size={13} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() =>
+                            setDeleteModal({
+                              open: true,
+                              uc,
+                              cascade: false,
+                              pocs: 0,
+                              industrializations: 0,
+                            })
+                          }
+                          className="text-muted hover:text-red-sov p-1"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1396,12 +1997,19 @@ export default function B5Page() {
           setSlideOver(false);
           setEditUC(null);
           setInitialDesc('');
+          setInstanceMode(false);
+          setSelectedParentUC(null);
+          setShowUcMenu(false);
           openedEditIdRef.current = null;
-          const hasParam = searchParams?.get('edit') || searchParams?.get('newUC');
-          if (hasParam) router.replace(`/audits/${auditId}/processes/${procId}/b5`);
+          const hasParam =
+            searchParams?.get('edit') || searchParams?.get('newUC');
+          if (hasParam)
+            router.replace(`/audits/${auditId}/processes/${procId}/b5`);
         }}
         processId={procId}
         auditId={auditId}
+        instanceMode={instanceMode}
+        selectedParentUC={selectedParentUC}
         activities={activities}
         b1Profiles={b1Profiles}
         annualReps={annualReps}
@@ -1409,23 +2017,36 @@ export default function B5Page() {
         onSaved={handleSaved}
         initialDesc={initialDesc}
         b2Axes={b2Axes}
+        showCalculateDialog={showCalculateDialog}
+        setShowCalculateDialog={setShowCalculateDialog}
       />
 
       {/* Generate UCs with AI modal */}
       {generateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setGenerateModal(false)} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setGenerateModal(false)}
+          />
           <div className="relative w-full max-w-2xl bg-white shadow-xl flex flex-col max-h-[85vh] rounded-sm">
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-blue-aria" />
-                <h2 className="font-semibold text-base">Generate Use Cases with AI</h2>
+                <h2 className="font-semibold text-base">
+                  Generate Use Cases with AI
+                </h2>
               </div>
-              <button onClick={() => setGenerateModal(false)} className="text-muted hover:text-text"><X size={18} /></button>
+              <button
+                onClick={() => setGenerateModal(false)}
+                className="text-muted hover:text-text"
+              >
+                <X size={18} />
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <p className="text-sm text-muted">
-                AI will analyze the process context (B1 profiles, B2 sovereignty, B3 activities) and suggest AI use cases.
+                AI will analyze the process context (B1 profiles, B2
+                sovereignty, B3 activities) and suggest AI use cases.
               </p>
               {suggestions.length === 0 && (
                 <button
@@ -1434,7 +2055,7 @@ export default function B5Page() {
                     setSuggestions([]);
                     setSelectedSuggestions(new Set());
                     try {
-                      const res = await fetch(`/api/audits/${auditId}/ai/suggest-usecases`, {
+                      const res = await fetch(apiUrl(`/api/audits/${auditId}/ai/suggest-usecases`), {
                         method: 'POST', credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ processId: procId }),
@@ -1455,42 +2076,74 @@ export default function B5Page() {
               {suggestions.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-text">{suggestions.length} suggestions</span>
+                    <span className="text-sm font-medium text-text">
+                      {suggestions.length} suggestions
+                    </span>
                     <button
-                      onClick={() => setSelectedSuggestions(
-                        selectedSuggestions.size === suggestions.length ? new Set() : new Set(suggestions.map((_, i) => i))
-                      )}
+                      onClick={() =>
+                        setSelectedSuggestions(
+                          selectedSuggestions.size === suggestions.length
+                            ? new Set()
+                            : new Set(suggestions.map((_, i) => i)),
+                        )
+                      }
                       className="text-xs text-blue-aria hover:underline"
                     >
-                      {selectedSuggestions.size === suggestions.length ? 'Deselect all' : 'Select all'}
+                      {selectedSuggestions.size === suggestions.length
+                        ? 'Deselect all'
+                        : 'Select all'}
                     </button>
                   </div>
                   {suggestions.map((s, i) => {
                     const selected = selectedSuggestions.has(i);
-                    const total = s.score ? Object.entries(s.score).filter(([k]) => k !== 'd6_governanceComplexity').reduce((sum: number, [, d]: any) => sum + d.value, 0) : null;
+                    const total = s.score
+                      ? Object.entries(s.score)
+                          .filter(([k]) => k !== 'd6_governanceComplexity')
+                          .reduce((sum: number, [, d]: any) => sum + d.value, 0)
+                      : null;
                     return (
-                      <div key={i} onClick={() => {
-                        const next = new Set(selectedSuggestions);
-                        if (selected) next.delete(i); else next.add(i);
-                        setSelectedSuggestions(next);
-                      }}
+                      <div
+                        key={i}
+                        onClick={() => {
+                          const next = new Set(selectedSuggestions);
+                          if (selected) next.delete(i);
+                          else next.add(i);
+                          setSelectedSuggestions(next);
+                        }}
                         className={`border rounded p-3 cursor-pointer transition-colors ${selected ? 'border-blue-aria bg-blue-50' : 'border-border hover:border-blue-aria/50'}`}
                       >
                         <div className="flex items-start gap-2">
-                          <input type="checkbox" checked={selected} readOnly className="mt-0.5 accent-blue-aria" />
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            readOnly
+                            className="mt-0.5 accent-blue-aria"
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-text">{s.description}</p>
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {(s.aiTypes ?? []).map((t: string) => (
-                                <Badge key={t} variant={(AI_TYPE_COLORS as any)[t] ?? 'slate'} className="text-[10px]">
+                                <Badge
+                                  key={t}
+                                  variant={
+                                    (AI_TYPE_COLORS as any)[t] ?? 'slate'
+                                  }
+                                  className="text-[10px]"
+                                >
                                   {AI_TYPE_LABELS[t as AIType]?.label ?? t}
                                 </Badge>
                               ))}
                               {total !== null && (
-                                <span className="text-[10px] font-mono font-bold text-muted ml-auto">{total}/25</span>
+                                <span className="text-[10px] font-mono font-bold text-muted ml-auto">
+                                  {total}/25
+                                </span>
                               )}
                             </div>
-                            {s.notes && <p className="text-[10px] text-muted mt-1 italic">{s.notes}</p>}
+                            {s.notes && (
+                              <p className="text-[10px] text-muted mt-1 italic">
+                                {s.notes}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1501,19 +2154,23 @@ export default function B5Page() {
             </div>
             {suggestions.length > 0 && (
               <div className="p-5 border-t border-border flex items-center justify-between gap-3">
-                <span className="text-sm text-muted">{selectedSuggestions.size} selected</span>
+                <span className="text-sm text-muted">
+                  {selectedSuggestions.size} selected
+                </span>
                 <button
                   onClick={async () => {
                     if (selectedSuggestions.size === 0) return;
                     setImporting(true);
                     try {
-                      const toImport = [...selectedSuggestions].map(i => suggestions[i]);
+                      const toImport = [...selectedSuggestions].map(
+                        (i) => suggestions[i],
+                      );
                       for (const s of toImport) {
                         const score = s.score ? { dimensions: s.score, scoringNotes: '', scoredBy: 'ai', scoredAt: new Date().toISOString() } : undefined;
                         const mappedActivityIds = (s.targetActivityNames ?? []).map((name: string) => activities.find(a => a.name === name)?.id).filter(Boolean) as string[];
 
                         // Map roles to profileIds and consolidate duplicates
-                        const mapped = (s.timeSavedPerProfile ?? []).map(entry => {
+                        const mapped = (s.timeSavedPerProfile ?? []).map((entry: any) => {
                           const matched = b1Profiles.find(
                             p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
                           );
@@ -1524,8 +2181,8 @@ export default function B5Page() {
                           };
                         });
 
-                        const consolidated = mapped.reduce((acc, entry) => {
-                          const existing = acc.find(e => e.profileId === entry.profileId);
+                        const consolidated = mapped.reduce((acc: typeof mapped, entry: typeof mapped[number]) => {
+                          const existing = acc.find((e: typeof mapped[number]) => e.profileId === entry.profileId);
                           if (existing) {
                             existing.hoursPerExecution += entry.hoursPerExecution;
                           } else {
@@ -1556,7 +2213,7 @@ export default function B5Page() {
                           score,
                         };
 
-                        await fetch(`/api/audits/${auditId}/usecases`, {
+                        await fetch(apiUrl(`/api/audits/${auditId}/usecases`), {
                           method: 'POST', credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(body),
@@ -1571,7 +2228,9 @@ export default function B5Page() {
                   className="btn-primary flex items-center gap-2"
                 >
                   {importing ? <Spinner size="sm" /> : <Plus size={14} />}
-                  {importing ? 'Importing…' : `Import ${selectedSuggestions.size} selected`}
+                  {importing
+                    ? 'Importing…'
+                    : `Import ${selectedSuggestions.size} selected`}
                 </button>
               </div>
             )}
@@ -1579,8 +2238,13 @@ export default function B5Page() {
         </div>
       )}
 
-      <ConfirmModal isOpen={deleteModal.open}
-        title={deleteModal.cascade ? 'Delete use case and dependents?' : 'Delete use case?'}
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        title={
+          deleteModal.cascade
+            ? 'Delete use case and dependents?'
+            : 'Delete use case?'
+        }
         message={
           deleteModal.cascade
             ? `"${deleteModal.uc?.cuId}" has ${deleteModal.pocs} POC(s) and ${deleteModal.industrializations} industrialization(s). Deleting will remove them too. This cannot be undone.`
@@ -1588,7 +2252,16 @@ export default function B5Page() {
         }
         confirmLabel={deleteModal.cascade ? 'Delete all' : 'Delete'}
         onConfirm={handleDelete}
-        onClose={() => setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 })} />
+        onClose={() =>
+          setDeleteModal({
+            open: false,
+            uc: null,
+            cascade: false,
+            pocs: 0,
+            industrializations: 0,
+          })
+        }
+      />
     </div>
   );
 }
