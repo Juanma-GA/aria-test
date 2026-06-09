@@ -18,7 +18,6 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
-  GitFork,
   Lock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
@@ -797,7 +796,7 @@ function SlideOver({
             </h2>
             {instanceMode && selectedParentUC && (
               <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-aria font-medium">
-                <GitFork size={11} /> {selectedParentUC.cuId}
+                {selectedParentUC.cuId}
               </div>
             )}
           </div>
@@ -1485,6 +1484,11 @@ export default function B5Page() {
       setAnnualReps(proc?.b3?.annualRepetitions ?? 0);
       setB2Axes(proc?.b2?.axes ?? {});
       setUseCases(ucs);
+      console.log('[B5] UCs loaded:', ucs.map((u: any) => ({
+        cuId: u.cuId,
+        isInstance: u.isInstance,
+        parentUCId: u.parentUCId,
+      })));
       setLoading(false);
     } catch (err) {
       console.error('[LoadPage]', err);
@@ -1728,7 +1732,6 @@ export default function B5Page() {
                   }`}
                   title={parentUCs.length === 0 ? 'Create parent UCs first' : 'Create an instance from a parent UC'}
                 >
-                  <GitFork size={12} className="inline mr-2" />
                   Add as Instance
                 </button>
               </div>
@@ -1855,35 +1858,24 @@ export default function B5Page() {
                     }`}
                   >
                     <td className="px-3 py-3">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          {(uc as any).isInstance && (
-                            <GitFork size={13} className="text-blue-500 flex-shrink-0" />
-                          )}
-                          <button
-                            onClick={() => {
-                              setEditUC(uc);
-                              setInitialDesc('');
-                              setSlideOver(true);
-                            }}
-                            className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
-                          >
-                            <span className={`${(uc as any).isInstance ? 'font-semibold' : ''}`}>
-                              {uc.cuId}
-                            </span>
-                          </button>
-                        </div>
-                        {(uc as any).isInstance && (uc as any).parentUCId && (
-                          <div className="text-xs text-blue-500 mt-0.5 flex items-center gap-1">
-                            Instance of{' '}
-                            <span className="font-mono text-[10px] bg-blue-100 px-1.5 py-0.5 rounded">
-                              {typeof (uc as any).parentUCId === 'object'
-                                ? (uc as any).parentUCId.cuId
-                                : (uc as any).parentUCId}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => {
+                          setEditUC(uc);
+                          setInitialDesc('');
+                          setSlideOver(true);
+                        }}
+                        className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer block"
+                      >
+                        {uc.cuId}
+                      </button>
+                      {(uc as any).isInstance === true && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5">
+                          instance of{' '}
+                          {typeof (uc as any).parentUCId === 'object'
+                            ? (uc as any).parentUCId?.cuId ?? String((uc as any).parentUCId)
+                            : String((uc as any).parentUCId ?? '')}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <p className="text-sm text-text line-clamp-2" title={uc.description}>
