@@ -21,7 +21,8 @@ const MilestoneSchema = new Schema({
 
 export interface IPOC extends Document {
   auditId: mongoose.Types.ObjectId;
-  useCaseId: mongoose.Types.ObjectId;
+  useCaseIds: mongoose.Types.ObjectId[];
+  useCaseId?: mongoose.Types.ObjectId;
   processId: mongoose.Types.ObjectId;
   pocId: string;
   name?: string;
@@ -98,7 +99,16 @@ export interface IPOC extends Document {
 
 const POCSchema = new Schema<IPOC>({
   auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true },
-  useCaseId: { type: Schema.Types.ObjectId, ref: 'UseCase', required: true },
+  useCaseIds: {
+    type: [Schema.Types.ObjectId],
+    ref: 'UseCase',
+    required: true,
+    validate: {
+      validator: (v: mongoose.Types.ObjectId[]) => v.length >= 1,
+      message: 'POC must have at least one UseCase',
+    },
+  },
+  useCaseId: { type: Schema.Types.ObjectId, ref: 'UseCase' },
   processId: { type: Schema.Types.ObjectId, ref: 'Process', required: true },
   pocId: { type: String, required: true },
   name: { type: String, default: '' },

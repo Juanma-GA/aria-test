@@ -64,6 +64,9 @@ export interface IUseCase extends Document {
     scoredBy: string;
     scoredAt: Date;
   };
+  parentUCId?: mongoose.Types.ObjectId | null;
+  isInstance?: boolean;
+  additionalDevCostEur?: number;
   createdAt: Date;
 }
 
@@ -148,7 +151,23 @@ const UseCaseSchema = new Schema<IUseCase>({
     scoredBy: { type: String, default: '' },
     scoredAt: { type: Date },
   },
+  parentUCId: {
+    type: Schema.Types.ObjectId,
+    ref: 'UseCase',
+    default: null,
+  },
+  isInstance: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  additionalDevCostEur: {
+    type: Number,
+    default: 0,
+  },
 }, { timestamps: true });
+
+UseCaseSchema.index({ parentUCId: 1, isInstance: 1 });
 
 const UseCase: Model<IUseCase> = mongoose.models.UseCase || mongoose.model<IUseCase>('UseCase', UseCaseSchema);
 export default UseCase;
