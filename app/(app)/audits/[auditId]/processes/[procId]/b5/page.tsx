@@ -1484,6 +1484,11 @@ export default function B5Page() {
       setAnnualReps(proc?.b3?.annualRepetitions ?? 0);
       setB2Axes(proc?.b2?.axes ?? {});
       setUseCases(ucs);
+      console.log('[B5] UCs loaded:', ucs.map((u: any) => ({
+        cuId: u.cuId,
+        isInstance: u.isInstance,
+        parentUCId: u.parentUCId,
+      })));
       setLoading(false);
     } catch (err) {
       console.error('[LoadPage]', err);
@@ -1853,28 +1858,24 @@ export default function B5Page() {
                     }`}
                   >
                     <td className="px-3 py-3">
-                      <div>
-                        <button
-                          onClick={() => {
-                            setEditUC(uc);
-                            setInitialDesc('');
-                            setSlideOver(true);
-                          }}
-                          className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
-                        >
-                          {uc.cuId}
-                        </button>
-                        {(uc as any).isInstance && (
-                          <div className="mt-0.5">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
-                              instance of{' '}
-                              {typeof (uc as any).parentUCId === 'object'
-                                ? (uc as any).parentUCId?.cuId
-                                : (uc as any).parentUCId}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => {
+                          setEditUC(uc);
+                          setInitialDesc('');
+                          setSlideOver(true);
+                        }}
+                        className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer block"
+                      >
+                        {uc.cuId}
+                      </button>
+                      {(uc as any).isInstance === true && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5">
+                          instance of{' '}
+                          {typeof (uc as any).parentUCId === 'object'
+                            ? (uc as any).parentUCId?.cuId ?? String((uc as any).parentUCId)
+                            : String((uc as any).parentUCId ?? '')}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <p className="text-sm text-text line-clamp-2" title={uc.description}>
