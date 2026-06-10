@@ -510,10 +510,14 @@ function SlideOver({
     .filter((a) => (form.targetActivities ?? []).includes(a.id))
     .reduce((s, a) => s + (a.estimatedTimeHours ?? 0), 0);
 
+  const devCostEur = (form.estimatedDevCostEur ?? 0) +
+    (instanceMode || (editUC && (editUC as any).isInstance)
+      ? (form.additionalDevCostEur ?? 0) : 0);
+
   const roi = computeRoi(
     form.timeSavedPerProfile ?? [],
     b1Profiles,
-    form.estimatedDevCostEur ?? 0,
+    devCostEur,
     annualReps,
     targetActivityHours,
     computeAnnualCompute((form as any).computeBreakdown ?? null).totalEur,
@@ -815,10 +819,10 @@ function SlideOver({
           {/* === PHASE 1: AI Strategy & Sovereignty === */}
 
           {/* Description */}
-          <div className={instanceMode ? 'opacity-50 pointer-events-none' : ''}>
+          <div>
             <label className="form-label flex items-center gap-1">
               Description <span className="text-red-sov">*</span>
-              {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
             </label>
             <textarea
               rows={3}
@@ -830,10 +834,10 @@ function SlideOver({
           </div>
 
           {/* AI Types — multi-select chips */}
-          <div className={instanceMode ? 'opacity-50 pointer-events-none' : ''}>
+          <div>
             <label className="form-label flex items-center gap-1">
               AI Types <span className="text-red-sov">*</span>
-              {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
             </label>
             <div className="flex flex-wrap gap-2 mt-1">
               {(Object.keys(AI_TYPE_LABELS) as AIType[]).map((t) => {
@@ -894,10 +898,10 @@ function SlideOver({
           </div>
 
           {/* Required Preconditions — NEW combined section */}
-          <div className={`border-t pt-4 mt-4 space-y-3 ${instanceMode ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="border-t pt-4 mt-4 space-y-3">
             <div className="flex items-center gap-1">
               <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
-              {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
             </div>
 
             {/* Requires Client IT toggle switch (Yes/No) */}
@@ -947,11 +951,11 @@ function SlideOver({
           </div>
 
           {/* Scoring B6 (moved to end of Phase 1) */}
-          <div className={`border border-border rounded p-4 space-y-3 mt-4 ${instanceMode ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="border border-border rounded p-4 space-y-3 mt-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
-                {instanceMode && <Lock size={13} className="text-muted" aria-label="Inherited from parent" />}
+                {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
               </div>
               <span className="font-mono font-bold text-lg text-text">
                 {total}/25
