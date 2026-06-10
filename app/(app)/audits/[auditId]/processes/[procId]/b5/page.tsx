@@ -803,8 +803,9 @@ function SlideOver({
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
       onSaved(data, false);
+      // Update additionalDevCostEur in list for both new and existing instances
       setUseCases(prev => prev.map(u =>
-        u._id === editUC?._id
+        String(u._id) === String(data._id)
           ? { ...(u as any), additionalDevCostEur: form.additionalDevCostEur ?? 0 }
           : u
       ));
