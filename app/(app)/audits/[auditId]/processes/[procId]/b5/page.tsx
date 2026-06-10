@@ -740,9 +740,11 @@ function SlideOver({
   };
 
   const handleSave_Phase2 = async () => {
+    console.log('[Phase2 start] editUC:', editUC?._id, 'form._id:', form._id);
     setSaving(true);
     try {
       const ucId = editUC?._id ?? form._id;
+      console.log('[Phase2 ucId]:', ucId, 'method:', ucId ? 'PATCH' : 'POST');
       const url = ucId
         ? `/api/audits/${auditId}/usecases/${ucId}`
         : `/api/audits/${auditId}/usecases`;
@@ -790,12 +792,14 @@ function SlideOver({
         headers: { 'Content-Type': 'application/json' },
         body: bodyStr,
       });
+      console.log('[Phase2 response]:', res.status, res.ok);
 
       let data;
       try {
         const text = await res.text();
         if (!text) throw new Error('Empty response from server');
         data = JSON.parse(text);
+        console.log('[Phase2 data]:', data?._id, data?.cuId);
       } catch (parseErr) {
         throw new Error(`Server response parse failed: ${parseErr instanceof Error ? parseErr.message : 'Invalid JSON'}`);
       }
@@ -809,6 +813,7 @@ function SlideOver({
           ? { ...(u as any), additionalDevCostEur: form.additionalDevCostEur ?? 0 }
           : u
       ));
+      console.log('[Phase2 calling onClose]');
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed');
