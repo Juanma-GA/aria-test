@@ -689,6 +689,9 @@ export default function POCDetailPage() {
                   <div className="bg-slate-50 border border-border rounded p-2 col-span-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
                     <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                    <p className="text-[9px] text-muted border-t border-border/30 mt-1.5 pt-1.5">
+                      €{Math.round(devCost).toLocaleString('de-DE')} / €{Math.round(netSaving / 12).toLocaleString('de-DE')}/mo ≈ {paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
+                    </p>
                   </div>
                 )}
               </div>
@@ -728,22 +731,6 @@ export default function POCDetailPage() {
                               <div className="flex flex-col">
                                 <span className="text-[9px] text-muted">Dev</span>
                                 <span className="font-medium text-red-700">€{Math.round(ucDevCost).toLocaleString('de-DE')}</span>
-                              </div>
-                            )}
-                            {ucNet > 0 && (
-                              <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">Payback</span>
-                                <span className="font-medium text-slate-700">
-                                  {ucDevCost > 0
-                                    ? (ucDevCost / (ucNet / 12)).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mo'
-                                    : '—'}
-                                </span>
-                              </div>
-                            )}
-                            {ucNet === 0 && ucDevCost > 0 && (
-                              <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">Payback</span>
-                                <span className="font-medium text-slate-700">—</span>
                               </div>
                             )}
                           </div>
