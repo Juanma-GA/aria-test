@@ -1299,12 +1299,15 @@ function SlideOver({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-red-50 border border-red-200 rounded p-2">
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Dev Cost (one-time)</div>
-                    <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}</div>
+                    <div className="font-bold text-red-700 text-sm">€{Math.round(devCostEur).toLocaleString('de-DE')}</div>
                     {(form.estimatedImplWeeks ?? 0) > 0 && (
                       <>
                         <div className="text-red-600">{form.estimatedImplWeeks} weeks impl.</div>
                         <div className="text-[10px] text-red-500 mt-1">
                           {form.estimatedImplWeeks ?? 0}w × 5d × €{(form.devRateEur ?? 450).toLocaleString('de-DE')}/day × {(form.nDevs ?? 1).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} devs = €{Math.round(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}
+                          {(form.additionalDevCostEur ?? 0) > 0 && (
+                            <div className="mt-0.5">+ €{Math.round(form.additionalDevCostEur ?? 0).toLocaleString('de-DE')} additional = €{Math.round(devCostEur).toLocaleString('de-DE')}</div>
+                          )}
                         </div>
                       </>
                     )}
@@ -1315,7 +1318,7 @@ function SlideOver({
                       <div className="font-bold text-text text-sm">{roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</div>
                       <div className="text-muted">on net saving</div>
                       <div className="text-[10px] text-muted mt-1">
-                        €{Math.round(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')} ÷ €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr × 12 = {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
+                        €{Math.round(devCostEur).toLocaleString('de-DE')} ÷ €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr × 12 = {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
                       </div>
                     </div>
                   )}
