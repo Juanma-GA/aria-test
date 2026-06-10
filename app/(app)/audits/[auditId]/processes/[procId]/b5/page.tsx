@@ -1595,7 +1595,13 @@ export default function B5Page() {
     (async () => {
       const parentUCIds = useCases
         .filter((uc) => (uc as any).isInstance && (uc as any).parentUCId)
-        .map((uc) => (uc as any).parentUCId);
+        .map((uc) => {
+          const pid = (uc as any).parentUCId;
+          return typeof pid === 'object' && pid !== null
+            ? String(pid._id ?? pid)
+            : String(pid ?? '');
+        })
+        .filter(Boolean);
 
       if (parentUCIds.length === 0) return;
 
