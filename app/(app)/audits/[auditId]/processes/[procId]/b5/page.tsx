@@ -796,11 +796,15 @@ function SlideOver({
       console.log('[Phase2 data]:', data?._id, data?.cuId);
       onSaved(data, false);
       // Update additionalDevCostEur in list for both new and existing instances
-      setUseCases(prev => prev.map(u =>
-        String(u._id) === String(data._id)
-          ? { ...(u as any), additionalDevCostEur: form.additionalDevCostEur ?? 0 }
-          : u
-      ));
+      try {
+        setUseCases(prev => prev.map((u: any) =>
+          String(u._id) === String(data._id)
+            ? { ...u, additionalDevCostEur: form.additionalDevCostEur ?? 0 }
+            : u
+        ));
+      } catch (err) {
+        console.error('[Phase2] setUseCases error:', err);
+      }
       console.log('[Phase2 calling onClose]');
       onClose();
     } catch (e: unknown) {
