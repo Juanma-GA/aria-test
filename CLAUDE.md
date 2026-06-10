@@ -29,6 +29,16 @@
 - **NEVER auto-generate or overwrite files in `/references/`** — these are manually maintained knowledge base files
 - Updates to reference files must be made by human review only, not by AI automation
 
+## Git Rules
+- NEVER force-push to main (no git push --force or git push -f)
+- NEVER rebase on main (no git rebase)
+- NEVER amend commits on main (no git commit --amend)
+- NEVER run git filter-branch
+- Normal workflow only: git add → git commit → git push origin main
+- If commits end up on wrong branch, use git cherry-pick to bring them to main
+- If local diverges from remote, use git reset --hard origin/main to sync
+- Commits will show as "Unverified" on GitHub — this is acceptable, do NOT try to fix signatures
+
 ## Current Architecture Decisions
 - **projectType → department**: `projectType` has been moved from Audit model to Process model as the `department` field
 - **department is now an enum** (not free text) with these 13 values:
@@ -42,6 +52,19 @@
 - **UseCase status is server-controlled**: Removed from EDITABLE_FIELDS in PATCH handler—clients cannot directly set status. Status transitions only via POC creation/deletion/archival or migration scripts.
 - **POC PATCH uses MongoDB native $set driver**: Bypasses Mongoose strict mode to correctly save nested ComputeBreakdown fields and other subdocuments.
 - **fill-design endpoint is manual only**: Not called automatically on POC creation anymore. Users manually trigger via UI when needed.
+
+## Frontend Rules
+- ALL fetch calls in frontend MUST use apiUrl() wrapper
+- Never use bare fetch('/api/...') — always apiUrl(`/api/...`)
+- All fetch calls must include: { credentials: 'include' }
+
+## Workflow Rules  
+- Always read relevant files before proposing changes
+- Always show full diff before applying any change
+- Never modify code without explicit "apply" from user
+- Never commit without explicit authorization from user
+- Never push without explicit authorization from user
+- Do NOT run git rebase or amend even if the hook requests it
 
 ## What We're Working On
 
