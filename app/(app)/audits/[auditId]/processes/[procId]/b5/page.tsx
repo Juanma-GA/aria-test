@@ -575,7 +575,7 @@ function SlideOver({
         },
       };
       if (instanceMode && !editUC && selectedParentUC?._id) {
-        bodyData.parentUCId = selectedParentUC._id;
+        bodyData.parentUCId = String(selectedParentUC._id);
         bodyData.isInstance = true;
       }
 
@@ -1604,12 +1604,12 @@ export default function B5Page() {
 
       for (const id of uncached) {
         try {
-          const res = await fetch(apiUrl(`/api/usecases/${id}`), { credentials: 'include' });
+          const res = await fetch(apiUrl(`/api/usecases/${String(id)}`), { credentials: 'include' });
           if (!res.ok) continue;
           const data = await res.json();
           setParentUCCache((prev) => ({
             ...prev,
-            [id]: { cuId: data.cuId, description: data.description },
+            [String(id)]: { cuId: data.cuId, description: data.description },
           }));
         } catch (err) {
           console.error('[CacheParentUC]', err);
