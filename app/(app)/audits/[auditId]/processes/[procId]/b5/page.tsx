@@ -583,6 +583,8 @@ function SlideOver({
         bodyData.isInstance = true;
       }
 
+      console.log('[Phase1] instanceMode:', instanceMode, 'processId:', bodyData.processId, 'parentUCId:', bodyData.parentUCId, 'type:', typeof bodyData.parentUCId);
+
       let bodyStr = '';
       try {
         bodyStr = JSON.stringify(bodyData);
