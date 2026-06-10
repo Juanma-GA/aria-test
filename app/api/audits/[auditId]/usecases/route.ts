@@ -84,9 +84,6 @@ export async function POST(
     const body = await req.json();
     const parsed = createUseCaseSchema.safeParse(body);
     if (!parsed.success) {
-      console.log('[POST UC] validation error issues:', parsed.error.issues);
-      console.log('[POST UC] body.processId:', body.processId, 'type:', typeof body.processId);
-      console.log('[POST UC] body.parentUCId:', body.parentUCId, 'type:', typeof body.parentUCId);
       return NextResponse.json(validationErrorResponse(parsed.error), {
         status: 400,
       });

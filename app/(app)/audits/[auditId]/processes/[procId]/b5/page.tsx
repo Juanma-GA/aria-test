@@ -583,8 +583,6 @@ function SlideOver({
         bodyData.isInstance = true;
       }
 
-      console.log('[Phase1] instanceMode:', instanceMode, 'processId:', bodyData.processId, 'parentUCId:', bodyData.parentUCId, 'type:', typeof bodyData.parentUCId);
-
       let bodyStr = '';
       try {
         bodyStr = JSON.stringify(bodyData);
@@ -773,13 +771,6 @@ function SlideOver({
       } catch (jsonErr) {
         throw new Error(`Form serialization failed: ${jsonErr instanceof Error ? jsonErr.message : 'Unknown error'}`);
       }
-
-      console.log('[Phase2] payload additionalDevCostEur:',
-        (bodyData as any).additionalDevCostEur,
-        'form value:', form.additionalDevCostEur,
-        'instanceMode:', instanceMode,
-        'editUC.isInstance:', (editUC as any)?.isInstance
-      );
 
       const res = await fetch(apiUrl(url), {
         method, credentials: 'include',
@@ -1587,8 +1578,6 @@ export default function B5Page() {
   // Fetch parent UCs when picker audit selection changes
   useEffect(() => {
     if (!showInstancePicker || !pickerAuditId) return;
-    console.log('[InstancePicker] fetching UCs for audit:',
-      pickerAuditId, 'showInstancePicker:', showInstancePicker);
     setLoadingParents(true);
     (async () => {
       try {

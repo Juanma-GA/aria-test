@@ -47,7 +47,7 @@ export const createProcessSchema = z.object({
 export const createUseCaseSchema = z.object({
   processId: z.string().min(1, 'processId is required'),
   description: z.string().trim().min(1, 'description is required'),
-  aiTypes: z.array(z.enum(AI_TYPES)).optional(),
+  aiTypes: z.array(z.string()).optional(),
   aiType: z.string().optional(),
   targetActivities: z.array(z.string()).optional(),
   targetActivity: z.string().optional(),
