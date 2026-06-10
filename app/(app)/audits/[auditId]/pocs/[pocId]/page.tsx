@@ -323,9 +323,13 @@ export default function POCDetailPage() {
     if (res.ok) {
       const updated = await res.json();
       setPoc(updated);
+      // Derive assignedUCs from re-fetched populated data
+      setAssignedUCs(updated.useCaseIds || []);
+    } else {
+      // Fallback: update from memory if re-fetch fails
+      setAssignedUCs(prev =>
+        prev.filter(u => String(u._id ?? u) !== String(ucId)));
     }
-    setAssignedUCs(prev =>
-      prev.filter(u => String(u._id ?? u) !== String(ucId)));
   };
 
   const handleAddUC = async () => {
@@ -343,8 +347,12 @@ export default function POCDetailPage() {
     if (res.ok) {
       const updated = await res.json();
       setPoc(updated);
+      // Derive assignedUCs from re-fetched populated data
+      setAssignedUCs(updated.useCaseIds || []);
+    } else {
+      // Fallback: update from memory if re-fetch fails
+      setAssignedUCs(prev => [...prev, uc]);
     }
-    setAssignedUCs(prev => [...prev, uc]);
     setPickerSelectedUCId('');
     setPickerProcessId('');
     setPickerUCs([]);
