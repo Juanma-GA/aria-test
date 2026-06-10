@@ -2006,12 +2006,39 @@ export default function B5Page() {
                       {(uc as any).isInstance === true && (
                         <button
                           onClick={() => {
-                            const parentId = String((uc as any).parentUCId ?? '');
-                            const cached = parentUCCache[parentId];
-                            if (cached) {
-                              router.push(
-                                `/audits/${auditId}/processes/${procId}/b5?edit=${parentId}`
-                              );
+                            const parentId = typeof (uc as any).parentUCId === 'object'
+                              ? String((uc as any).parentUCId?._id ?? (uc as any).parentUCId)
+                              : String((uc as any).parentUCId ?? '');
+
+                            // Check if parent is in current useCases list (same audit)
+                            const parentUC = useCases.find(
+                              u => String((u as any)._id) === parentId);
+
+                            if (parentUC) {
+                              // Same audit — open in SlideOver
+                              setEditUC(parentUC);
+                              setInitialDesc('');
+                              setSlideOver(true);
+                            } else {
+                              // Cross-audit — fetch parent details and navigate
+                              fetch(apiUrl(`/api/usecases/${parentId}`),
+                                { credentials: 'include' })
+                                .then(r => r.json())
+                                .then(data => {
+                                  if (data.auditId && data.processId) {
+                                    const aid = typeof data.auditId === 'object'
+                                      ? data.auditId._id ?? data.auditId
+                                      : data.auditId;
+                                    const pid = typeof data.processId === 'object'
+                                      ? data.processId._id ?? data.processId
+                                      : data.processId;
+                                    window.open(
+                                      `/audits/${aid}/processes/${pid}/b5`,
+                                      '_blank'
+                                    );
+                                  }
+                                })
+                                .catch(() => {});
                             }
                           }}
                           className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5 hover:bg-blue-200 transition-colors"
