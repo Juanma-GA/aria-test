@@ -335,7 +335,7 @@ function SlideOver({
         setDims(newDims);
         setOriginalDims(newDims);
       }
-    } else if (instanceMode && selectedParentUC) {
+    } else if (instanceMode && selectedParentUC && !form._id) {
       const base = { ...selectedParentUC } as any;
       base.parentUCId = selectedParentUC._id;
       base.isInstance = true;
