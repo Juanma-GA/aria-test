@@ -21,6 +21,9 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
     const showArchived = searchParams.get('archived') === 'true';
+    // TODO fase 2: este GET filtra por el auditId legacy del POC. Cuando la vista
+    // "POCs de esta auditoría" migre al modelo derivado, usará GET /api/pocs?auditId=X
+    // (filtro sobre UCs de esa auditoría), no este endpoint.
     const query: Record<string, any> = { auditId };
     if (processId) query.processId = processId;
     query.isArchived = showArchived ? true : { $ne: true };

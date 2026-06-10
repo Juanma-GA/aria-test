@@ -1,53 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { POC, Industrialization } from '@/lib/models';
-import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 import {
+  OBJECT_ID_RE,
   applyPocPopulate,
   buildPocSet,
   validatePocComposition,
   syncUCStatusTransitions,
   revertUCsOnPocDelete,
+  requirePocEditAccess,
+  getVisibleUCIds,
 } from '@/lib/pocHelpers';
 
 export async function GET(
   req: NextRequest,
-  context: {
-    params: Promise<{ auditId: string; pocId: string }> | { auditId: string; pocId: string };
-  }
+  context: { params: Promise<{ pocId: string }> | { pocId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = await Promise.resolve(context.params);
-    const access = await requireAuditAccess(req, auditId, 'view');
-    if (!isAccessGranted(access)) return access;
+    const { pocId } = await Promise.resolve(context.params);
 
+    if (!OBJECT_ID_RE.test(pocId)) {
+      return NextResponse.json({ error: 'Invalid POC id' }, { status: 400 });
+    }
+
+    const visibleUCIds = await getVisibleUCIds(req);
+    if (!visibleUCIds) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Find POC only if it contains at least one UC visible to the caller
     const poc = await applyPocPopulate(
-      POC.findOne({ auditId, _id: pocId })
+      POC.findOne({
+        _id: pocId,
+        $or: [
+          { useCaseIds: { $in: visibleUCIds } },
+          { useCaseId: { $in: visibleUCIds } },
+        ],
+      })
     ).lean();
 
     if (!poc) return NextResponse.json({ error: 'POC not found' }, { status: 404 });
     return NextResponse.json(poc);
   } catch (err) {
-    console.error('[API]', err);
+    console.error('[API /pocs/[pocId] GET]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function PATCH(
   req: NextRequest,
-  context: {
-    params: Promise<{ auditId: string; pocId: string }> | { auditId: string; pocId: string };
-  }
+  context: { params: Promise<{ pocId: string }> | { pocId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = await Promise.resolve(context.params);
-    const access = await requireAuditAccess(req, auditId, 'edit');
-    if (!isAccessGranted(access)) return access;
+    const { pocId } = await Promise.resolve(context.params);
 
-    const poc = await POC.findOne({ auditId, _id: pocId }).lean() as any;
+    if (!OBJECT_ID_RE.test(pocId)) {
+      return NextResponse.json({ error: 'Invalid POC id' }, { status: 400 });
+    }
+
+    const poc = await POC.findById(pocId).lean() as any;
     if (!poc) return NextResponse.json({ error: 'POC not found' }, { status: 404 });
+
+    const denied = await requirePocEditAccess(req, poc);
+    if (denied) return denied;
 
     const body = await req.json();
     const $set = buildPocSet(body, poc);
@@ -69,28 +84,31 @@ export async function PATCH(
       );
     }
 
-    const updated = await POC.findOne({ auditId, _id: pocId }).lean();
+    const updated = await POC.findById(pocId).lean();
     return NextResponse.json(updated);
   } catch (err) {
-    console.error('[API]', err);
+    console.error('[API /pocs/[pocId] PATCH]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  context: {
-    params: Promise<{ auditId: string; pocId: string }> | { auditId: string; pocId: string };
-  }
+  context: { params: Promise<{ pocId: string }> | { pocId: string } }
 ) {
   try {
     await dbConnect();
-    const { auditId, pocId } = await Promise.resolve(context.params);
-    const access = await requireAuditAccess(req, auditId, 'edit');
-    if (!isAccessGranted(access)) return access;
+    const { pocId } = await Promise.resolve(context.params);
 
-    const poc = await POC.findOne({ auditId, _id: pocId });
+    if (!OBJECT_ID_RE.test(pocId)) {
+      return NextResponse.json({ error: 'Invalid POC id' }, { status: 400 });
+    }
+
+    const poc = await POC.findById(pocId);
     if (!poc) return NextResponse.json({ error: 'POC not found' }, { status: 404 });
+
+    const denied = await requirePocEditAccess(req, poc.toObject());
+    if (denied) return denied;
 
     const { searchParams } = new URL(req.url);
     const cascade = searchParams.get('cascade') === 'true';
@@ -117,7 +135,7 @@ export async function DELETE(
       cascaded: cascade ? { industrializations: indCount } : undefined,
     });
   } catch (err) {
-    console.error('[API]', err);
+    console.error('[API /pocs/[pocId] DELETE]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
