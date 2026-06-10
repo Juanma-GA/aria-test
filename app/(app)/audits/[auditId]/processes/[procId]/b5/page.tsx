@@ -583,6 +583,12 @@ function SlideOver({
         bodyData.isInstance = true;
       }
 
+      console.log('[Phase1 save] additionalDevCostEur in form:',
+        form.additionalDevCostEur,
+        'instanceMode:', instanceMode,
+        'bodyData.additionalDevCostEur:', (bodyData as any).additionalDevCostEur
+      );
+
       let bodyStr = '';
       try {
         bodyStr = JSON.stringify(bodyData);
@@ -763,6 +769,13 @@ function SlideOver({
         bodyData.parentUCId = String((editUC as any).parentUCId);
         bodyData.isInstance = true;
       }
+
+      console.log('[Phase2 save] additionalDevCostEur:',
+        (bodyData as any).additionalDevCostEur,
+        'form:', form.additionalDevCostEur,
+        'instanceMode:', instanceMode,
+        'editUC?.isInstance:', (editUC as any)?.isInstance
+      );
 
       let bodyStr = '';
       try {

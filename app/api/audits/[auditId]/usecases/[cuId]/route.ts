@@ -167,6 +167,8 @@ export async function PATCH(
     }
 
     // Use native MongoDB driver to bypass Mongoose strict-mode stripping on $set
+    console.log('[PATCH UC] additionalDevCostEur in $set:',
+      $set['additionalDevCostEur'], 'isInstance:', $set['isInstance'], 'parentUCId:', $set['parentUCId']);
     const oid = new mongoose.Types.ObjectId(cuId);
     const result = await UseCase.collection.updateOne({ _id: oid }, { $set });
 
