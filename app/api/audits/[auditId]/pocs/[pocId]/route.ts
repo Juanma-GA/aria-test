@@ -96,6 +96,45 @@ export async function PATCH(
       { $set }
     );
 
+    // Handle UC status transitions — only if useCaseIds is being updated
+    if (body.useCaseIds !== undefined) {
+      const oldUseCaseIds = new Set<string>(
+        (poc.useCaseIds || []).map((id: any) => String(id))
+      );
+
+      const newUseCaseIds = new Set<string>(
+        (body.useCaseIds || []).map((id: any) => String(id))
+      );
+
+      const addedUCs = Array.from(newUseCaseIds).filter(id => !oldUseCaseIds.has(id));
+      const removedUCs = Array.from(oldUseCaseIds).filter(id => !newUseCaseIds.has(id));
+
+      // Added UCs → 'in_poc'
+      if (addedUCs.length > 0) {
+        await UseCase.updateMany(
+          { _id: { $in: addedUCs } },
+          { $set: { status: 'in_poc' } }
+        );
+      }
+
+      // Removed UCs → 'eligible' only if no other active POCs contain them
+      if (removedUCs.length > 0) {
+        for (const ucId of removedUCs) {
+          const remainingPocs = await POC.countDocuments({
+            $or: [
+              { useCaseIds: ucId },
+              { useCaseId: ucId }
+            ],
+            isArchived: { $ne: true },
+            _id: { $ne: poc._id }
+          });
+          if (remainingPocs === 0) {
+            await UseCase.findByIdAndUpdate(ucId, { $set: { status: 'eligible' } });
+          }
+        }
+      }
+    }
+
     // Fetch updated document and return
     const updated = await POC.findOne({ auditId, _id: pocId }).lean();
     return NextResponse.json(updated);

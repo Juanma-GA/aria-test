@@ -85,25 +85,29 @@ export async function POST(
     const body = await req.json();
 
     const { useCaseId, processId, cuId, ...rest } = body;
+    const useCaseIds = body.useCaseIds || (useCaseId ? [useCaseId] : []);
 
-    if (!useCaseId || !processId || !cuId) {
+    if (!useCaseIds.length || !processId || !cuId) {
       return NextResponse.json(
-        { error: 'useCaseId, processId, and cuId are required' },
+        { error: 'useCaseIds (or useCaseId), processId, and cuId are required' },
         { status: 400 },
       );
     }
+
+    // Use first UC in array as reference UC for backward compat
+    const referenceUseCaseId = useCaseIds[0];
 
     // Determine sequence number for this use case's POCs
     // Count both old useCaseId and new useCaseIds fields for backward compat
     const existingCount = await POC.countDocuments({
       auditId,
-      $or: [{ useCaseIds: useCaseId }, { useCaseId }],
+      $or: [{ useCaseIds: { $in: useCaseIds } }, { useCaseId: referenceUseCaseId }],
     });
     const sequence = String(existingCount + 1).padStart(2, '0');
     const pocId = `POC-${cuId}-${sequence}`;
 
     // Fetch the UseCase once with all needed fields
-    const uc = await UseCase.findById(useCaseId)
+    const uc = await UseCase.findById(referenceUseCaseId)
       .select('computeBreakdown estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
       .lean() as any;
 
@@ -155,8 +159,8 @@ export async function POST(
 
     const poc = await POC.create({
       auditId,
-      useCaseIds: [useCaseId],
-      useCaseId,
+      useCaseIds,
+      useCaseId: referenceUseCaseId,
       processId,
       pocId,
       ...rest,
@@ -169,8 +173,11 @@ export async function POST(
       },
     });
 
-    // Transition UC to 'in_poc' when first POC is created
-    await UseCase.findByIdAndUpdate(useCaseId, { $set: { status: 'in_poc' } });
+    // Transition all UCs to 'in_poc' when POC is created
+    await UseCase.updateMany(
+      { _id: { $in: useCaseIds } },
+      { $set: { status: 'in_poc' } }
+    );
 
     return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {

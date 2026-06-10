@@ -257,7 +257,11 @@ export default function POCDetailPage() {
     fetch(apiUrl(`/api/audits/${pickerAuditId}/usecases?processId=${pickerProcessId}`),
       { credentials: 'include' })
       .then(r => r.json())
-      .then(data => setPickerUCs(Array.isArray(data) ? data : []))
+      .then(data => setPickerUCs(
+        Array.isArray(data)
+          ? data.filter((u: any) => u.status === 'eligible' || u.status === 'in_poc')
+          : []
+      ))
       .catch(() => setPickerUCs([]))
       .finally(() => setLoadingPickerUCs(false));
   }, [pickerAuditId, pickerProcessId]);
