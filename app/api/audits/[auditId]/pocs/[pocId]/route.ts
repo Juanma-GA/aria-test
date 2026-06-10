@@ -105,6 +105,37 @@ export async function PATCH(
       $set.archivedAt = $set.isArchived ? new Date() : undefined;
     }
 
+    // Validate composition rule BEFORE persisting
+    if ($set.useCaseIds !== undefined && Array.isArray($set.useCaseIds) && $set.useCaseIds.length > 0) {
+      const newUseCaseIds = $set.useCaseIds as any[];
+
+      const referenceUC = await UseCase.findById(newUseCaseIds[0])
+        .select('cuId isInstance parentUCId')
+        .lean() as any;
+
+      if (referenceUC?.isInstance) {
+        return NextResponse.json(
+          { error: `Cannot use instance UC ${referenceUC?.cuId} as POC reference. Reference UC must be a normal UC.` },
+          { status: 400 }
+        );
+      }
+
+      if (newUseCaseIds.length > 1) {
+        const otherUCs = await UseCase.find({ _id: { $in: newUseCaseIds.slice(1) } })
+          .select('cuId isInstance parentUCId')
+          .lean() as any[];
+
+        for (const other of otherUCs) {
+          if (!other.isInstance || String(other.parentUCId) !== String(newUseCaseIds[0])) {
+            return NextResponse.json(
+              { error: `UC ${other.cuId} is not an instance of reference UC ${referenceUC?.cuId}. All non-reference UCs must be instances of the reference.` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+
     // Use MongoDB native driver to bypass Mongoose strict mode
     await POC.collection.updateOne(
       { _id: poc._id },

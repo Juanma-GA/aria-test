@@ -74,15 +74,10 @@ export default function POCDetailPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { canEdit } = useAuditAccess();
 
-  const [allAudits, setAllAudits] = useState<any[]>([]);
   const [assignedUCs, setAssignedUCs] = useState<any[]>([]);
   const [showUCPicker, setShowUCPicker] = useState(false);
-  const [pickerAuditId, setPickerAuditId] = useState('');
-  const [pickerProcessId, setPickerProcessId] = useState('');
-  const [pickerProcesses, setPickerProcesses] = useState<any[]>([]);
   const [pickerUCs, setPickerUCs] = useState<any[]>([]);
   const [pickerSelectedUCId, setPickerSelectedUCId] = useState('');
-  const [loadingPickerProcesses, setLoadingPickerProcesses] = useState(false);
   const [loadingPickerUCs, setLoadingPickerUCs] = useState(false);
   const assignedUCsInitialized = useRef(false);
 
@@ -192,13 +187,6 @@ export default function POCDetailPage() {
   }, [pocId]);
 
   useEffect(() => {
-    fetch(apiUrl('/api/audits'), { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setAllAudits(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     if (!poc || assignedUCsInitialized.current) return;
     const ids = (poc as any).useCaseIds as any[] ?? [];
     if (ids.length > 0) {
@@ -237,35 +225,23 @@ export default function POCDetailPage() {
     }
   }, [poc]);
 
+  // Load instances of reference UC when picker modal opens
   useEffect(() => {
-    if (!pickerAuditId) return;
-    setPickerProcessId('');
-    setPickerUCs([]);
-    setPickerSelectedUCId('');
-    setLoadingPickerProcesses(true);
-    fetch(apiUrl(`/api/audits/${pickerAuditId}/processes`),
-      { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setPickerProcesses(Array.isArray(data) ? data : []))
-      .catch(() => setPickerProcesses([]))
-      .finally(() => setLoadingPickerProcesses(false));
-  }, [pickerAuditId]);
+    if (!showUCPicker || assignedUCs.length === 0) {
+      setPickerUCs([]);
+      return;
+    }
 
-  useEffect(() => {
-    if (!pickerAuditId || !pickerProcessId) return;
-    setPickerSelectedUCId('');
     setLoadingPickerUCs(true);
-    fetch(apiUrl(`/api/audits/${pickerAuditId}/usecases?processId=${pickerProcessId}`),
+    const referenceUCId = assignedUCs[0]?._id ?? assignedUCs[0];
+
+    fetch(apiUrl(`/api/usecases?parentUCId=${referenceUCId}`),
       { credentials: 'include' })
       .then(r => r.json())
-      .then(data => setPickerUCs(
-        Array.isArray(data)
-          ? data.filter((u: any) => u.status === 'eligible' || u.status === 'in_poc')
-          : []
-      ))
+      .then(data => setPickerUCs(Array.isArray(data) ? data : []))
       .catch(() => setPickerUCs([]))
       .finally(() => setLoadingPickerUCs(false));
-  }, [pickerAuditId, pickerProcessId]);
+  }, [showUCPicker, assignedUCs]);
 
 
   const save = useCallback(async (updated: Partial<POC>) => {
@@ -338,9 +314,11 @@ export default function POCDetailPage() {
     if (!uc) return;
     if (assignedUCs.find(u => String(u._id ?? u) === pickerSelectedUCId))
       return;
+
     const newIds = [...assignedUCs.map(u => String(u._id ?? u)),
       pickerSelectedUCId];
     await patchPoc({ useCaseIds: newIds }, true);
+
     // Re-fetch to get populated useCaseIds for ROI calculation
     const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
       { credentials: 'include' });
@@ -353,8 +331,8 @@ export default function POCDetailPage() {
       // Fallback: update from memory if re-fetch fails
       setAssignedUCs(prev => [...prev, uc]);
     }
+
     setPickerSelectedUCId('');
-    setPickerProcessId('');
     setPickerUCs([]);
     setShowUCPicker(false);
   };
@@ -1369,58 +1347,33 @@ export default function POCDetailPage() {
               </button>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted font-medium
-                  uppercase tracking-wide mb-1 block">Audit</label>
-                <select className="form-input w-full text-sm"
-                  value={pickerAuditId}
-                  onChange={e => setPickerAuditId(e.target.value)}>
-                  <option value="">Select audit...</option>
-                  {allAudits.map(a => (
-                    <option key={a._id} value={a._id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-              {pickerAuditId && (
+              {assignedUCs.length === 0 ? (
+                <p className="text-xs text-muted">No reference UC selected. Cannot add instances.</p>
+              ) : (
                 <div>
                   <label className="text-xs text-muted font-medium
-                    uppercase tracking-wide mb-1 block">Process</label>
-                  <select className="form-input w-full text-sm"
-                    value={pickerProcessId}
-                    onChange={e => setPickerProcessId(e.target.value)}
-                    disabled={loadingPickerProcesses}>
-                    <option value="">
-                      {loadingPickerProcesses
-                        ? 'Loading...' : 'Select process...'}
-                    </option>
-                    {pickerProcesses.map(p => (
-                      <option key={p._id} value={p._id}>
-                        {p.procId} — {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {pickerProcessId && (
-                <div>
-                  <label className="text-xs text-muted font-medium
-                    uppercase tracking-wide mb-1 block">Use Case</label>
+                    uppercase tracking-wide mb-1 block">
+                    Instances of {assignedUCs[0]?.cuId}
+                  </label>
                   <select className="form-input w-full text-sm"
                     value={pickerSelectedUCId}
                     onChange={e => setPickerSelectedUCId(e.target.value)}
                     disabled={loadingPickerUCs}>
                     <option value="">
                       {loadingPickerUCs
-                        ? 'Loading...' : 'Select use case...'}
+                        ? 'Loading...' : 'Select instance...'}
                     </option>
                     {pickerUCs
                       .filter(uc => !assignedUCs
                         .find(a => String(a._id ?? a) === uc._id))
-                      .map(uc => (
-                        <option key={uc._id} value={uc._id}>
-                          {uc.cuId} — {uc.description?.slice(0, 50)}
-                        </option>
-                      ))}
+                      .map(uc => {
+                        const sameAudit = String(uc.audit?._id) === auditId;
+                        return (
+                          <option key={uc._id} value={uc._id}>
+                            {uc.cuId}{!sameAudit ? ` (${uc.audit?.name ?? 'Other audit'})` : ''} — {uc.description?.slice(0, 40)}
+                          </option>
+                        );
+                      })}
                   </select>
                 </div>
               )}
@@ -1429,7 +1382,7 @@ export default function POCDetailPage() {
               <button onClick={handleAddUC}
                 disabled={!pickerSelectedUCId}
                 className="btn-primary flex-1 disabled:opacity-50">
-                Add UC
+                Add Instance
               </button>
               <button onClick={() => setShowUCPicker(false)}
                 className="btn-secondary flex-1">

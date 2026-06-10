@@ -101,6 +101,34 @@ export async function POST(
     // Use first UC in array as reference UC for backward compat
     const referenceUseCaseId = useCaseIds[0];
 
+    // Validate composition rule: reference UC must not be an instance
+    const referenceUC = await UseCase.findById(referenceUseCaseId)
+      .select('cuId isInstance parentUCId')
+      .lean() as any;
+
+    if (referenceUC?.isInstance) {
+      return NextResponse.json(
+        { error: `Cannot use instance UC ${referenceUC.cuId} as POC reference. Reference UC must be a normal UC, not an instance.` },
+        { status: 400 }
+      );
+    }
+
+    // Validate all non-reference UCs are instances of the reference
+    if (useCaseIds.length > 1) {
+      const otherUCs = await UseCase.find({ _id: { $in: useCaseIds.slice(1) } })
+        .select('cuId isInstance parentUCId')
+        .lean() as any[];
+
+      for (const other of otherUCs) {
+        if (!other.isInstance || String(other.parentUCId) !== String(referenceUseCaseId)) {
+          return NextResponse.json(
+            { error: `UC ${other.cuId} is not an instance of reference UC ${referenceUC?.cuId}. All non-reference UCs must be instances of the reference.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Determine sequence number for this use case's POCs
     // Count both old useCaseId and new useCaseIds fields for backward compat
     const existingCount = await POC.countDocuments({
