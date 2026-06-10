@@ -1450,6 +1450,11 @@ export default function B5Page() {
   const [selectedParentUC, setSelectedParentUC] = useState<UseCase | null>(null);
   const [parentUCs, setParentUCs] = useState<UseCase[]>([]);
   const [loadingParents, setLoadingParents] = useState(false);
+  const [allAudits, setAllAudits] = useState<Array<{ _id: string; name: string }>>([]);
+  const [pickerAuditId, setPickerAuditId] = useState(auditId);
+  const [showPickerAuditDropdown, setShowPickerAuditDropdown] = useState(false);
+  const [pickerAuditName, setPickerAuditName] = useState('');
+  const [parentUCCache, setParentUCCache] = useState<Record<string, { cuId: string; description: string }>>({});
 
   useBeforeUnload(slideOver || generateModal);
 
@@ -1539,6 +1544,79 @@ export default function B5Page() {
       }
     })();
   }, [slideOver, auditId, procId]);
+
+  // Fetch all audits when instance picker opens
+  useEffect(() => {
+    if (!showInstancePicker) return;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/audits'), { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const audits = Array.isArray(data) ? data : [];
+        setAllAudits(audits);
+        setPickerAuditId(auditId);
+        const currentAudit = audits.find((a: any) => a._id === auditId);
+        setPickerAuditName(currentAudit?.name || 'Current audit');
+      } catch (err) {
+        console.error('[LoadAuditsForPicker]', err);
+      }
+    })();
+  }, [showInstancePicker, auditId]);
+
+  // Fetch parent UCs when picker audit selection changes
+  useEffect(() => {
+    if (!showInstancePicker || !pickerAuditId) return;
+    setLoadingParents(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${pickerAuditId}/usecases?isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) {
+          setParentUCs([]);
+          return;
+        }
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCsForAudit]', err);
+        setParentUCs([]);
+      } finally {
+        setLoadingParents(false);
+      }
+    })();
+  }, [pickerAuditId, showInstancePicker]);
+
+  // Fetch and cache parent UC metadata for instance badges
+  useEffect(() => {
+    (async () => {
+      const parentUCIds = useCases
+        .filter((uc) => (uc as any).isInstance && (uc as any).parentUCId)
+        .map((uc) => (uc as any).parentUCId);
+
+      if (parentUCIds.length === 0) return;
+
+      const uncached = parentUCIds.filter((id: string) => !parentUCCache[id]);
+      if (uncached.length === 0) return;
+
+      for (const id of uncached) {
+        try {
+          const res = await fetch(apiUrl(`/api/usecases/${id}`), { credentials: 'include' });
+          if (!res.ok) continue;
+          const data = await res.json();
+          setParentUCCache((prev) => ({
+            ...prev,
+            [id]: { cuId: data.cuId, description: data.description },
+          }));
+        } catch (err) {
+          console.error('[CacheParentUC]', err);
+        }
+      }
+    })();
+  }, [useCases]);
 
   // Handle ?newUC=1&desc=... from B3 "Create UC" button
   useEffect(() => {
@@ -1770,8 +1848,8 @@ export default function B5Page() {
       {showInstancePicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowInstancePicker(false)} />
-          <div className="relative w-full max-w-2xl bg-white shadow-xl rounded-sm p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="relative w-full max-w-2xl bg-white shadow-xl rounded-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
               <h3 className="font-semibold text-base">Select Parent Use Case</h3>
               <button
                 onClick={() => setShowInstancePicker(false)}
@@ -1780,39 +1858,79 @@ export default function B5Page() {
                 <X size={18} />
               </button>
             </div>
+
+            {/* Audit Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPickerAuditDropdown(!showPickerAuditDropdown)}
+                className="w-full text-left px-3 py-2 border border-border rounded bg-white text-sm font-medium flex items-center justify-between hover:border-blue-aria transition-colors"
+              >
+                {pickerAuditName || 'Select audit…'}
+                <ChevronDown size={14} className={showPickerAuditDropdown ? 'rotate-180' : ''} />
+              </button>
+              {showPickerAuditDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded shadow-lg z-10 max-h-64 overflow-y-auto">
+                  {allAudits.map((audit: any) => (
+                    <button
+                      key={audit._id}
+                      onClick={() => {
+                        setPickerAuditId(audit._id);
+                        setPickerAuditName(audit.name);
+                        setShowPickerAuditDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm border-b border-border last:border-b-0 transition-colors ${
+                        pickerAuditId === audit._id
+                          ? 'bg-blue-50 text-blue-aria font-medium'
+                          : 'hover:bg-slate-50 text-text'
+                      }`}
+                    >
+                      {audit.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Parent UCs List */}
             {loadingParents ? (
               <div className="flex items-center justify-center py-12">
                 <Spinner size="md" />
               </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {parentUCs.map((uc) => (
-                  <button
-                    key={uc._id}
-                    onClick={() => {
-                      setSelectedParentUC(uc);
-                      setEditUC(null);
-                      setInitialDesc('');
-                      setShowInstancePicker(false);
-                      setSlideOver(true);
-                    }}
-                    className="w-full text-left p-3 border border-border rounded hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="font-mono text-xs text-blue-aria font-medium">{uc.cuId}</div>
-                    <div className="text-sm text-text line-clamp-2">{uc.description}</div>
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {(uc.aiTypes?.length ? uc.aiTypes : [(uc as any).aiType]).map((t: AIType) => (
-                        <Badge
-                          key={t}
-                          variant={AI_TYPE_COLORS[t] ?? 'slate'}
-                          className="text-[10px]"
-                        >
-                          {AI_TYPE_LABELS[t]?.label ?? t}
-                        </Badge>
-                      ))}
-                    </div>
-                  </button>
-                ))}
+              <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded p-2">
+                {parentUCs.length === 0 ? (
+                  <p className="text-sm text-muted italic py-4 text-center">
+                    No parent use cases found in this audit
+                  </p>
+                ) : (
+                  parentUCs.map((uc) => (
+                    <button
+                      key={uc._id}
+                      onClick={() => {
+                        setSelectedParentUC(uc);
+                        setEditUC(null);
+                        setInitialDesc('');
+                        setShowInstancePicker(false);
+                        setSlideOver(true);
+                      }}
+                      className="w-full text-left p-3 border border-border rounded hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="font-mono text-xs text-blue-aria font-medium">{uc.cuId}</div>
+                      <div className="text-sm text-text line-clamp-2">{uc.description}</div>
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {(uc.aiTypes?.length ? uc.aiTypes : [(uc as any).aiType]).map((t: AIType) => (
+                          <Badge
+                            key={t}
+                            variant={AI_TYPE_COLORS[t] ?? 'slate'}
+                            className="text-[10px]"
+                          >
+                            {AI_TYPE_LABELS[t]?.label ?? t}
+                          </Badge>
+                        ))}
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -1869,12 +1987,29 @@ export default function B5Page() {
                         {uc.cuId}
                       </button>
                       {(uc as any).isInstance === true && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5">
+                        <button
+                          onClick={() => {
+                            const parentId = String((uc as any).parentUCId ?? '');
+                            const cached = parentUCCache[parentId];
+                            if (cached) {
+                              router.push(
+                                `/audits/${auditId}/processes/${procId}/b5?edit=${parentId}`
+                              );
+                            }
+                          }}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5 hover:bg-blue-200 transition-colors"
+                          title={
+                            parentUCCache[String((uc as any).parentUCId ?? '')]
+                              ?.description || ''
+                          }
+                        >
                           instance of{' '}
-                          {typeof (uc as any).parentUCId === 'object'
-                            ? (uc as any).parentUCId?.cuId ?? String((uc as any).parentUCId)
-                            : String((uc as any).parentUCId ?? '')}
-                        </span>
+                          {parentUCCache[String((uc as any).parentUCId ?? '')]
+                            ?.cuId ??
+                            (typeof (uc as any).parentUCId === 'object'
+                              ? (uc as any).parentUCId?.cuId ?? String((uc as any).parentUCId)
+                              : String((uc as any).parentUCId ?? ''))}
+                        </button>
                       )}
                     </td>
                     <td className="px-3 py-3">
