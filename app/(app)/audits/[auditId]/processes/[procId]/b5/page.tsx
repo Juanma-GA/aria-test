@@ -314,7 +314,6 @@ function SlideOver({
       savedHoursRef.current = Object.fromEntries(
         (editUC.timeSavedPerProfile ?? []).map(e => [e.profileId, e.hoursPerExecution])
       );
-      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
 
       setForm(newForm);
       setOriginalForm(newForm);
@@ -359,7 +358,6 @@ function SlideOver({
       (base as any).sovereigntyAnalysis = '';
       (base as any).computeBreakdown = { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '', annualReps };
       savedHoursRef.current = {};
-      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
 
       setForm(base as any);
       setOriginalForm(base as any);
@@ -376,15 +374,6 @@ function SlideOver({
 
   // Auto-derive timeSavedPerProfile from targetActivities changes
   useEffect(() => {
-    console.log('[Derive] run start', {
-      activitiesLen: activities?.length,
-      isFirstDeriveRun: isFirstDeriveRun.current,
-      savedHoursRef: savedHoursRef.current,
-      formHours: form.timeSavedPerProfile?.map(e => ({
-        profileId: e.profileId,
-        hoursPerExecution: e.hoursPerExecution
-      }))
-    });
     if (!activities?.length) return;
     if (isFirstDeriveRun.current) {
       isFirstDeriveRun.current = false;
@@ -430,7 +419,6 @@ function SlideOver({
     const currentIds = (form.timeSavedPerProfile ?? []).map(e => e.profileId).sort().join(',');
     const mergedIds = merged.map(e => e.profileId).sort().join(',');
     if (currentIds !== mergedIds) {
-      console.log('[Derive] merged result:', merged);
       set('timeSavedPerProfile', merged);
       savedHoursRef.current = {};
     }
