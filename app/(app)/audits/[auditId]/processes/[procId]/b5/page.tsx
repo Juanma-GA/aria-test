@@ -571,12 +571,6 @@ function SlideOver({
         bodyData.isInstance = true;
       }
 
-      console.log('[Phase1 save] additionalDevCostEur in form:',
-        form.additionalDevCostEur,
-        'instanceMode:', instanceMode,
-        'bodyData.additionalDevCostEur:', (bodyData as any).additionalDevCostEur
-      );
-
       let bodyStr = '';
       try {
         bodyStr = JSON.stringify(bodyData);
@@ -1494,11 +1488,6 @@ export default function B5Page() {
       setAnnualReps(proc?.b3?.annualRepetitions ?? 0);
       setB2Axes(proc?.b2?.axes ?? {});
       setUseCases(ucs);
-      console.log('[B5] UCs loaded:', ucs.map((u: any) => ({
-        cuId: u.cuId,
-        isInstance: u.isInstance,
-        parentUCId: u.parentUCId,
-      })));
       setLoading(false);
     } catch (err) {
       console.error('[LoadPage]', err);
