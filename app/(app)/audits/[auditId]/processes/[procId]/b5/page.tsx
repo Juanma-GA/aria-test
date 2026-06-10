@@ -728,11 +728,9 @@ function SlideOver({
   };
 
   const handleSave_Phase2 = async () => {
-    console.log('[Phase2 start] editUC:', editUC?._id, 'form._id:', form._id);
     setSaving(true);
     try {
       const ucId = editUC?._id ?? form._id;
-      console.log('[Phase2 ucId]:', ucId, 'method:', ucId ? 'PATCH' : 'POST');
       const url = ucId
         ? `/api/audits/${auditId}/usecases/${ucId}`
         : `/api/audits/${auditId}/usecases`;
@@ -760,13 +758,6 @@ function SlideOver({
         bodyData.isInstance = true;
       }
 
-      console.log('[Phase2 save] additionalDevCostEur:',
-        (bodyData as any).additionalDevCostEur,
-        'form:', form.additionalDevCostEur,
-        'instanceMode:', instanceMode,
-        'editUC?.isInstance:', (editUC as any)?.isInstance
-      );
-
       let bodyStr = '';
       try {
         bodyStr = JSON.stringify(bodyData);
@@ -780,7 +771,6 @@ function SlideOver({
         headers: { 'Content-Type': 'application/json' },
         body: bodyStr,
       });
-      console.log('[Phase2 response]:', res.status, res.ok);
 
       let data;
       try {
@@ -793,19 +783,7 @@ function SlideOver({
 
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
-      console.log('[Phase2 data]:', data?._id, data?.cuId);
       onSaved(data, false);
-      // Update additionalDevCostEur in list for both new and existing instances
-      try {
-        setUseCases(prev => prev.map((u: any) =>
-          String(u._id) === String(data._id)
-            ? { ...u, additionalDevCostEur: form.additionalDevCostEur ?? 0 }
-            : u
-        ));
-      } catch (err) {
-        console.error('[Phase2] setUseCases error:', err);
-      }
-      console.log('[Phase2 calling onClose]');
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed');
