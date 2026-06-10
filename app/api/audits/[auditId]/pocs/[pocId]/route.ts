@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
 import { POC, UseCase, Industrialization } from '@/lib/models';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
@@ -77,6 +78,16 @@ export async function PATCH(
       }
     }
 
+    // Cast ID fields from strings to ObjectIds
+    if (body.useCaseIds && Array.isArray(body.useCaseIds)) {
+      body.useCaseIds = body.useCaseIds.map((id: any) =>
+        typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
+      );
+    }
+    if (body.useCaseId && typeof body.useCaseId === 'string') {
+      body.useCaseId = new mongoose.Types.ObjectId(body.useCaseId);
+    }
+
     // Add remaining scalar fields to $set
     for (const [key, value] of Object.entries(body)) {
       if (key !== '_id') $set[key] = value;
@@ -107,7 +118,7 @@ export async function PATCH(
       );
 
       const newUseCaseIds = new Set<string>(
-        (body.useCaseIds || []).map((id: any) => String(id))
+        ($set.useCaseIds || []).map((id: any) => String(id))
       );
 
       const addedUCs = Array.from(newUseCaseIds).filter(id => !oldUseCaseIds.has(id));
@@ -116,7 +127,7 @@ export async function PATCH(
       // Added UCs → 'in_poc'
       if (addedUCs.length > 0) {
         await UseCase.updateMany(
-          { _id: { $in: addedUCs } },
+          { _id: { $in: addedUCs.map(id => new mongoose.Types.ObjectId(id)) } },
           { $set: { status: 'in_poc' } }
         );
       }
@@ -124,16 +135,17 @@ export async function PATCH(
       // Removed UCs → 'eligible' only if no other active POCs contain them
       if (removedUCs.length > 0) {
         for (const ucId of removedUCs) {
+          const ucObjectId = new mongoose.Types.ObjectId(ucId);
           const remainingPocs = await POC.countDocuments({
             $or: [
-              { useCaseIds: ucId },
-              { useCaseId: ucId }
+              { useCaseIds: { $in: [ucObjectId, ucId] } },
+              { useCaseId: { $in: [ucObjectId, ucId] } }
             ],
             isArchived: { $ne: true },
             _id: { $ne: poc._id }
           });
           if (remainingPocs === 0) {
-            await UseCase.findByIdAndUpdate(ucId, { $set: { status: 'eligible' } });
+            await UseCase.findByIdAndUpdate(ucObjectId, { $set: { status: 'eligible' } });
           }
         }
       }

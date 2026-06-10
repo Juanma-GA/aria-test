@@ -708,6 +708,22 @@ export default function POCDetailPage() {
                                 <span className="font-medium text-red-700">€{Math.round(ucDevCost).toLocaleString('de-DE')}</span>
                               </div>
                             )}
+                            {ucNet > 0 && (
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-muted">Payback</span>
+                                <span className="font-medium text-slate-700">
+                                  {ucDevCost > 0
+                                    ? (ucDevCost / (ucNet / 12)).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mo'
+                                    : '—'}
+                                </span>
+                              </div>
+                            )}
+                            {ucNet === 0 && ucDevCost > 0 && (
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-muted">Payback</span>
+                                <span className="font-medium text-slate-700">—</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1393,7 +1409,7 @@ export default function POCDetailPage() {
                         .find(a => String(a._id ?? a) === uc._id))
                       .map(uc => (
                         <option key={uc._id} value={uc._id}>
-                          {uc.processId?.procId ? `${uc.processId.procId} • ` : ''}{uc.cuId}
+                          {uc.cuId} — {uc.description?.slice(0, 50)}
                         </option>
                       ))}
                   </select>

@@ -36,6 +36,23 @@ async function syncUCPOCStatus() {
     connection = await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected\n');
 
+    // Phase 1: Repair corrupted useCaseIds (convert strings to ObjectIds)
+    console.log('🔧 Phase 1: Repairing corrupted useCaseIds arrays...\n');
+    const pocsWithStringIds = await POC.collection
+      .find({ useCaseIds: { $type: 'string' } }).toArray();
+
+    for (const poc of pocsWithStringIds) {
+      const fixedIds = (poc.useCaseIds || []).map((id: any) =>
+        typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
+      );
+      await POC.collection.updateOne(
+        { _id: poc._id },
+        { $set: { useCaseIds: fixedIds } }
+      );
+      console.log(`✅ Repaired POC ${poc._id}: converted ${fixedIds.length} string IDs to ObjectIds`);
+    }
+    console.log();
+
     console.log('🔍 Scanning for UseCase status sync...\n');
 
     // Get all non-archived UCs
@@ -54,11 +71,11 @@ async function syncUCPOCStatus() {
         continue;
       }
 
-      // Check if UC appears in any non-archived POC
+      // Check if UC appears in any non-archived POC (match both ObjectIds and strings)
       const pocCount = await POC.countDocuments({
         $or: [
-          { useCaseIds: uc._id },
-          { useCaseId: uc._id }
+          { useCaseIds: { $in: [uc._id, String(uc._id)] } },
+          { useCaseId: { $in: [uc._id, String(uc._id)] } }
         ],
         isArchived: { $ne: true }
       });

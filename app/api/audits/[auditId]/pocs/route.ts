@@ -85,7 +85,11 @@ export async function POST(
     const body = await req.json();
 
     const { useCaseId, processId, cuId, ...rest } = body;
-    const useCaseIds = body.useCaseIds || (useCaseId ? [useCaseId] : []);
+    let useCaseIds = body.useCaseIds || (useCaseId ? [useCaseId] : []);
+    // Cast to ObjectIds
+    useCaseIds = useCaseIds.map((id: any) =>
+      typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
+    );
 
     if (!useCaseIds.length || !processId || !cuId) {
       return NextResponse.json(
@@ -101,7 +105,10 @@ export async function POST(
     // Count both old useCaseId and new useCaseIds fields for backward compat
     const existingCount = await POC.countDocuments({
       auditId,
-      $or: [{ useCaseIds: { $in: useCaseIds } }, { useCaseId: referenceUseCaseId }],
+      $or: [
+        { useCaseIds: { $in: [referenceUseCaseId, String(referenceUseCaseId)] } },
+        { useCaseId: { $in: [referenceUseCaseId, String(referenceUseCaseId)] } }
+      ],
     });
     const sequence = String(existingCount + 1).padStart(2, '0');
     const pocId = `POC-${cuId}-${sequence}`;
