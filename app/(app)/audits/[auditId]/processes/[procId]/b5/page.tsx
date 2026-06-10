@@ -741,7 +741,7 @@ function SlideOver({
         ? `/api/audits/${auditId}/usecases/${ucId}`
         : `/api/audits/${auditId}/usecases`;
       const method = ucId ? 'PATCH' : 'POST';
-      const bodyData = {
+      const bodyData: any = {
         ...form,
         processId,
         targetActivities: form.targetActivities ?? [],
@@ -752,6 +752,17 @@ function SlideOver({
           scoredAt: new Date().toISOString(),
         },
       };
+
+      // Ensure instance fields are included for new instances
+      if (instanceMode && selectedParentUC?._id) {
+        bodyData.additionalDevCostEur = form.additionalDevCostEur ?? 0;
+        bodyData.parentUCId = String(selectedParentUC._id);
+        bodyData.isInstance = true;
+      } else if (editUC && (editUC as any).isInstance) {
+        bodyData.additionalDevCostEur = form.additionalDevCostEur ?? 0;
+        bodyData.parentUCId = String((editUC as any).parentUCId);
+        bodyData.isInstance = true;
+      }
 
       let bodyStr = '';
       try {
@@ -1181,14 +1192,7 @@ function SlideOver({
             )}
 
             {/* Compute Cost Simulator */}
-            <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
-              instanceMode ? 'pointer-events-none opacity-50' : ''
-            }`}>
-              {instanceMode && (
-                <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
-                  <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
-                </div>
-              )}
+            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text">
                   <span>🖥️</span> Compute cost calculator
