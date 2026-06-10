@@ -690,7 +690,7 @@ export default function POCDetailPage() {
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
                     <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
                     <p className="text-[9px] text-muted border-t border-border/30 mt-1.5 pt-1.5">
-                      €{Math.round(devCost).toLocaleString('de-DE')} / €{Math.round(netSaving / 12).toLocaleString('de-DE')}/mo ≈ {paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
+                      €{Math.round(devCost).toLocaleString('de-DE')} / (€{Math.round(netSaving).toLocaleString('de-DE')} / 12) ≈ {paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
                     </p>
                   </div>
                 )}
