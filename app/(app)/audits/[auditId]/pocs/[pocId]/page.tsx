@@ -73,6 +73,18 @@ export default function POCDetailPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { canEdit } = useAuditAccess();
 
+  const [allAudits, setAllAudits] = useState<any[]>([]);
+  const [assignedUCs, setAssignedUCs] = useState<any[]>([]);
+  const [showUCPicker, setShowUCPicker] = useState(false);
+  const [pickerAuditId, setPickerAuditId] = useState('');
+  const [pickerProcessId, setPickerProcessId] = useState('');
+  const [pickerProcesses, setPickerProcesses] = useState<any[]>([]);
+  const [pickerUCs, setPickerUCs] = useState<any[]>([]);
+  const [pickerSelectedUCId, setPickerSelectedUCId] = useState('');
+  const [loadingPickerProcesses, setLoadingPickerProcesses] = useState(false);
+  const [loadingPickerUCs, setLoadingPickerUCs] = useState(false);
+  const assignedUCsInitialized = useRef(false);
+
   useEffect(() => {
     Promise.all([
       fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`), { credentials: 'include' }).then(r => r.json()),
@@ -173,6 +185,83 @@ export default function POCDetailPage() {
       });
   }, [poc?.processId, poc?.useCaseId, auditId]);
 
+  useEffect(() => {
+    assignedUCsInitialized.current = false;
+    setAssignedUCs([]);
+  }, [pocId]);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/audits'), { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setAllAudits(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!poc || assignedUCsInitialized.current) return;
+    const ids = (poc as any).useCaseIds as any[] ?? [];
+    if (ids.length > 0) {
+      if (typeof ids[0] === 'object' && ids[0]?.cuId) {
+        setAssignedUCs(ids);
+        assignedUCsInitialized.current = true;
+      } else {
+        const singularUC = (poc as any).useCaseId;
+        if (singularUC && typeof singularUC === 'object' && singularUC.cuId) {
+          const additionalIds = ids.filter(
+            id => String(id) !== String(singularUC._id));
+          if (additionalIds.length === 0) {
+            setAssignedUCs([singularUC]);
+            assignedUCsInitialized.current = true;
+          } else {
+            Promise.all(
+              additionalIds.map(id =>
+                fetch(apiUrl(`/api/usecases/${id}`), { credentials: 'include' })
+                  .then(r => r.ok ? r.json() : null)
+                  .catch(() => null)
+              )
+            ).then(results => {
+              const fetched = results.filter(Boolean);
+              setAssignedUCs([singularUC, ...fetched]);
+              assignedUCsInitialized.current = true;
+            });
+          }
+        }
+      }
+    } else if ((poc as any).useCaseId) {
+      const uc = (poc as any).useCaseId;
+      if (typeof uc === 'object' && uc?.cuId) {
+        setAssignedUCs([uc]);
+        assignedUCsInitialized.current = true;
+      }
+    }
+  }, [poc]);
+
+  useEffect(() => {
+    if (!pickerAuditId) return;
+    setPickerProcessId('');
+    setPickerUCs([]);
+    setPickerSelectedUCId('');
+    setLoadingPickerProcesses(true);
+    fetch(apiUrl(`/api/audits/${pickerAuditId}/processes`),
+      { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setPickerProcesses(Array.isArray(data) ? data : []))
+      .catch(() => setPickerProcesses([]))
+      .finally(() => setLoadingPickerProcesses(false));
+  }, [pickerAuditId]);
+
+  useEffect(() => {
+    if (!pickerAuditId || !pickerProcessId) return;
+    setPickerSelectedUCId('');
+    setLoadingPickerUCs(true);
+    fetch(apiUrl(`/api/audits/${pickerAuditId}/usecases?processId=${pickerProcessId}`),
+      { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setPickerUCs(Array.isArray(data) ? data : []))
+      .catch(() => setPickerUCs([]))
+      .finally(() => setLoadingPickerUCs(false));
+  }, [pickerAuditId, pickerProcessId]);
+
 
   const save = useCallback(async (updated: Partial<POC>) => {
     setSaveStatus('saving');
@@ -195,6 +284,52 @@ export default function POCDetailPage() {
     setSaveStatus('unsaved');
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => save(updated), 2000);
+  };
+
+  const patchPoc = async (fields: Record<string, any>,
+    skipAssignedUCsReset = false) => {
+    const res = await fetch(
+      apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
+      { method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(fields) });
+    if (res.ok) {
+      const data = await res.json();
+      if (skipAssignedUCsReset) {
+        setPoc((prev: any) => prev
+          ? { ...prev, ...data, useCaseIds: prev.useCaseIds }
+          : data);
+      } else {
+        setPoc(data);
+      }
+    }
+  };
+
+  const handleRemoveUC = async (ucId: string) => {
+    if (assignedUCs.length <= 1) return;
+    const newIds = assignedUCs
+      .filter(u => String(u._id ?? u) !== String(ucId))
+      .map(u => String(u._id ?? u));
+    await patchPoc({ useCaseIds: newIds }, true);
+    setAssignedUCs(prev =>
+      prev.filter(u => String(u._id ?? u) !== String(ucId)));
+  };
+
+  const handleAddUC = async () => {
+    if (!pickerSelectedUCId) return;
+    const uc = pickerUCs.find(u => u._id === pickerSelectedUCId);
+    if (!uc) return;
+    if (assignedUCs.find(u => String(u._id ?? u) === pickerSelectedUCId))
+      return;
+    const newIds = [...assignedUCs.map(u => String(u._id ?? u)),
+      pickerSelectedUCId];
+    await patchPoc({ useCaseIds: newIds }, true);
+    setAssignedUCs(prev => [...prev, uc]);
+    setPickerSelectedUCId('');
+    setPickerProcessId('');
+    setPickerUCs([]);
+    setShowUCPicker(false);
   };
 
   const updateDesign = (field: string, value: unknown) => {
@@ -371,16 +506,78 @@ export default function POCDetailPage() {
         </div>
       </div>
 
-      {/* Process and UseCase reference */}
-      <div className="text-xs text-muted flex flex-col gap-0.5 px-4 py-2 border-b border-border bg-slate-50">
-        <span>
-          <span className="font-medium text-text">Process:</span>{' '}
-          {(poc.processId as any)?.name ?? '—'}
-        </span>
-        <span>
-          <span className="font-medium text-text">UC:</span>{' '}
-          {(poc.useCaseId as any)?.description ?? '—'}
-        </span>
+      {/* Assigned Use Cases section */}
+      <div className="px-4 py-3 border-b border-border bg-slate-50">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-muted uppercase tracking-wide">
+            Assigned Use Cases ({assignedUCs.length})
+          </span>
+          {canEdit && (
+            <button
+              onClick={() => setShowUCPicker(true)}
+              className="text-xs text-blue-aria hover:underline
+                flex items-center gap-1"
+            >
+              + Add UC
+            </button>
+          )}
+        </div>
+        {assignedUCs.length === 0 ? (
+          <p className="text-xs text-muted">No use cases assigned.</p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {assignedUCs.map((uc, index) => {
+              const ucObj = typeof uc === 'object' ? uc as any : null;
+              const isReference = index === 0;
+              return (
+                <div
+                  key={ucObj?._id ?? index}
+                  className={`flex items-start justify-between
+                    rounded p-2 border text-xs ${
+                    isReference
+                      ? 'bg-blue-50 border-blue-200'
+                      : 'bg-white border-border'
+                  }`}
+                >
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-semibold text-xs">
+                        {ucObj?.cuId ?? String(uc)}
+                      </span>
+                      {isReference && (
+                        <span className="text-[10px] font-medium px-1.5
+                          py-0.5 rounded bg-blue-100 text-blue-700">
+                          Reference
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-muted truncate">
+                      {ucObj?.description?.slice(0, 60)}
+                    </span>
+                    <span className="text-muted text-[10px]">
+                      {ucObj?.auditId?.name
+                        ? `Audit: ${ucObj.auditId.name}`
+                        : ''}
+                      {ucObj?.processId?.name
+                        ? ` • Process: ${ucObj.processId.name}`
+                        : ''}
+                    </span>
+                  </div>
+                  {!isReference && canEdit && (
+                    <button
+                      onClick={() => handleRemoveUC(ucObj?._id)}
+                      className="ml-2 text-muted hover:text-red-500
+                        flex-shrink-0 mt-0.5"
+                      title="Remove UC"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Collapsible ROI Estimate */}
@@ -395,52 +592,60 @@ export default function POCDetailPage() {
         </button>
 
         {roiOpen && (() => {
-          const uc = poc.useCaseId as any;
-          const proc = poc.processId as any;
+          const assignedUCsForROI = assignedUCs.length > 0
+            ? assignedUCs
+            : [(poc as any).useCaseId].filter(Boolean);
+
+          const proc = (poc as any).processId;
           const b1Profiles = proc?.b1?.profiles ?? [];
           const annualReps = proc?.b3?.annualRepetitions ?? 0;
-          const activities = proc?.b3?.activities ?? [];
-          const targetHours = activities
-            .filter((a: any) => (uc?.targetActivities ?? []).includes(a.id))
-            .reduce((s: number, a: any) => s + (a.estimatedTimeHours ?? 0), 0);
-          const ccPerYear = computeAnnualCompute(uc?.computeBreakdown ?? null).totalEur;
-          const timeSaved = uc?.timeSavedPerProfile ?? [];
-          const totalHours = timeSaved.reduce((s: number, e: any) => s + (e.hoursPerExecution ?? 0), 0);
-          const weightedSum = timeSaved.reduce((sum: number, e: any) => {
-            const p = b1Profiles.find((p: any) => p.id === e.profileId);
-            if (!p?.hourlyRateEur) return sum;
-            return sum + (p.count ?? 1) * p.hourlyRateEur;
-          }, 0);
-          const totalCount = timeSaved.reduce((sum: number, e: any) => {
-            const p = b1Profiles.find((p: any) => p.id === e.profileId);
-            return sum + (p?.count ?? 1);
-          }, 0);
-          const avgRate = totalCount > 0 ? weightedSum / totalCount : 0;
-          if (totalHours === 0 || annualReps === 0 || avgRate === 0) {
+
+          const grossSaving = assignedUCsForROI.reduce(
+            (total: number, uc: any) => {
+              const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
+              return total + ucTimeSaved.reduce((s: number, e: any) => {
+                const profile = b1Profiles.find(
+                  (p: any) => p.id === e.profileId);
+                return s + (e.hoursPerExecution ?? 0)
+                  * (profile?.hourlyRateEur ?? 0) * annualReps;
+              }, 0);
+            }, 0);
+
+          const computeCost = assignedUCsForROI.reduce(
+            (total: number, uc: any) =>
+              total + (uc?.computeBreakdown?.computedAnnualEur ?? 0), 0);
+
+          const devCost = assignedUCsForROI.reduce(
+            (total: number, uc: any) => {
+              const base = uc?.estimatedDevCostEur ?? 0;
+              const additional = uc?.isInstance
+                ? (uc?.additionalDevCostEur ?? 0) : 0;
+              return total + base + additional;
+            }, 0);
+
+          const netSaving = Math.max(grossSaving - computeCost, 0);
+          const paybackMonths = devCost > 0 && netSaving > 0
+            ? devCost / (netSaving / 12) : 0;
+
+          if (grossSaving === 0) {
             return <p className="text-xs text-muted mt-2">No ROI data available.</p>;
           }
-          const annualSaving = totalHours * avgRate * annualReps;
-          const netAnnualSaving = Math.max(annualSaving - ccPerYear, 0);
-          const devCost = uc?.estimatedDevCostEur ?? 0;
-          const paybackMonths = devCost > 0 && netAnnualSaving > 0 ? (devCost / netAnnualSaving) * 12 : 0;
-          const savingPct = targetHours > 0 ? Math.round((totalHours / targetHours) * 100) : null;
 
           return (
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
               <div className="bg-green-50 border border-green-200 rounded p-2">
                 <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Gross Annual Saving</p>
-                <p className="font-bold text-green-700 text-sm">€{Math.round(annualSaving).toLocaleString('de-DE')}/yr</p>
-                {savingPct !== null && <p className="text-muted">{savingPct}% of targeted activities</p>}
+                <p className="font-bold text-green-700 text-sm">€{Math.round(grossSaving).toLocaleString('de-DE')}/yr</p>
               </div>
-              {ccPerYear > 0 && (
+              {computeCost > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded p-2">
                   <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Compute Cost/yr</p>
-                  <p className="font-bold text-amber-700 text-sm">€{Math.round(ccPerYear).toLocaleString('de-DE')}/yr</p>
+                  <p className="font-bold text-amber-700 text-sm">€{Math.round(computeCost).toLocaleString('de-DE')}/yr</p>
                 </div>
               )}
               <div className="bg-green-50 border border-green-200 rounded p-2">
                 <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Net Annual Saving</p>
-                <p className="font-bold text-green-700 text-sm">€{Math.round(netAnnualSaving).toLocaleString('de-DE')}/yr</p>
+                <p className="font-bold text-green-700 text-sm">€{Math.round(netSaving).toLocaleString('de-DE')}/yr</p>
               </div>
               {devCost > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded p-2">
@@ -1065,6 +1270,94 @@ export default function POCDetailPage() {
         onConfirm={handleDelete}
         onClose={() => setConfirmDelete({ open: false, cascade: false, indCount: 0 })}
       />
+
+      {showUCPicker && (
+        <div className="fixed inset-0 z-50 flex items-center
+          justify-center p-4">
+          <div className="absolute inset-0 bg-black/40"
+            onClick={() => setShowUCPicker(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl
+            w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base">
+                Add Use Case to POC
+              </h3>
+              <button onClick={() => setShowUCPicker(false)}
+                className="text-muted hover:text-text">
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted font-medium
+                  uppercase tracking-wide mb-1 block">Audit</label>
+                <select className="form-input w-full text-sm"
+                  value={pickerAuditId}
+                  onChange={e => setPickerAuditId(e.target.value)}>
+                  <option value="">Select audit...</option>
+                  {allAudits.map(a => (
+                    <option key={a._id} value={a._id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              {pickerAuditId && (
+                <div>
+                  <label className="text-xs text-muted font-medium
+                    uppercase tracking-wide mb-1 block">Process</label>
+                  <select className="form-input w-full text-sm"
+                    value={pickerProcessId}
+                    onChange={e => setPickerProcessId(e.target.value)}
+                    disabled={loadingPickerProcesses}>
+                    <option value="">
+                      {loadingPickerProcesses
+                        ? 'Loading...' : 'Select process...'}
+                    </option>
+                    {pickerProcesses.map(p => (
+                      <option key={p._id} value={p._id}>
+                        {p.procId} — {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {pickerProcessId && (
+                <div>
+                  <label className="text-xs text-muted font-medium
+                    uppercase tracking-wide mb-1 block">Use Case</label>
+                  <select className="form-input w-full text-sm"
+                    value={pickerSelectedUCId}
+                    onChange={e => setPickerSelectedUCId(e.target.value)}
+                    disabled={loadingPickerUCs}>
+                    <option value="">
+                      {loadingPickerUCs
+                        ? 'Loading...' : 'Select use case...'}
+                    </option>
+                    {pickerUCs
+                      .filter(uc => !assignedUCs
+                        .find(a => String(a._id ?? a) === uc._id))
+                      .map(uc => (
+                        <option key={uc._id} value={uc._id}>
+                          {uc.cuId} — {uc.description?.slice(0, 50)}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={handleAddUC}
+                disabled={!pickerSelectedUCId}
+                className="btn-primary flex-1 disabled:opacity-50">
+                Add UC
+              </button>
+              <button onClick={() => setShowUCPicker(false)}
+                className="btn-secondary flex-1">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
