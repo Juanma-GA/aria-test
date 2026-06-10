@@ -317,6 +317,13 @@ export default function POCDetailPage() {
       .filter(u => String(u._id ?? u) !== String(ucId))
       .map(u => String(u._id ?? u));
     await patchPoc({ useCaseIds: newIds }, true);
+    // Re-fetch to get populated useCaseIds for ROI calculation
+    const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
+      { credentials: 'include' });
+    if (res.ok) {
+      const updated = await res.json();
+      setPoc(updated);
+    }
     setAssignedUCs(prev =>
       prev.filter(u => String(u._id ?? u) !== String(ucId)));
   };
@@ -330,6 +337,13 @@ export default function POCDetailPage() {
     const newIds = [...assignedUCs.map(u => String(u._id ?? u)),
       pickerSelectedUCId];
     await patchPoc({ useCaseIds: newIds }, true);
+    // Re-fetch to get populated useCaseIds for ROI calculation
+    const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
+      { credentials: 'include' });
+    if (res.ok) {
+      const updated = await res.json();
+      setPoc(updated);
+    }
     setAssignedUCs(prev => [...prev, uc]);
     setPickerSelectedUCId('');
     setPickerProcessId('');
