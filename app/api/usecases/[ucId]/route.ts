@@ -8,7 +8,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ucId
 
     const { ucId } = await params;
 
-    const uc = await UseCase.findById(ucId).lean();
+    const uc = await UseCase.findById(ucId)
+      .populate('processId', 'procId name')
+      .lean();
 
     if (!uc) {
       return NextResponse.json({ error: 'Use case not found' }, { status: 404 });

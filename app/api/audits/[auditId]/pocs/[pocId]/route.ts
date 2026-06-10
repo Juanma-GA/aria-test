@@ -20,7 +20,11 @@ export async function GET(
     if (!isAccessGranted(access)) return access;
 
     const poc = await POC.findOne({ auditId, _id: pocId })
-      .populate('useCaseIds', 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur')
+      .populate({
+        path: 'useCaseIds',
+        select: 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur processId isInstance additionalDevCostEur',
+        populate: { path: 'processId', select: 'procId name' }
+      })
       .populate('useCaseId', 'cuId description')
       .populate('processId', 'procId name b1 b3')
       .lean();

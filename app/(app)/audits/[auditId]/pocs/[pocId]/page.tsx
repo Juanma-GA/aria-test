@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { SaveIndicator } from '@/components/ui/SaveIndicator';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/ComputeCalculator';
 import { useAuditAccess } from '@/context/AuditAccessContext';
 import { apiUrl } from '@/lib/utils';
@@ -534,50 +535,54 @@ export default function POCDetailPage() {
               const ucObj = typeof uc === 'object' ? uc as any : null;
               const isReference = index === 0;
               return (
-                <div
-                  key={ucObj?._id ?? index}
-                  className={`flex items-start justify-between
-                    rounded p-2 border text-xs ${
-                    isReference
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-white border-border'
-                  }`}
-                >
-                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-semibold text-xs">
-                        {ucObj?.cuId ?? String(uc)}
-                      </span>
-                      {isReference && (
-                        <span className="text-[10px] font-medium px-1.5
-                          py-0.5 rounded bg-blue-100 text-blue-700">
-                          Reference
+                <Tooltip key={ucObj?._id ?? index}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={`flex items-start justify-between
+                        rounded p-2 border text-xs cursor-help ${
+                        isReference
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'bg-white border-border'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-semibold text-xs">
+                            {ucObj?.cuId ?? String(uc)}
+                          </span>
+                          {isReference && (
+                            <span className="text-[10px] font-medium px-1.5
+                              py-0.5 rounded bg-blue-100 text-blue-700">
+                              Reference
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-muted text-[10px]">
+                          {ucObj?.processId?.procId ? `${ucObj.processId.procId} — ${ucObj.processId.name}` : ''}
                         </span>
+                        <span className="text-muted truncate">
+                          {ucObj?.description?.slice(0, 60)}
+                        </span>
+                      </div>
+                      {!isReference && canEdit && (
+                        <button
+                          onClick={() => handleRemoveUC(ucObj?._id)}
+                          className="ml-2 text-muted hover:text-red-500
+                            flex-shrink-0 mt-0.5"
+                          title="Remove UC"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       )}
                     </div>
-                    <span className="text-muted truncate">
-                      {ucObj?.description?.slice(0, 60)}
-                    </span>
-                    <span className="text-muted text-[10px]">
-                      {ucObj?.auditId?.name
-                        ? `Audit: ${ucObj.auditId.name}`
-                        : ''}
-                      {ucObj?.processId?.name
-                        ? ` • Process: ${ucObj.processId.name}`
-                        : ''}
-                    </span>
-                  </div>
-                  {!isReference && canEdit && (
-                    <button
-                      onClick={() => handleRemoveUC(ucObj?._id)}
-                      className="ml-2 text-muted hover:text-red-500
-                        flex-shrink-0 mt-0.5"
-                      title="Remove UC"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <div className="text-xs space-y-1">
+                      <p className="font-semibold">{ucObj?.cuId}</p>
+                      <p>{ucObj?.description}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               );
             })}
           </div>
@@ -636,31 +641,78 @@ export default function POCDetailPage() {
           }
 
           return (
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-green-50 border border-green-200 rounded p-2">
-                <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Gross Annual Saving</p>
-                <p className="font-bold text-green-700 text-sm">€{Math.round(grossSaving).toLocaleString('de-DE')}/yr</p>
-              </div>
-              {computeCost > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded p-2">
-                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Compute Cost/yr</p>
-                  <p className="font-bold text-amber-700 text-sm">€{Math.round(computeCost).toLocaleString('de-DE')}/yr</p>
+            <div className="mt-2 space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-green-50 border border-green-200 rounded p-2">
+                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Gross Annual Saving</p>
+                  <p className="font-bold text-green-700 text-sm">€{Math.round(grossSaving).toLocaleString('de-DE')}/yr</p>
                 </div>
-              )}
-              <div className="bg-green-50 border border-green-200 rounded p-2">
-                <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Net Annual Saving</p>
-                <p className="font-bold text-green-700 text-sm">€{Math.round(netSaving).toLocaleString('de-DE')}/yr</p>
-              </div>
-              {devCost > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded p-2">
-                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Dev Cost (one-time)</p>
-                  <p className="font-bold text-red-700 text-sm">€{devCost.toLocaleString('de-DE')}</p>
+                {computeCost > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded p-2">
+                    <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Compute Cost/yr</p>
+                    <p className="font-bold text-amber-700 text-sm">€{Math.round(computeCost).toLocaleString('de-DE')}/yr</p>
+                  </div>
+                )}
+                <div className="bg-green-50 border border-green-200 rounded p-2">
+                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Net Annual Saving</p>
+                  <p className="font-bold text-green-700 text-sm">€{Math.round(netSaving).toLocaleString('de-DE')}/yr</p>
                 </div>
-              )}
-              {paybackMonths > 0 && (
-                <div className="bg-slate-50 border border-border rounded p-2 col-span-2">
-                  <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
-                  <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                {devCost > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded p-2">
+                    <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Dev Cost (one-time)</p>
+                    <p className="font-bold text-red-700 text-sm">€{devCost.toLocaleString('de-DE')}</p>
+                  </div>
+                )}
+                {paybackMonths > 0 && (
+                  <div className="bg-slate-50 border border-border rounded p-2 col-span-2">
+                    <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
+                    <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                  </div>
+                )}
+              </div>
+
+              {assignedUCsForROI.length > 1 && (
+                <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
+                  <p className="font-semibold text-muted uppercase tracking-wide text-[10px]">Breakdown by Use Case</p>
+                  <div className="space-y-1.5">
+                    {assignedUCsForROI.map((uc: any) => {
+                      const ucGross = (uc?.timeSavedPerProfile ?? []).reduce((s: number, e: any) => {
+                        const profile = b1Profiles.find((p: any) => p.id === e.profileId);
+                        return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
+                      }, 0);
+                      const ucCompute = uc?.computeBreakdown?.computedAnnualEur ?? 0;
+                      const ucDevCost = (uc?.estimatedDevCostEur ?? 0) + (uc?.isInstance ? (uc?.additionalDevCostEur ?? 0) : 0);
+                      const ucNet = Math.max(ucGross - ucCompute, 0);
+
+                      return (
+                        <div key={uc._id} className="flex justify-between items-start text-[11px] py-1 border-t border-border/30 pt-1.5 first:border-t-0 first:pt-0">
+                          <span className="font-mono text-text">{uc.cuId}</span>
+                          <div className="flex gap-2 text-right">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted">Gross</span>
+                              <span className="font-medium text-green-700">€{Math.round(ucGross).toLocaleString('de-DE')}</span>
+                            </div>
+                            {ucCompute > 0 && (
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-muted">Compute</span>
+                                <span className="font-medium text-amber-700">€{Math.round(ucCompute).toLocaleString('de-DE')}</span>
+                              </div>
+                            )}
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted">Net</span>
+                              <span className="font-medium text-green-700">€{Math.round(ucNet).toLocaleString('de-DE')}</span>
+                            </div>
+                            {ucDevCost > 0 && (
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-muted">Dev</span>
+                                <span className="font-medium text-red-700">€{Math.round(ucDevCost).toLocaleString('de-DE')}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -1341,7 +1393,7 @@ export default function POCDetailPage() {
                         .find(a => String(a._id ?? a) === uc._id))
                       .map(uc => (
                         <option key={uc._id} value={uc._id}>
-                          {uc.cuId} — {uc.description?.slice(0, 50)}
+                          {uc.processId?.procId ? `${uc.processId.procId} • ` : ''}{uc.cuId}
                         </option>
                       ))}
                   </select>
