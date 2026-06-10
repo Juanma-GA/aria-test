@@ -2037,7 +2037,7 @@ export default function B5Page() {
                                       ? data.processId._id ?? data.processId
                                       : data.processId;
                                     window.open(
-                                      `/audits/${aid}/processes/${pid}/b5`,
+                                      `/audits/${aid}/processes/${pid}/b5?edit=${parentId}`,
                                       '_blank'
                                     );
                                   }
