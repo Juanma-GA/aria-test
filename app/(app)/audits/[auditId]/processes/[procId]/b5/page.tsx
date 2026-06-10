@@ -787,13 +787,13 @@ function SlideOver({
         const text = await res.text();
         if (!text) throw new Error('Empty response from server');
         data = JSON.parse(text);
-        console.log('[Phase2 data]:', data?._id, data?.cuId);
       } catch (parseErr) {
         throw new Error(`Server response parse failed: ${parseErr instanceof Error ? parseErr.message : 'Invalid JSON'}`);
       }
 
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
+      console.log('[Phase2 data]:', data?._id, data?.cuId);
       onSaved(data, false);
       // Update additionalDevCostEur in list for both new and existing instances
       setUseCases(prev => prev.map(u =>
