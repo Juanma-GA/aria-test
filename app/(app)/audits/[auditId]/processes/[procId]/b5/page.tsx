@@ -803,6 +803,11 @@ function SlideOver({
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
       onSaved(data, false);
+      setUseCases(prev => prev.map(u =>
+        u._id === editUC?._id
+          ? { ...(u as any), additionalDevCostEur: form.additionalDevCostEur ?? 0 }
+          : u
+      ));
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -1190,7 +1195,7 @@ function SlideOver({
             </div>
 
             {/* Additional Dev Cost (Instance mode only) */}
-            {instanceMode && (
+            {(instanceMode || (editUC && (editUC as any).isInstance)) && (
               <div className="border border-amber-200 bg-amber-50 rounded p-4">
                 <label className="form-label">Additional Dev Cost (€)</label>
                 <p className="text-xs text-muted mb-2">One-time additional development cost specific to this instance</p>
@@ -2011,6 +2016,16 @@ export default function B5Page() {
                           setEditUC(uc);
                           setInitialDesc('');
                           setSlideOver(true);
+                          if ((uc as any).isInstance) {
+                            setInstanceMode(true);
+                            const parent = useCases.find(
+                              u => String((u as any)._id) ===
+                                String((uc as any).parentUCId));
+                            if (parent) setSelectedParentUC(parent as any);
+                          } else {
+                            setInstanceMode(false);
+                            setSelectedParentUC(null);
+                          }
                         }}
                         className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer block"
                       >
