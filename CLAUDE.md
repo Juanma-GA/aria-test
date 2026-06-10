@@ -45,7 +45,7 @@
 
 ## What We're Working On
 
-**Status: STABLE** — All major features completed. Project is in production-ready state pending new feature requests.
+**Status: STABLE** — All major features completed including UC Instances. Project is in production-ready state pending new feature requests.
 
 ---
 
@@ -77,6 +77,71 @@
 ---
 
 ## Recent Changes Made in This Session
+
+### UC Instances — Cross-Audit Parent Linking ✅ COMPLETE
+- ✅ **Instance Mode in B5 Modal**:
+  - Dropdown button with "New Use Case" and "Add as Instance" options
+  - Instance Picker Modal: audit dropdown + parent UC selection
+  - Phase 1 fields pre-filled from parent (editable for instances)
+  - Phase 2 fields editable (Compute Cost calculator now editable for instances)
+  - Instance badge: "instance of {cuId}" with click-to-navigate to parent
+
+- ✅ **Data Model Updates**:
+  - `isInstance: boolean` — marks UC as instance of parent
+  - `parentUCId: ObjectId` — reference to parent UC (can be in different audit)
+  - `additionalDevCostEur: number` — extra development cost for instance-specific work
+  - Zod schema allows legacy aiType values: `z.array(z.string())` not z.enum
+
+- ✅ **Cross-Audit Parent UC Fetching**:
+  - New global endpoint: `GET /api/usecases/[ucId]` — fetch single UC by ID (no auth required for cross-audit)
+  - Parent UC cache: `parentUCCache` state with `useEffect` to fetch parent metadata (cuId, description)
+  - Prevents infinite lookups by caching results
+
+- ✅ **Server Validation & Logic**:
+  - POST handler: validates parent exists and is not itself an instance
+  - Cannot create instance of an instance (prevents chains)
+  - PATCH handler uses MongoDB native `$set` driver to correctly save instance fields
+  - `additionalDevCostEur` included in EDITABLE_FIELDS
+
+- ✅ **Phase 1 State Preservation**:
+  - Fixed form reset bug: useEffect guard `!form._id` prevents re-initialization after Phase 1 saves
+  - Form retains `_id` through Phase 2 save
+  - Instance fields synced via `onSaved(data, false)` → parent's `handleSaved`
+
+- ✅ **Phase 2 Save Flow**:
+  - Moved error validation before console.logs (ensures clean data before processing)
+  - Removed `setUseCases` from SlideOver scope (data already synced via parent's handleSaved)
+  - onClose() always executes after successful save
+  - Response includes full updated document with additionalDevCostEur
+
+- ✅ **Cross-Audit Navigation**:
+  - Instance badge click on same-audit parent: opens SlideOver modal
+  - Instance badge click on cross-audit parent: fetches parent details, opens new tab with `?edit={ucId}` query param
+  - Query param triggers useEffect to auto-load parent UC in modal
+
+- ✅ **Editing Existing Instances**:
+  - onClick handler sets `instanceMode=true` and populates `selectedParentUC` when editing instance
+  - additionalDevCostEur field visible when editing instances
+  - Phase 1 and Phase 2 both editable for existing instances
+
+- ✅ **ROI Calculations**:
+  - additionalDevCostEur included in dev cost ROI display
+  - Total dev cost = estimatedDevCostEur + additionalDevCostEur for instances
+  - Shows breakdown: "X (parent) + Y (additional) = Z (total)"
+
+- ✅ **Code Quality**:
+  - All debug console.logs removed (3 files cleaned)
+  - Instance creation tested with cross-audit and same-audit parents
+  - Modal closes properly after Phase 2 save
+  - Form state properly preserved through multi-phase save
+
+- **Key Files Modified**:
+  - `app/(app)/audits/[auditId]/processes/[procId]/b5/page.tsx` — SlideOver modal with instance picker
+  - `app/api/audits/[auditId]/usecases/route.ts` — POST handler with instance validation
+  - `app/api/audits/[auditId]/usecases/[cuId]/route.ts` — PATCH with instance field support
+  - `app/api/usecases/[ucId]/route.ts` — NEW global UC fetcher
+  - `lib/validators/index.ts` — Zod schema with flexible aiTypes
+  - `lib/types.ts` — Type definitions with isInstance, parentUCId, additionalDevCostEur
 
 ### Catalog Management Features ✅
 - ✅ **Search AI with Tavily Web Search**:
@@ -303,6 +368,23 @@
 - **Status**: COMPLETE
 - **Resolution**: Removed consolidation logic from handleRecalculateOnly
 - **Verification**: Only cost fields (devCost, weeks, explanation) are updated
+
+### ✅ UC Instances — Phase 1/Phase 2 Save Flow
+- **Issues Fixed**:
+  1. Form reset after Phase 1 save: Fixed with useEffect guard `!form._id`
+  2. Phase 1 fields locked for instances: Removed opacity-50/pointer-events-none
+  3. additionalDevCostEur not in ROI calculation: Added to devCostEur computation
+  4. Compute Cost calculator locked: Made editable for instances
+  5. additionalDevCostEur lost after Phase 2 save: Added explicit instance field handling
+  6. Modal doesn't close after Phase 2 save: Fixed form reset bug preventing onClose()
+  7. Cross-audit instance creation 400 error: Convert parentUCId to string in payload
+  8. Validation failure blocking onClose: Moved validation before success logs
+  9. setUseCases not available in SlideOver: Removed (already synced via parent's handleSaved)
+  10. Instance badge doesn't open parent modal: Added ?edit={ucId} query param for cross-audit
+
+- **Status**: COMPLETE
+- **Commits**: 8 commits from form initialization through cross-audit navigation
+- **Verification**: Instance creation, editing, and cross-audit navigation all working
 
 ---
 
