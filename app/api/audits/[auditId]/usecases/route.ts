@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
 import { nextSequence } from '@/lib/models/Counter';
@@ -167,7 +168,9 @@ export async function POST(
       status,
       notes: body.notes || '',
       requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
-      parentUCId: parsed.data.parentUCId || null,
+      parentUCId: parsed.data.parentUCId
+        ? new mongoose.Types.ObjectId(parsed.data.parentUCId)
+        : null,
       isInstance: parsed.data.isInstance ?? false,
       additionalDevCostEur: parsed.data.additionalDevCostEur ?? 0,
     };

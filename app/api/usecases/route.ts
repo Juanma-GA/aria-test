@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
     const query: Record<string, any> = { auditId: { $in: visibleIds } };
     if (parentUCId) {
       query.isInstance = true;
-      query.parentUCId = new mongoose.Types.ObjectId(parentUCId);
+      const parentId = new mongoose.Types.ObjectId(parentUCId);
+      query.parentUCId = { $in: [parentId, String(parentId)] };
     }
 
     const useCases = await UseCase.find(query).sort({ createdAt: -1 }).lean();

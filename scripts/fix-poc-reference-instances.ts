@@ -50,6 +50,32 @@ async function enforceCompositionRule() {
 
     console.log(`Found ${pocs.length} non-archived POC(s)\n`);
 
+    // Phase 1: Repair corrupted parentUCId fields (stored as string instead of ObjectId)
+    console.log('🔧 Phase 1: Repairing corrupted parentUCId fields...\n');
+    const ucsWithStringParentId = await UseCase.collection
+      .find({ parentUCId: { $type: 'string' } })
+      .toArray() as any[];
+
+    for (const uc of ucsWithStringParentId) {
+      try {
+        const objectId = new mongoose.Types.ObjectId(uc.parentUCId);
+        await UseCase.collection.updateOne(
+          { _id: uc._id },
+          { $set: { parentUCId: objectId } }
+        );
+        console.log(`✅ Fixed UC ${uc.cuId}: parentUCId converted to ObjectId`);
+      } catch (e) {
+        console.log(`⚠️  Failed to repair ${uc.cuId}: invalid parentUCId string`);
+      }
+    }
+    if (ucsWithStringParentId.length === 0) {
+      console.log('No corrupted parentUCId fields found.\n');
+    } else {
+      console.log();
+    }
+
+    console.log('🔍 Phase 2: Scanning for POC composition violations...\n');
+
     let compliant = 0;
     let violations = 0;
 

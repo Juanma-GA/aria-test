@@ -124,6 +124,11 @@ export async function PATCH(
     for (const key of EDITABLE_FIELDS) {
       if (key in body) $set[key] = body[key];
     }
+    // Cast ID fields to ObjectId to ensure correct data type
+    if ($set.parentUCId && typeof $set.parentUCId === 'string') {
+      $set.parentUCId = new mongoose.Types.ObjectId($set.parentUCId as string);
+    }
+
     // Stamp archivedAt whenever isArchived flips, so the audit log is implicit.
     if ('isArchived' in body) {
       $set.archivedAt = body.isArchived ? new Date() : null;
