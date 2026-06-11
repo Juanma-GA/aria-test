@@ -68,21 +68,22 @@ export function computePocRoi(assignedUCs: any[], process: any): RoiResult {
     };
   }
 
-  const b1Profiles = process?.b1?.profiles ?? [];
-  const annualReps = process?.b3?.annualRepetitions ?? 0;
+  const computeCost = assignedUCs.reduce(
+    (total: number, uc: any) => total + (uc?.computeBreakdown?.computedAnnualEur ?? 0),
+    0
+  );
 
   const grossSaving = assignedUCs.reduce((total: number, uc: any) => {
+    const ucProcess = getUCProcess(uc, process);
+    const b1Profiles = ucProcess?.b1?.profiles ?? [];
+    const annualReps = ucProcess?.b3?.annualRepetitions ?? 0;
+
     const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
     return total + ucTimeSaved.reduce((s: number, e: any) => {
       const profile = b1Profiles.find((p: any) => p.id === e.profileId);
       return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
     }, 0);
   }, 0);
-
-  const computeCost = assignedUCs.reduce(
-    (total: number, uc: any) => total + (uc?.computeBreakdown?.computedAnnualEur ?? 0),
-    0
-  );
 
   const devCost = assignedUCs.reduce((total: number, uc: any) => {
     const isRef = !uc.isInstance;
@@ -94,6 +95,10 @@ export function computePocRoi(assignedUCs: any[], process: any): RoiResult {
     devCost > 0 && netSaving > 0 ? devCost / (netSaving / 12) : 0;
 
   const breakdown: RoiBreakdownItem[] = assignedUCs.map((uc: any) => {
+    const ucProcess = getUCProcess(uc, process);
+    const b1Profiles = ucProcess?.b1?.profiles ?? [];
+    const annualReps = ucProcess?.b3?.annualRepetitions ?? 0;
+
     const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
     const ucGross = ucTimeSaved.reduce((s: number, e: any) => {
       const profile = b1Profiles.find((p: any) => p.id === e.profileId);
