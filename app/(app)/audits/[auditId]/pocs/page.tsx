@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Modal } from '@/components/ui/Modal';
 import { apiUrl } from '@/lib/utils';
 import { PocListTable, type GlobalPOC } from '@/components/pocs/PocListTable';
+import { generatePocReportHtml } from '@/lib/pocReport';
 
 
 export default function POCsPage() {
@@ -346,6 +347,23 @@ ${body}
     setTimeout(() => win.print(), 250);
   };
 
+  const handleDownloadHtmlReport = () => {
+    try {
+      const { html, filename } = generatePocReportHtml(pocs, auditName);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+      toast.error('Failed to generate report');
+    }
+  };
+
   if (loading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -380,7 +398,7 @@ ${body}
             Show archived
           </label>
           <button
-            onClick={generatePocTrackerReport}
+            onClick={handleDownloadHtmlReport}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-sm hover:bg-purple-700 transition-colors"
           >
             <FileText size={14} /> POC Report
