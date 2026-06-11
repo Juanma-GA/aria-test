@@ -1,8 +1,6 @@
 import mongoose from 'mongoose';
-import { UseCase } from '@/lib/models';
-import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aria-audit';
 
 const LEGACY_TYPE_MAP: Record<string, string> = {
   rag: 'rag_semantic',
@@ -25,7 +23,7 @@ interface MigrationResult {
 }
 
 async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
-  await mongoose.connect(process.env.MONGODB_URI || '');
+  let connection: typeof mongoose | null = null;
 
   const result: MigrationResult = {
     totalUCs: 0,
@@ -36,11 +34,15 @@ async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
   };
 
   try {
+    console.log('🔗 Connecting to MongoDB...');
+    connection = await mongoose.connect(MONGODB_URI);
+    console.log('✅ Connected\n');
+
     // Find all use cases
-    const allUCs = await UseCase.find({}).lean();
+    const allUCs = await connection.connection.collection('usecases').find({}).toArray();
     result.totalUCs = allUCs.length;
 
-    console.log(`\n📊 Scanning ${allUCs.length} use cases for legacy aiTypes...`);
+    console.log(`📊 Scanning ${allUCs.length} use cases for legacy aiTypes...`);
 
     for (const uc of allUCs) {
       const aiTypes = (uc.aiTypes || []) as string[];
@@ -80,7 +82,10 @@ async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
 
       // Apply if not dry run
       if (!dryRun) {
-        await UseCase.updateOne({ _id: uc._id }, { aiTypes: updatedArray });
+        await connection.connection.collection('usecases').updateOne(
+          { _id: uc._id },
+          { $set: { aiTypes: updatedArray } }
+        );
       }
     }
 
@@ -114,7 +119,9 @@ async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
       );
     }
   } finally {
-    await mongoose.disconnect();
+    if (connection) {
+      await mongoose.disconnect();
+    }
   }
 
   return result;
