@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
           additionalDevCostEur: uc.additionalDevCostEur,
           isInstance: uc.isInstance,
           audit: audit ? { _id: uc.auditId, name: audit.name, client: audit.client } : null,
-          process: process ? { _id: process._id, procId: process.procId, name: process.name } : null,
+          process: process ? { _id: process._id, procId: process.procId, name: process.name, b1: process.b1, b3: process.b3 } : null,
         };
       }).filter(Boolean);
 

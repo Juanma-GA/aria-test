@@ -61,6 +61,7 @@
 ## Workflow Rules  
 - Always read relevant files before proposing changes
 - Always show full diff before applying any change
+- **After showing a diff, ALWAYS end the turn. Never apply in the same turn as showing the diff, even for one-line changes.**
 - Never modify code without explicit "apply" from user
 - Never commit without explicit authorization from user
 - Never push without explicit authorization from user

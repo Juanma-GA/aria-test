@@ -27,6 +27,25 @@ function getUCDevCost(uc: any, isReference: boolean): number {
   }
 }
 
+/** Get process for UC: instances use their own, reference uses POC's process.
+ * Handles both naming conventions:
+ * - uc.process (from global GET listado)
+ * - uc.processId (from B8 detail, populated with b1/b3)
+ * If processId is a string/ObjectId (not populated), falls back to pocProcess.
+ */
+function getUCProcess(uc: any, pocProcess: any): any {
+  // Try uc.process first (global GET listado)
+  if (uc?.process && typeof uc.process === 'object' && (uc.process?.b1 || uc.process?.b3)) {
+    return uc.process;
+  }
+  // Try uc.processId (B8 detail, Mongoose populated)
+  if (uc?.processId && typeof uc.processId === 'object' && (uc.processId?.b1 || uc.processId?.b3)) {
+    return uc.processId;
+  }
+  // Fall back to POC's process
+  return pocProcess;
+}
+
 /**
  * Compute ROI for a POC with its assigned UCs.
  * Extracts the exact logic from B8 without changes.
