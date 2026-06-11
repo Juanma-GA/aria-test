@@ -312,16 +312,16 @@ export default function ScoringPage() {
           </div>
         </div>
 
-        {blockedCount > 0 && (
+        {discardedCount > 0 && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded border border-amber-sov/40 bg-amber-sov-light px-4 py-3 text-sm">
             <span className="flex items-center gap-2 text-amber-sov">
               <AlertTriangle size={16} />
-              <strong>{blockedCount}</strong> use{' '}
-              {blockedCount === 1 ? 'case is' : 'cases are'} blocked (B2
-              sovereignty) and excluded from scoring.
+              <strong>{discardedCount}</strong> use{' '}
+              {discardedCount === 1 ? 'case is' : 'cases are'} discarded
+              and excluded from scoring.
             </span>
             <Link
-              href={`/audits/${auditId}/usecases?status=blocked`}
+              href={`/audits/${auditId}/usecases?status=discarded`}
               className="text-amber-sov font-medium hover:underline"
             >
               View →
