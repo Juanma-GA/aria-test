@@ -13,6 +13,7 @@ import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/Com
 import { useAuditAccess } from '@/context/AuditAccessContext';
 import { apiUrl } from '@/lib/utils';
 import { computeAnnualCompute } from '@/lib/calculations';
+import { computePocRoi } from '@/lib/pocRoi';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -61,14 +62,6 @@ function milestonePct(m: { status: MilestoneStatus; progressPct?: number }): num
 }
 
 // Calculate per-UC dev cost: reference uses base, instances use only additional
-function getUCDevCost(uc: any, isReference: boolean): number {
-  if (isReference) {
-    return uc?.estimatedDevCostEur ?? 0;
-  } else {
-    return uc?.additionalDevCostEur ?? 0;
-  }
-}
-
 export default function POCDetailPage() {
   const { auditId, pocId } = useParams<{ auditId: string; pocId: string }>();
   const router = useRouter();
@@ -614,34 +607,9 @@ export default function POCDetailPage() {
             : [(poc as any).useCaseId].filter(Boolean);
 
           const proc = (poc as any).processId;
-          const b1Profiles = proc?.b1?.profiles ?? [];
-          const annualReps = proc?.b3?.annualRepetitions ?? 0;
+          const roi = computePocRoi(assignedUCsForROI, proc);
 
-          const grossSaving = assignedUCsForROI.reduce(
-            (total: number, uc: any) => {
-              const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
-              return total + ucTimeSaved.reduce((s: number, e: any) => {
-                const profile = b1Profiles.find(
-                  (p: any) => p.id === e.profileId);
-                return s + (e.hoursPerExecution ?? 0)
-                  * (profile?.hourlyRateEur ?? 0) * annualReps;
-              }, 0);
-            }, 0);
-
-          const computeCost = assignedUCsForROI.reduce(
-            (total: number, uc: any) =>
-              total + (uc?.computeBreakdown?.computedAnnualEur ?? 0), 0);
-
-          const devCost = assignedUCsForROI.reduce((total: number, uc: any) => {
-            const isRef = !uc.isInstance;
-            return total + getUCDevCost(uc, isRef);
-          }, 0);
-
-          const netSaving = Math.max(grossSaving - computeCost, 0);
-          const paybackMonths = devCost > 0 && netSaving > 0
-            ? devCost / (netSaving / 12) : 0;
-
-          if (grossSaving === 0) {
+          if (!roi.hasData) {
             return <p className="text-xs text-muted mt-2">No ROI data available.</p>;
           }
 
@@ -650,30 +618,30 @@ export default function POCDetailPage() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-green-50 border border-green-200 rounded p-2">
                   <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Gross Annual Saving</p>
-                  <p className="font-bold text-green-700 text-sm">€{Math.round(grossSaving).toLocaleString('de-DE')}/yr</p>
+                  <p className="font-bold text-green-700 text-sm">€{Math.round(roi.gross).toLocaleString('de-DE')}/yr</p>
                 </div>
-                {computeCost > 0 && (
+                {roi.compute > 0 && (
                   <div className="bg-amber-50 border border-amber-200 rounded p-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Compute Cost/yr</p>
-                    <p className="font-bold text-amber-700 text-sm">€{Math.round(computeCost).toLocaleString('de-DE')}/yr</p>
+                    <p className="font-bold text-amber-700 text-sm">€{Math.round(roi.compute).toLocaleString('de-DE')}/yr</p>
                   </div>
                 )}
                 <div className="bg-green-50 border border-green-200 rounded p-2">
                   <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Net Annual Saving</p>
-                  <p className="font-bold text-green-700 text-sm">€{Math.round(netSaving).toLocaleString('de-DE')}/yr</p>
+                  <p className="font-bold text-green-700 text-sm">€{Math.round(roi.net).toLocaleString('de-DE')}/yr</p>
                 </div>
-                {devCost > 0 && (
+                {roi.dev > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded p-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Dev Cost (one-time)</p>
-                    <p className="font-bold text-red-700 text-sm">€{devCost.toLocaleString('de-DE')}</p>
+                    <p className="font-bold text-red-700 text-sm">€{roi.dev.toLocaleString('de-DE')}</p>
                   </div>
                 )}
-                {paybackMonths > 0 && (
+                {roi.paybackMonths > 0 && (
                   <div className="bg-slate-50 border border-border rounded p-2 col-span-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
-                    <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                    <p className="font-bold text-text text-sm">{roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
                     <p className="text-[9px] text-muted border-t border-border/30 mt-1.5 pt-1.5">
-                      €{Math.round(devCost).toLocaleString('de-DE')} / (€{Math.round(netSaving).toLocaleString('de-DE')} / 12) ≈ {paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
+                      {roi.paybackFormula}
                     </p>
                   </div>
                 )}
@@ -683,45 +651,33 @@ export default function POCDetailPage() {
                 <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
                   <p className="font-semibold text-muted uppercase tracking-wide text-[10px]">Breakdown by Use Case</p>
                   <div className="space-y-1.5">
-                    {assignedUCsForROI.map((uc: any) => {
-                      const ucGross = (uc?.timeSavedPerProfile ?? []).reduce((s: number, e: any) => {
-                        const profile = b1Profiles.find((p: any) => p.id === e.profileId);
-                        return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
-                      }, 0);
-                      const ucCompute = uc?.computeBreakdown?.computedAnnualEur ?? 0;
-                      const isRef = !uc.isInstance;
-                      const ucDevCost = getUCDevCost(uc, isRef);
-                      const devLabel = isRef ? 'Dev' : 'Additional Dev';
-                      const ucNet = Math.max(ucGross - ucCompute, 0);
-
-                      return (
-                        <div key={uc._id} className="flex justify-between items-start text-[11px] py-1 border-t border-border/30 pt-1.5 first:border-t-0 first:pt-0">
-                          <span className="font-mono text-text">{uc.cuId}</span>
-                          <div className="flex gap-2 text-right">
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-muted">Gross</span>
-                              <span className="font-medium text-green-700">€{Math.round(ucGross).toLocaleString('de-DE')}</span>
-                            </div>
-                            {ucCompute > 0 && (
-                              <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">Compute</span>
-                                <span className="font-medium text-amber-700">€{Math.round(ucCompute).toLocaleString('de-DE')}</span>
-                              </div>
-                            )}
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-muted">Net</span>
-                              <span className="font-medium text-green-700">€{Math.round(ucNet).toLocaleString('de-DE')}</span>
-                            </div>
-                            {ucDevCost > 0 && (
-                              <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">{devLabel}</span>
-                                <span className="font-medium text-red-700">€{Math.round(ucDevCost).toLocaleString('de-DE')}</span>
-                              </div>
-                            )}
+                    {roi.breakdown.map((item) => (
+                      <div key={item.cuId} className="flex justify-between items-start text-[11px] py-1 border-t border-border/30 pt-1.5 first:border-t-0 first:pt-0">
+                        <span className="font-mono text-text">{item.cuId}</span>
+                        <div className="flex gap-2 text-right">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-muted">Gross</span>
+                            <span className="font-medium text-green-700">€{Math.round(item.gross).toLocaleString('de-DE')}</span>
                           </div>
+                          {item.compute > 0 && (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted">Compute</span>
+                              <span className="font-medium text-amber-700">€{Math.round(item.compute).toLocaleString('de-DE')}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-muted">Net</span>
+                            <span className="font-medium text-green-700">€{Math.round(item.net).toLocaleString('de-DE')}</span>
+                          </div>
+                          {item.dev > 0 && (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted">{item.devLabel}</span>
+                              <span className="font-medium text-red-700">€{Math.round(item.dev).toLocaleString('de-DE')}</span>
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
