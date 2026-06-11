@@ -180,31 +180,31 @@ function generatePocSection(poc: any, pocNum: number): string {
   const process = typeof poc.processId === 'object' ? poc.processId : null;
   const roi = process && assignedUCs.length > 0 ? computePocRoi(assignedUCs, process) : null;
 
-  const phaseLabel = {
+  const phaseLabel = ({
     design: 'Design',
     execution: 'Execution',
     evaluation: 'Evaluation',
     decision: 'Decision',
     closed: 'Closed'
-  }[poc.phase] || 'Unknown';
+  } as Record<string, string>)[poc.phase] || 'Unknown';
 
-  const decisionBadgeColor = {
+  const decisionBadgeColor = ({
     go: 'green',
     go_conditional: 'teal',
     no_go_redesign: 'amber',
     no_go_discard: 'red',
     paused: 'slate',
     pending: 'slate'
-  }[poc.decision?.decision] || 'slate';
+  } as Record<string, string>)[poc.decision?.decision] || 'slate';
 
-  const decisionLabel = {
+  const decisionLabel = ({
     go: 'GO',
     go_conditional: 'GO Conditional',
     no_go_redesign: 'No-Go – Redesign',
     no_go_discard: 'No-Go – Discard',
     paused: 'Paused',
     pending: 'Pending'
-  }[poc.decision?.decision] || 'Pending';
+  } as Record<string, string>)[poc.decision?.decision] || 'Pending';
 
   return `
     <div class="poc-block" id="poc-${pocNum}">
