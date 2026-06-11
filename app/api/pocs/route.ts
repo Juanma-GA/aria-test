@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { POC, Audit, UseCase, User } from '@/lib/models';
+import { POC, Audit, UseCase, User, Process } from '@/lib/models';
 import { getVisibleUCIds, OBJECT_ID_RE } from '@/lib/pocHelpers';
 
 export async function GET(req: NextRequest) {
@@ -61,6 +61,37 @@ export async function GET(req: NextRequest) {
       .lean() as any[];
     const auditMap = Object.fromEntries(audits.map(a => [String((a as any)._id), a]));
 
+    // Batch-resolve instances (useCaseIds[1..n]): UCs + their own audits + their own processes
+    // (instances can be cross-audit, so audit/process come from each instance UC, not the POC)
+    const instanceUCIds = new Set<string>();
+    for (const p of pocs as any[]) {
+      const ids = p.useCaseIds ?? [];
+      for (let i = 1; i < ids.length; i++) instanceUCIds.add(String(ids[i]));
+    }
+
+    let instanceUCMap: Record<string, any> = {};
+    let instanceAuditMap = new Map<string, any>();
+    let instanceProcessMap = new Map<string, any>();
+
+    if (instanceUCIds.size > 0) {
+      const instanceUCs = await UseCase.find({ _id: { $in: [...instanceUCIds] } })
+        .select('_id cuId description auditId processId')
+        .lean() as any[];
+      instanceUCMap = Object.fromEntries(instanceUCs.map(u => [String(u._id), u]));
+
+      const instAuditIds = [...new Set(instanceUCs.map(u => String(u.auditId)).filter(Boolean))];
+      const instAudits = await Audit.find({ _id: { $in: instAuditIds } })
+        .select('name client')
+        .lean() as any[];
+      instanceAuditMap = new Map(instAudits.map(a => [String(a._id), a]));
+
+      const instProcessIds = [...new Set(instanceUCs.map(u => String(u.processId)).filter(Boolean))];
+      const instProcesses = await Process.find({ _id: { $in: instProcessIds } })
+        .select('procId name')
+        .lean() as any[];
+      instanceProcessMap = new Map(instProcesses.map(pr => [String(pr._id), pr]));
+    }
+
     // Batch-resolve ObjectId-shaped responsibleUserId → display name
     const idsToResolve = new Set<string>();
     for (const p of pocs as any[]) {
@@ -81,6 +112,21 @@ export async function GET(req: NextRequest) {
           : p.useCaseId ? String(p.useCaseId) : null;
       const refUC = refId ? (refUCMap[refId] as any) : null;
       const v = p?.design?.responsibleUserId;
+
+      const instances = ((p.useCaseIds ?? []) as any[]).slice(1).map(ucId => {
+        const uc = instanceUCMap[String(ucId)];
+        if (!uc) return null;
+        const audit = instanceAuditMap.get(String(uc.auditId));
+        const process = instanceProcessMap.get(String(uc.processId));
+        return {
+          _id: uc._id,
+          cuId: uc.cuId,
+          description: uc.description,
+          audit: audit ? { _id: uc.auditId, name: audit.name, client: audit.client } : null,
+          process: process ? { procId: process.procId, name: process.name } : null,
+        };
+      }).filter(Boolean);
+
       return {
         ...p,
         ...(typeof v === 'string' && nameById.has(v) ? { responsibleName: nameById.get(v) } : {}),
@@ -88,6 +134,7 @@ export async function GET(req: NextRequest) {
         useCase: refUC
           ? { _id: refUC._id, cuId: refUC.cuId, description: refUC.description }
           : null,
+        ...(instances.length > 0 ? { instances } : {}),
       };
     });
 
