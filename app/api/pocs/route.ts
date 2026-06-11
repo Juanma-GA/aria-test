@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
 
       const instProcessIds = [...new Set(instanceUCs.map(u => String(u.processId)).filter(Boolean))];
       const instProcesses = await Process.find({ _id: { $in: instProcessIds } })
-        .select('procId name')
+        .select('_id procId name')
         .lean() as any[];
       instanceProcessMap = new Map(instProcesses.map(pr => [String(pr._id), pr]));
     }
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
           cuId: uc.cuId,
           description: uc.description,
           audit: audit ? { _id: uc.auditId, name: audit.name, client: audit.client } : null,
-          process: process ? { procId: process.procId, name: process.name } : null,
+          process: process ? { _id: process._id, procId: process.procId, name: process.name } : null,
         };
       }).filter(Boolean);
 

@@ -19,7 +19,7 @@ export type GlobalPOC = Omit<POC, 'processId'> & {
     cuId: string;
     description: string;
     audit: { _id: string; name: string; client: string } | null;
-    process?: { procId?: string; name?: string } | null;
+    process?: { _id?: string; procId?: string; name?: string } | null;
   }>;
 };
 
@@ -254,7 +254,17 @@ export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocLi
                       <td className="py-2 px-4 pl-10 font-mono text-xs text-slate-500">—</td>
                       <td className="py-2 px-4 text-xs text-slate-600">—</td>
                       <td className="py-2 px-4 max-w-xs">
-                        <span className="font-mono text-xs text-blue-aria">{inst.cuId}</span>
+                        {inst.audit?._id && inst.process?._id ? (
+                          <Link
+                            href={`/audits/${inst.audit._id}/processes/${inst.process._id}/b5`}
+                            className="font-mono text-xs text-blue-aria hover:underline"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {inst.cuId}
+                          </Link>
+                        ) : (
+                          <span className="font-mono text-xs text-blue-aria">{inst.cuId}</span>
+                        )}
                         <p
                           className="text-slate-600 text-xs line-clamp-1 mt-0.5"
                           title={inst.description}
@@ -264,8 +274,20 @@ export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocLi
                       </td>
                       {showAuditColumn && (
                         <>
-                          <td className="py-2 px-4 text-xs text-slate-600 whitespace-nowrap">
-                            {inst.audit?.name ?? '—'}
+                          <td
+                            className="py-2 px-4 text-xs whitespace-nowrap"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {inst.audit ? (
+                              <Link
+                                href={`/audits/${inst.audit._id}`}
+                                className="text-blue-aria hover:underline"
+                              >
+                                {inst.audit.name}
+                              </Link>
+                            ) : (
+                              '—'
+                            )}
                           </td>
                           <td className="py-2 px-4 text-xs text-slate-500 whitespace-nowrap">
                             {inst.audit?.client ?? '—'}
