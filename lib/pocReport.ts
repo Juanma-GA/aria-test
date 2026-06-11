@@ -137,14 +137,14 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       color: var(--muted);
     }
     .nav-toc a {
-      display: inline-block;
-      margin-right: 16px;
-      margin-bottom: 4px;
+      display: block;
+      margin-bottom: 6px;
       font-family: var(--mono);
       font-size: 0.8rem;
       color: var(--accent);
       text-decoration: none;
     }
+    .nav-toc a:last-child { margin-bottom: 0; }
     .nav-toc a:hover { color: var(--accent-2); }
     .poc-block {
       page-break-after: always;
@@ -454,7 +454,11 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
 
     <div class="nav-toc">
       <strong>POCs:</strong>
-      ${pocs.map((p, i) => `<a href="#poc-${i + 1}">${escapeHtml(p.pocId || `POC ${i + 1}`)}</a>`).join('')}
+      ${pocs.map((p, i) => {
+        const id = escapeHtml(p.pocId || `POC ${i + 1}`);
+        const label = p.name ? `${id} — ${escapeHtml(p.name)}` : id;
+        return `<a href="#poc-${i + 1}">${label}</a>`;
+      }).join('')}
     </div>
 
 ${pocSections}
