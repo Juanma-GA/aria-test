@@ -1,3 +1,10 @@
+export interface UCRoiResult {
+  gross: number;
+  compute: number;
+  net: number;
+  dev: number;
+}
+
 export interface RoiBreakdownItem {
   cuId: string;
   gross: number;
@@ -46,6 +53,32 @@ function getUCProcess(uc: any, pocProcess: any): any {
   return pocProcess;
 }
 
+/** Compute ROI for a single UC with per-UC process resolution. */
+export function computeUCRoi(uc: any, fallbackProcess?: any): UCRoiResult {
+  const ucProcess = getUCProcess(uc, fallbackProcess);
+  const b1Profiles = ucProcess?.b1?.profiles ?? [];
+  const annualReps = ucProcess?.b3?.annualRepetitions ?? 0;
+
+  // Gross: sum of hours × rate × annualReps
+  const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
+  const gross = ucTimeSaved.reduce((s: number, e: any) => {
+    const profile = b1Profiles.find((p: any) => p.id === e.profileId);
+    return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
+  }, 0);
+
+  // Compute cost
+  const compute = uc?.computeBreakdown?.computedAnnualEur ?? 0;
+
+  // Net
+  const net = Math.max(gross - compute, 0);
+
+  // Dev cost
+  const isRef = !uc.isInstance;
+  const dev = getUCDevCost(uc, isRef);
+
+  return { gross, compute, net, dev };
+}
+
 /**
  * Compute ROI for a POC with its assigned UCs.
  * Extracts the exact logic from B8 without changes.
@@ -64,56 +97,28 @@ export function computePocRoi(assignedUCs: any[], process: any): RoiResult {
     };
   }
 
-  const computeCost = assignedUCs.reduce(
-    (total: number, uc: any) => total + (uc?.computeBreakdown?.computedAnnualEur ?? 0),
-    0
-  );
+  // Aggregate ROI from all UCs
+  const roiByUC = assignedUCs.map(uc => computeUCRoi(uc, process));
 
-  const grossSaving = assignedUCs.reduce((total: number, uc: any) => {
-    const ucProcess = getUCProcess(uc, process);
-    const b1Profiles = ucProcess?.b1?.profiles ?? [];
-    const annualReps = ucProcess?.b3?.annualRepetitions ?? 0;
-
-    const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
-    return total + ucTimeSaved.reduce((s: number, e: any) => {
-      const profile = b1Profiles.find((p: any) => p.id === e.profileId);
-      return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
-    }, 0);
-  }, 0);
-
-  const devCost = assignedUCs.reduce((total: number, uc: any) => {
-    const isRef = !uc.isInstance;
-    return total + getUCDevCost(uc, isRef);
-  }, 0);
+  const computeCost = roiByUC.reduce((total, roi) => total + roi.compute, 0);
+  const grossSaving = roiByUC.reduce((total, roi) => total + roi.gross, 0);
+  const devCost = roiByUC.reduce((total, roi) => total + roi.dev, 0);
 
   const netSaving = Math.max(grossSaving - computeCost, 0);
   const paybackMonths =
     devCost > 0 && netSaving > 0 ? devCost / (netSaving / 12) : 0;
 
-  const breakdown: RoiBreakdownItem[] = assignedUCs.map((uc: any) => {
-    const ucProcess = getUCProcess(uc, process);
-    const b1Profiles = ucProcess?.b1?.profiles ?? [];
-    const annualReps = ucProcess?.b3?.annualRepetitions ?? 0;
-
-    const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
-    const ucGross = ucTimeSaved.reduce((s: number, e: any) => {
-      const profile = b1Profiles.find((p: any) => p.id === e.profileId);
-      return (
-        s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps
-      );
-    }, 0);
-    const ucCompute = uc?.computeBreakdown?.computedAnnualEur ?? 0;
+  const breakdown: RoiBreakdownItem[] = assignedUCs.map((uc: any, i: number) => {
+    const roi = roiByUC[i];
     const isRef = !uc.isInstance;
-    const ucDevCost = getUCDevCost(uc, isRef);
     const devLabel = isRef ? 'Dev' : 'Additional Dev';
-    const ucNet = Math.max(ucGross - ucCompute, 0);
 
     return {
       cuId: uc.cuId,
-      gross: ucGross,
-      compute: ucCompute,
-      net: ucNet,
-      dev: ucDevCost,
+      gross: roi.gross,
+      compute: roi.compute,
+      net: roi.net,
+      dev: roi.dev,
       devLabel,
     };
   });
