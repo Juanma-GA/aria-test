@@ -21,7 +21,10 @@ const STATUS_VARIANTS: Record<
   cancelled: 'red',
 };
 
-type EnrichedIndustrialization = Industrialization & {
+type EnrichedIndustrialization = Omit<
+  Industrialization,
+  'processId' | 'useCaseId' | 'pocId'
+> & {
   processId?: { procId?: string; name?: string } | string;
   useCaseId?: { cuId?: string; description?: string } | string;
   pocId?: { pocId?: string; name?: string } | string;
