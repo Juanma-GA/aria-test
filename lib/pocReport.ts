@@ -214,7 +214,7 @@ function generatePocSection(poc: any, pocNum: number): string {
         <span class="badge" style="background: ${getDecisionBgColor(decisionBadgeColor)}; color: ${getDecisionTextColor(decisionBadgeColor)};">${decisionLabel}</span>
       </div>
 
-      ${generateAssignedUcsSection(assignedUCs)}
+      ${generateAssignedUcsSection(assignedUCs, poc.audit?.name)}
       ${generateRoiSection(roi, assignedUCs, process)}
       ${generateDesignSection(poc)}
       ${generateExecutionSection(poc)}
@@ -224,7 +224,7 @@ function generatePocSection(poc: any, pocNum: number): string {
   `;
 }
 
-function generateAssignedUcsSection(assignedUCs: any[]): string {
+function generateAssignedUcsSection(assignedUCs: any[], pocAuditName?: string): string {
   if (!assignedUCs.length) return '';
 
   const hasAudit = assignedUCs.some(u => u.audit);
@@ -238,7 +238,9 @@ function generateAssignedUcsSection(assignedUCs: any[]): string {
           : '<span class="badge badge-inst">Instance</span>'
         }
       </td>
-      ${hasAudit ? `<td>${escapeHtml(uc.audit?.name ?? '—')}</td>` : ''}
+      ${hasAudit ? `<td>${idx === 0
+        ? escapeHtml(pocAuditName ?? '—')
+        : escapeHtml(uc.audit?.name ?? '—')}</td>` : ''}
     </tr>
   `).join('');
 

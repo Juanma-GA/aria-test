@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
 
       const instProcessIds = [...new Set(instanceUCs.map(u => String(u.processId)).filter(Boolean))];
       const instProcesses = await Process.find({ _id: { $in: instProcessIds } })
-        .select('_id procId name')
+        .select('_id procId name b1.profiles b3.annualRepetitions')
         .lean() as any[];
       instanceProcessMap = new Map(instProcesses.map(pr => [String(pr._id), pr]));
     }
