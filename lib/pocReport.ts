@@ -216,6 +216,10 @@ function generatePocSection(poc: any, pocNum: number): string {
 
       ${generateAssignedUcsSection(assignedUCs)}
       ${generateRoiSection(roi, assignedUCs, process)}
+      ${generateDesignSection(poc)}
+      ${generateExecutionSection(poc)}
+      ${generateEvaluationSection(poc)}
+      ${generateDecisionSection(poc)}
     </div>
   `;
 }
@@ -336,6 +340,170 @@ function generateRoiSection(roi: any, assignedUCs: any[], process: any): string 
       <summary>ROI Estimate</summary>
       <div class="roi-grid">${cards}</div>
       ${breakdown}
+    </details>
+  `;
+}
+
+function generateDesignSection(poc: any): string {
+  const design = poc.design || {};
+
+  let devCostHtml = '';
+  if (design.estimatedDevCostEur !== undefined) {
+    devCostHtml = `
+      <h3>Dev Cost Estimation</h3>
+      <p><strong>€${(design.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}</strong></p>
+      <ul style="margin-left: 20px;">
+        <li>Impl. Time: ${design.estimatedImplWeeks ?? 0} weeks</li>
+        <li>Nº Developers: ${design.nDevs ?? 1}</li>
+        <li>Developer Rate: €${design.devRateEur ?? 450}/day</li>
+      </ul>
+    `;
+  }
+
+  let computeCostHtml = '';
+  const pocComputeBreakdown = poc.computeBreakdown || {};
+  if (pocComputeBreakdown.computedAnnualEur) {
+    let details = '';
+    if (pocComputeBreakdown.mode?.includes('cloud') || pocComputeBreakdown.mode === 'hybrid') {
+      details += `<li>Cloud API Model: ${escapeHtml(pocComputeBreakdown.modelNameSnapshot || '—')}</li>`;
+    }
+    if (pocComputeBreakdown.mode?.includes('on_premise') || pocComputeBreakdown.mode === 'hybrid') {
+      details += `<li>On-premise GPU: ${escapeHtml(pocComputeBreakdown.gpuNameSnapshot || '—')}</li>`;
+    }
+    computeCostHtml = `
+      <h3>Annual Recurring Compute Cost</h3>
+      <p><strong>€${(pocComputeBreakdown.computedAnnualEur ?? 0).toLocaleString('de-DE')}/yr</strong></p>
+      <ul style="margin-left: 20px;">${details}</ul>
+    `;
+  }
+
+  let sovereigntyHtml = '';
+  if (design.activeB2Restrictions) {
+    const lines = design.activeB2Restrictions.split('\n').filter((l: string) => l.trim());
+    let sovereigntyHeader = '';
+    let matrices: any[] = [];
+
+    lines.forEach((line: string, idx: number) => {
+      if (idx === 0 && !line.includes('|')) {
+        sovereigntyHeader = line;
+      } else if (line.includes('|')) {
+        const parts = line.split('|').map((p: string) => p.trim());
+        if (parts.length >= 3) {
+          matrices.push({ axis: parts[0], status: parts[1].toLowerCase(), findings: parts[2] });
+        }
+      }
+    });
+
+    if (sovereigntyHeader || matrices.length > 0) {
+      sovereigntyHtml = `
+        <h3>Sovereignty Matrix (B2)</h3>
+        ${sovereigntyHeader ? `<p><strong>${escapeHtml(sovereigntyHeader)}</strong></p>` : ''}
+        ${matrices.length > 0 ? `<div style="margin: 10px 0;">
+          ${matrices.map((m: any) => `<div class="b2-row">
+            <div class="b2-axis">${escapeHtml(m.axis)}</div>
+            <div class="b2-status ${m.status}">${m.status.toUpperCase()}</div>
+            <div>${escapeHtml(m.findings)}</div>
+          </div>`).join('')}
+        </div>` : ''}
+      `;
+    }
+  }
+
+  let criteriaHtml = '';
+  if (design.successCriteria && design.successCriteria.length > 0) {
+    criteriaHtml = `
+      <h3>Success Criteria</h3>
+      <table>
+        <thead>
+          <tr><th>Criterion</th><th>Threshold</th><th>Result</th><th>Passed</th></tr>
+        </thead>
+        <tbody>
+          ${design.successCriteria.map((c: any) => `<tr>
+            <td>${escapeHtml(c.criterion || '—')}</td>
+            <td>${escapeHtml(c.successThreshold || '—')}</td>
+            <td>${escapeHtml(c.actualResult || '—')}</td>
+            <td>${c.passed !== undefined ? (c.passed ? '✅' : '❌') : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  return `
+    <details open>
+      <summary>Design</summary>
+      ${design.scopeDescription ? `<h3>Scope</h3><p>${escapeHtml(design.scopeDescription)}</p>` : ''}
+      ${design.measurableObjective ? `<h3>Measurable Objective</h3><p>${escapeHtml(design.measurableObjective)}</p>` : ''}
+      ${design.startDate || design.deadlineDate ? `<h3>Timeline</h3><p><strong>Start:</strong> ${design.startDate ? new Date(design.startDate).toLocaleDateString('de-DE') : '—'} | <strong>Deadline:</strong> ${design.deadlineDate ? new Date(design.deadlineDate).toLocaleDateString('de-DE') : '—'}</p>` : ''}
+      ${devCostHtml}
+      ${computeCostHtml}
+      ${design.requiredResources ? `<h3>Required Resources</h3><p>${escapeHtml(design.requiredResources)}</p>` : ''}
+      ${sovereigntyHtml}
+      ${criteriaHtml}
+    </details>
+  `;
+}
+
+function generateExecutionSection(poc: any): string {
+  const execution = poc.execution || {};
+  const milestones = execution.milestones || [];
+
+  let milestonesHtml = '';
+  if (milestones.length > 0) {
+    const done = milestones.filter((m: any) => (m.progressPct ?? 0) >= 100).length;
+    milestonesHtml = `
+      <h3>Milestones (${done}/${milestones.length} done)</h3>
+      ${milestones.map((m: any) => {
+        const dueDate = m.dueDate ? new Date(m.dueDate).toLocaleDateString('de-DE') : '—';
+        const pct = m.progressPct ?? 0;
+        return `<div class="milestone-item">
+          <strong>${escapeHtml(m.name || '—')}</strong>
+          <div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">
+            Due: ${dueDate} | Effort: ${m.effortHours || 0}h | Progress: ${pct}%
+          </div>
+          ${m.notes ? `<div style="font-size: 0.85em; margin-top: 4px; color: #475569;"><strong>Notes:</strong> ${escapeHtml(m.notes)}</div>` : ''}
+          <div class="milestone-bar">
+            <div class="milestone-progress" style="width: ${pct}%;"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    `;
+  }
+
+  return `
+    <details>
+      <summary>Execution</summary>
+      ${milestonesHtml || '<p style="color: #6b7280;">No milestones defined.</p>'}
+      ${execution.incidents ? `<h3>Incidents</h3><p>${escapeHtml(execution.incidents)}</p>` : ''}
+      ${execution.planDeviations ? `<h3>Plan Deviations</h3><p>${escapeHtml(execution.planDeviations)}</p>` : ''}
+    </details>
+  `;
+}
+
+function generateEvaluationSection(poc: any): string {
+  const evaluation = poc.evaluation || {};
+  return `
+    <details>
+      <summary>Evaluation</summary>
+      ${evaluation.estimatedProductionImpact ? `<h3>Production Impact</h3><p>${escapeHtml(evaluation.estimatedProductionImpact)}</p>` : ''}
+      ${evaluation.technicalLessons ? `<h3>Technical Lessons</h3><p>${escapeHtml(evaluation.technicalLessons)}</p>` : ''}
+      ${evaluation.organisationalLessons ? `<h3>Organisational Lessons</h3><p>${escapeHtml(evaluation.organisationalLessons)}</p>` : ''}
+      ${evaluation.actualCostEur !== undefined ? `<h3>Actual Cost</h3><p>€${(evaluation.actualCostEur ?? 0).toLocaleString('de-DE')}</p>` : ''}
+      ${!evaluation.estimatedProductionImpact && !evaluation.technicalLessons && !evaluation.organisationalLessons ? '<p style="color: #6b7280;">No evaluation data.</p>' : ''}
+    </details>
+  `;
+}
+
+function generateDecisionSection(poc: any): string {
+  const decision = poc.decision || {};
+  return `
+    <details>
+      <summary>Decision</summary>
+      ${decision.decision && decision.decision !== 'pending' ? `<h3>Decision</h3><p><strong>${escapeHtml(decision.decision.replace(/_/g, ' ').toUpperCase())}</strong></p>` : ''}
+      ${decision.justification ? `<h3>Justification</h3><p>${escapeHtml(decision.justification)}</p>` : ''}
+      ${decision.nextSteps ? `<h3>Next Steps</h3><p>${escapeHtml(decision.nextSteps)}</p>` : ''}
+      ${decision.decidedAt ? `<p style="font-size: 0.85em; color: #6b7280;"><strong>Decided:</strong> ${new Date(decision.decidedAt).toLocaleDateString('de-DE')}</p>` : ''}
+      ${!decision.decision || decision.decision === 'pending' ? '<p style="color: #6b7280;">No decision recorded.</p>' : ''}
     </details>
   `;
 }
