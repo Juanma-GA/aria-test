@@ -26,13 +26,6 @@ export async function GET(
       POC.findOne({ auditId, _id: pocId })
     ).lean();
 
-    const ucs = (poc as any)?.useCaseIds ?? [];
-    console.log('[DEBUG B8 GET]',
-      'uc0 keys:', Object.keys(ucs[0] ?? {}),
-      '| uc0.processId:', JSON.stringify(ucs[0]?.processId)?.slice(0, 300),
-      '| last uc processId:', JSON.stringify(ucs[ucs.length - 1]?.processId)?.slice(0, 300)
-    );
-
     if (!poc) return NextResponse.json({ error: 'POC not found' }, { status: 404 });
     return NextResponse.json(poc);
   } catch (err) {

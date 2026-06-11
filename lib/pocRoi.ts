@@ -34,10 +34,6 @@ function getUCDevCost(uc: any, isReference: boolean): number {
  * If processId is a string/ObjectId (not populated), falls back to pocProcess.
  */
 function getUCProcess(uc: any, pocProcess: any): any {
-  console.log('[DEBUG getUCProcess]', uc?.cuId,
-    'process?', !!uc?.process, 'processId type:', typeof uc?.processId,
-    'has b1:', !!(uc?.processId?.b1 || uc?.process?.b1));
-
   // Try uc.process first (global GET listado)
   if (uc?.process && typeof uc.process === 'object' && (uc.process?.b1 || uc.process?.b3)) {
     return uc.process;
