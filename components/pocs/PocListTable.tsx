@@ -27,6 +27,8 @@ interface PocListTableProps {
   pocs: GlobalPOC[];
   showAuditColumn?: boolean;
   onRowClick?: (poc: GlobalPOC) => void;
+  /** When set, rows/subrows whose audit matches are visually highlighted (membership marker). */
+  highlightAuditId?: string;
 }
 
 const PHASE_VARIANTS: Record<POCPhase, 'blue' | 'amber' | 'purple' | 'green' | 'slate' | 'teal'> = {
@@ -63,7 +65,12 @@ const DECISION_LABELS: Record<POCDecisionType, string> = {
   pending: 'Pending',
 };
 
-export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocListTableProps) {
+export function PocListTable({
+  pocs,
+  showAuditColumn = true,
+  onRowClick,
+  highlightAuditId,
+}: PocListTableProps) {
   const [expandedPocIds, setExpandedPocIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (pocId: string) => {
@@ -127,6 +134,7 @@ export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocLi
             const procLabel =
               pd?.procId && pd?.name ? `${pd.procId} · ${pd.name}` : (pd?.procId ?? '—');
             const isClickable = !!poc.audit?._id && !!onRowClick;
+            const isHighlighted = !!highlightAuditId && poc.audit?._id === highlightAuditId;
 
             // Show the actual decision badge regardless of phase; 'pending' if not set
             const decisionValue: POCDecisionType =
@@ -143,7 +151,11 @@ export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocLi
                       : undefined
                   }
                   className={`border-b border-border/50 ${
-                    isClickable ? 'hover:bg-slate-50 cursor-pointer' : 'cursor-default'
+                    isHighlighted ? 'bg-blue-50/50 border-l-2 border-l-blue-aria' : ''
+                  } ${
+                    isClickable
+                      ? `${isHighlighted ? 'hover:bg-blue-50' : 'hover:bg-slate-50'} cursor-pointer`
+                      : 'cursor-default'
                   } ${poc.isArchived || !poc.audit ? 'opacity-60' : ''}`}
                   onClick={() => isClickable && onRowClick!(poc)}
                 >
@@ -246,10 +258,17 @@ export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocLi
 
                 {/* Instance subrows (visually subordinated; click does not navigate) */}
                 {isExpanded &&
-                  (poc.instances ?? []).map(inst => (
+                  (poc.instances ?? []).map(inst => {
+                    const instHighlighted =
+                      !!highlightAuditId && inst.audit?._id === highlightAuditId;
+                    return (
                     <tr
                       key={inst._id}
-                      className="border-b border-border/50 bg-slate-50/50"
+                      className={`border-b border-border/50 ${
+                        instHighlighted
+                          ? 'bg-blue-50/70 border-l-2 border-l-blue-aria'
+                          : 'bg-slate-50/50'
+                      }`}
                     >
                       <td className="py-2 px-4 pl-10 font-mono text-xs text-slate-500">—</td>
                       <td className="py-2 px-4 text-xs text-slate-600">—</td>
@@ -303,7 +322,8 @@ export function PocListTable({ pocs, showAuditColumn = true, onRowClick }: PocLi
                         —
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
               </Fragment>
             );
           })}

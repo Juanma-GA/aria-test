@@ -401,7 +401,8 @@ ${body}
       ) : (
         <PocListTable
           pocs={pocs}
-          showAuditColumn={false}
+          showAuditColumn={true}
+          highlightAuditId={auditId}
           onRowClick={poc => {
             if (!poc.audit?._id) return;
             router.push(`/audits/${poc.audit._id}/pocs/${poc._id}`);
