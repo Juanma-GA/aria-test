@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       ],
       isArchived: showArchived ? true : { $ne: true },
     })
-      .populate('processId', 'procId name')
+      .populate('processId', 'procId name b1.profiles b3.annualRepetitions')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     ];
 
     const refUCs = await UseCase.find({ _id: { $in: refUCIds } })
-      .select('cuId description auditId')
+      .select('cuId description auditId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
       .lean() as any[];
     const refUCMap = Object.fromEntries(refUCs.map(u => [String((u as any)._id), u]));
 
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
     if (instanceUCIds.size > 0) {
       const instanceUCs = await UseCase.find({ _id: { $in: [...instanceUCIds] } })
-        .select('_id cuId description auditId processId')
+        .select('_id cuId description auditId processId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
         .lean() as any[];
       instanceUCMap = Object.fromEntries(instanceUCs.map(u => [String(u._id), u]));
 
@@ -122,6 +122,11 @@ export async function GET(req: NextRequest) {
           _id: uc._id,
           cuId: uc.cuId,
           description: uc.description,
+          timeSavedPerProfile: uc.timeSavedPerProfile,
+          computeBreakdown: uc.computeBreakdown,
+          estimatedDevCostEur: uc.estimatedDevCostEur,
+          additionalDevCostEur: uc.additionalDevCostEur,
+          isInstance: uc.isInstance,
           audit: audit ? { _id: uc.auditId, name: audit.name, client: audit.client } : null,
           process: process ? { _id: process._id, procId: process.procId, name: process.name } : null,
         };
@@ -132,7 +137,16 @@ export async function GET(req: NextRequest) {
         ...(typeof v === 'string' && nameById.has(v) ? { responsibleName: nameById.get(v) } : {}),
         audit: refUC ? (auditMap[String(refUC.auditId)] ?? null) : null,
         useCase: refUC
-          ? { _id: refUC._id, cuId: refUC.cuId, description: refUC.description }
+          ? {
+              _id: refUC._id,
+              cuId: refUC.cuId,
+              description: refUC.description,
+              timeSavedPerProfile: refUC.timeSavedPerProfile,
+              computeBreakdown: refUC.computeBreakdown,
+              estimatedDevCostEur: refUC.estimatedDevCostEur,
+              additionalDevCostEur: refUC.additionalDevCostEur,
+              isInstance: refUC.isInstance,
+            }
           : null,
         ...(instances.length > 0 ? { instances } : {}),
       };
