@@ -60,6 +60,14 @@ function milestonePct(m: { status: MilestoneStatus; progressPct?: number }): num
   return STATUS_WEIGHT.work_in_progress;
 }
 
+// Calculate per-UC dev cost: reference uses base, instances use only additional
+function getUCDevCost(uc: any, isReference: boolean): number {
+  if (isReference) {
+    return uc?.estimatedDevCostEur ?? 0;
+  } else {
+    return uc?.additionalDevCostEur ?? 0;
+  }
+}
 
 export default function POCDetailPage() {
   const { auditId, pocId } = useParams<{ auditId: string; pocId: string }>();
@@ -624,13 +632,10 @@ export default function POCDetailPage() {
             (total: number, uc: any) =>
               total + (uc?.computeBreakdown?.computedAnnualEur ?? 0), 0);
 
-          const devCost = assignedUCsForROI.reduce(
-            (total: number, uc: any) => {
-              const base = uc?.estimatedDevCostEur ?? 0;
-              const additional = uc?.isInstance
-                ? (uc?.additionalDevCostEur ?? 0) : 0;
-              return total + base + additional;
-            }, 0);
+          const devCost = assignedUCsForROI.reduce((total: number, uc: any, idx: number) => {
+            const isRef = idx === 0;
+            return total + getUCDevCost(uc, isRef);
+          }, 0);
 
           const netSaving = Math.max(grossSaving - computeCost, 0);
           const paybackMonths = devCost > 0 && netSaving > 0
@@ -678,13 +683,15 @@ export default function POCDetailPage() {
                 <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
                   <p className="font-semibold text-muted uppercase tracking-wide text-[10px]">Breakdown by Use Case</p>
                   <div className="space-y-1.5">
-                    {assignedUCsForROI.map((uc: any) => {
+                    {assignedUCsForROI.map((uc: any, index: number) => {
                       const ucGross = (uc?.timeSavedPerProfile ?? []).reduce((s: number, e: any) => {
                         const profile = b1Profiles.find((p: any) => p.id === e.profileId);
                         return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
                       }, 0);
                       const ucCompute = uc?.computeBreakdown?.computedAnnualEur ?? 0;
-                      const ucDevCost = (uc?.estimatedDevCostEur ?? 0) + (uc?.isInstance ? (uc?.additionalDevCostEur ?? 0) : 0);
+                      const isRef = index === 0;
+                      const ucDevCost = getUCDevCost(uc, isRef);
+                      const devLabel = isRef ? 'Dev' : 'Additional Dev';
                       const ucNet = Math.max(ucGross - ucCompute, 0);
 
                       return (
@@ -707,7 +714,7 @@ export default function POCDetailPage() {
                             </div>
                             {ucDevCost > 0 && (
                               <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">Dev</span>
+                                <span className="text-[9px] text-muted">{devLabel}</span>
                                 <span className="font-medium text-red-700">€{Math.round(ucDevCost).toLocaleString('de-DE')}</span>
                               </div>
                             )}
