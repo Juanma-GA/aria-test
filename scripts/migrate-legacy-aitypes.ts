@@ -1,3 +1,19 @@
+/**
+ * Migration script: transform legacy aiTypes to current enum values
+ *
+ * Transformations:
+ * - rag → rag_semantic
+ * - prediction → prediction_ml
+ * - agentic_ai → agentic_ai_workflow
+ *
+ * Prevents duplicates: if UC has both rag and rag_semantic, removes rag
+ * Safe to run multiple times (idempotent)
+ *
+ * Usage:
+ * - Apply migration (default): npx tsx scripts/migrate-legacy-aitypes.ts
+ * - Dry run (scan only): npx tsx scripts/migrate-legacy-aitypes.ts --dry-run
+ */
+
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aria-audit';
@@ -22,7 +38,7 @@ interface MigrationResult {
   }>;
 }
 
-async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
+async function migrateAiTypes(dryRun = false): Promise<MigrationResult> {
   let connection: typeof mongoose | null = null;
 
   const result: MigrationResult = {
@@ -34,9 +50,14 @@ async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
   };
 
   try {
+    const mongoHost = new URL(MONGODB_URI).hostname || 'localhost';
     console.log('🔗 Connecting to MongoDB...');
     connection = await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected\n');
+
+    if (!dryRun) {
+      console.log(`⚠️  APPLY MODE — writing changes to ${mongoHost}\n`);
+    }
 
     // Find all use cases
     const allUCs = await connection.connection.collection('usecases').find({}).toArray();
@@ -115,7 +136,7 @@ async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
 
     if (dryRun && result.useCasesWithLegacy > 0) {
       console.log(
-        `\n💡 Run with --apply flag to execute migration: npm run migrate:aitypes -- --apply`,
+        `\n💡 Run without flags to apply migration: npx tsx scripts/migrate-legacy-aitypes.ts`,
       );
     }
   } finally {
@@ -129,12 +150,11 @@ async function migrateAiTypes(dryRun = true): Promise<MigrationResult> {
 
 // Main execution
 const args = process.argv.slice(2);
-const shouldApply = args.includes('--apply');
+const isDryRun = args.includes('--dry-run');
 
-migrateAiTypes(!shouldApply)
+migrateAiTypes(isDryRun)
   .then((result) => {
-    const exitCode = result.useCasesWithLegacy > 0 && shouldApply ? 0 : 0;
-    process.exit(exitCode);
+    process.exit(0);
   })
   .catch((err) => {
     console.error('❌ Migration failed:', err);
