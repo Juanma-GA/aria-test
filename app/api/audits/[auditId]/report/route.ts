@@ -40,7 +40,7 @@ function sovereigntyLevel(axes: Record<string, any>): {
     )
     .filter((v) => v > 0);
   if (!vals.length) return { index: 0, level: 'Not assessed' };
-  const index = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const index = vals.reduce((s: number, v: number) => s + v, 0) / vals.length;
   const level =
     index >= 4.5
       ? 'Full Autonomy'
