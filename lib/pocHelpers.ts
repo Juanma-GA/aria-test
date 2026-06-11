@@ -161,10 +161,10 @@ export function applyPocPopulate(query: any): any {
     .populate({
       path: 'useCaseIds',
       select: 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur processId isInstance additionalDevCostEur',
-      populate: { path: 'processId', select: 'procId name b1 b3' },
+      populate: { path: 'processId', select: 'procId name b1.profiles b3.annualRepetitions' },
     })
     .populate('useCaseId', 'cuId description')
-    .populate('processId', 'procId name b1 b3');
+    .populate('processId', 'procId name b1.profiles b3.annualRepetitions');
 }
 
 /**

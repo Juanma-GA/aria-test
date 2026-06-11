@@ -192,8 +192,6 @@ export default function POCDetailPage() {
     const ids = (poc as any).useCaseIds as any[] ?? [];
     if (ids.length > 0) {
       if (typeof ids[0] === 'object' && ids[0]?.cuId) {
-        // TODO remove: debug log
-        console.log('[B8 assignedUCs] populated path');
         setAssignedUCs(ids);
         assignedUCsInitialized.current = true;
       } else {
@@ -205,8 +203,6 @@ export default function POCDetailPage() {
             setAssignedUCs([singularUC]);
             assignedUCsInitialized.current = true;
           } else {
-            // TODO remove: debug log
-            console.log('[B8 assignedUCs] fallback path');
             Promise.all(
               additionalIds.map(id =>
                 fetch(apiUrl(`/api/usecases/${id}`), { credentials: 'include' })
