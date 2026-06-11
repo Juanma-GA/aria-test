@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ucId
     const { ucId } = await params;
 
     const uc = await UseCase.findById(ucId)
-      .populate('processId', 'procId name')
+      .populate('processId', 'procId name b1 b3')
       .lean();
 
     if (!uc) {
