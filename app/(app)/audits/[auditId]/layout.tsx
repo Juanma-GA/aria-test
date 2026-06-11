@@ -11,7 +11,6 @@ import {
 } from '@/context/AuditAccessContext';
 
 const AUDIT_SUB_LABELS: Record<string, string> = {
-  scoring: 'Scoring',
   pocs: 'POCs',
   usecases: 'Use Cases',
   roadmap: 'Roadmap',

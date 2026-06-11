@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -133,13 +133,9 @@ function UCRoi({ uc, b1Profiles, annualReps, activities }: { uc: AuditUseCase; b
 export default function AuditUseCasesPage() {
   const { auditId } = useParams<{ auditId: string }>();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [useCases, setUseCases] = useState<AuditUseCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | UseCaseStatus>(() => {
-    const s = searchParams.get('status');
-    return s === 'eligible' || s === 'in_poc' || s === 'discarded' ? s : 'all';
-  });
+  const [filter, setFilter] = useState<'all' | UseCaseStatus>('all');
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 
