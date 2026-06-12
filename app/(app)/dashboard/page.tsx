@@ -343,7 +343,7 @@ function SavingsInfographic({
                         )}
                       </div>
                       <span className="text-xs font-mono font-bold text-white ml-3 flex-shrink-0">
-                        €{fmt(netTotal)}/yr
+                        {Math.round(barWidthPct)}% · €{fmt(netTotal)}/yr
                       </span>
                     </div>
                     {/* Solid bar */}
