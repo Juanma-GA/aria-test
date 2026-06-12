@@ -33,6 +33,10 @@ interface AuditSummary {
   totalProcessHoursPerRun: number;
   totalPeople: number;
   updatedAt: string;
+  totalNetAnnualSaving: number;
+  totalComputeCostPerYear: number;
+  totalDevCost: number;
+  paybackMonths: number;
 }
 
 type StatusFilter = 'all' | AuditStatus;
@@ -191,6 +195,9 @@ interface SavingsProps {
   ucsByCategory: { quickWin: number; midTerm: number; strategic: number };
   coveragePct: number;
   totalPeople: number;
+  totalNetAnnualSaving: number;
+  totalComputeCostPerYear: number;
+  totalDevCost: number;
 }
 
 function SavingsInfographic({
@@ -200,6 +207,9 @@ function SavingsInfographic({
   ucsByCategory,
   coveragePct,
   totalPeople,
+  totalNetAnnualSaving,
+  totalComputeCostPerYear,
+  totalDevCost,
 }: SavingsProps) {
   const maxSaving = Math.max(
     ...audits.map((a) => a.totalAnnualSavingEur ?? 0),
@@ -229,11 +239,16 @@ function SavingsInfographic({
         <div className="flex flex-wrap items-end gap-x-10 gap-y-2">
           <div>
             <p className="text-slate-400 text-[10px] uppercase tracking-widest">
-              Total Annual AI Savings
+              Total Net Annual Saving
             </p>
             <p className="text-4xl font-bold text-white mt-0.5 font-display">
-              €{fmt(totalSaving)}
+              €{fmt(totalNetAnnualSaving)}
             </p>
+            {totalComputeCostPerYear > 0 && (
+              <p className="text-[10px] text-slate-500">
+                incl. −€{fmt(totalComputeCostPerYear)} compute/yr
+              </p>
+            )}
           </div>
           {coveragePct > 0 && (
             <div>
@@ -248,11 +263,28 @@ function SavingsInfographic({
               </p>
             </div>
           )}
+          <div>
+            <p className="text-slate-400 text-[10px] uppercase tracking-widest">
+              Dev Cost
+            </p>
+            <p className="text-4xl font-bold text-white mt-0.5 font-display">
+              €{fmt(totalDevCost)}
+            </p>
+            {totalDevCost > 0 && totalNetAnnualSaving > 0 && (
+              <p className="text-[10px] text-slate-500">
+                payback ≈ {(totalDevCost / (totalNetAnnualSaving / 12)).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} months
+              </p>
+            )}
+            {(totalDevCost === 0 || totalNetAnnualSaving === 0) && (
+              <p className="text-[10px] text-slate-500">—</p>
+            )}
+          </div>
           <div className="ml-auto text-right hidden sm:block">
             <p className="text-slate-400 text-[10px] uppercase tracking-widest">
               Portfolio
             </p>
             <p className="text-2xl font-bold text-white mt-0.5">
+              {audits.reduce((s, a) => s + a.pocCount, 0)} POCs ·{' '}
               {audits.reduce((s, a) => s + a.useCaseCount, 0)} UCs ·{' '}
               {audits.length} audits
             </p>
@@ -530,6 +562,18 @@ export default function DashboardPage() {
   );
   const coveragePct =
     totalProcessHours > 0 ? (totalHoursSaved / totalProcessHours) * 100 : 0;
+  const totalNetAnnualSaving = audits.reduce(
+    (s, a) => s + (a.totalNetAnnualSaving ?? 0),
+    0,
+  );
+  const totalComputeCostPerYear = audits.reduce(
+    (s, a) => s + (a.totalComputeCostPerYear ?? 0),
+    0,
+  );
+  const totalDevCost = audits.reduce(
+    (s, a) => s + (a.totalDevCost ?? 0),
+    0,
+  );
   const savingsByCategory = {
     quickWin: audits.reduce(
       (s, a) => s + (a.savingsByCategory?.quickWin ?? 0),
@@ -614,6 +658,9 @@ export default function DashboardPage() {
           ucsByCategory={ucsByCategory}
           coveragePct={coveragePct}
           totalPeople={totalPeople}
+          totalNetAnnualSaving={totalNetAnnualSaving}
+          totalComputeCostPerYear={totalComputeCostPerYear}
+          totalDevCost={totalDevCost}
         />
       )}
 
