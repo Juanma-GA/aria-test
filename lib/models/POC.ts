@@ -19,6 +19,13 @@ const MilestoneSchema = new Schema({
   notes: { type: String, default: '' },
 }, { _id: false });
 
+const MockupSchema = new Schema({
+  name: { type: String, required: true },
+  filename: { type: String, required: true },
+  html: { type: String, required: true },
+  uploadedAt: { type: Date, default: Date.now },
+}, { _id: true });
+
 export interface IPOC extends Document {
   auditId: mongoose.Types.ObjectId;
   useCaseIds: mongoose.Types.ObjectId[];
@@ -90,6 +97,13 @@ export interface IPOC extends Document {
     /** Server-derived: Σ cloud + on-prem amortisation + electricity (EUR/yr). */
     computedAnnualEur?: number;
   };
+  mockups?: Array<{
+    _id?: mongoose.Types.ObjectId;
+    name: string;
+    filename: string;
+    html: string;
+    uploadedAt: Date;
+  }>;
   aiGeneratedFields?: string[];
   isArchived?: boolean;
   archivedAt?: Date;
@@ -179,6 +193,14 @@ const POCSchema = new Schema<IPOC>({
     peakUsageFractionOfWindow: { type: Number, default: 25, min: 0, max: 100 },
     hwPreexisting: { type: Boolean, default: false },
     computedAnnualEur: { type: Number, default: 0, min: 0 },
+  },
+  mockups: {
+    type: [MockupSchema],
+    default: [],
+    validate: {
+      validator: (v: any[]) => v.length <= 10,
+      message: 'POC cannot have more than 10 mockups',
+    },
   },
   aiGeneratedFields: [{ type: String }],
   isArchived: { type: Boolean, default: false, index: true },

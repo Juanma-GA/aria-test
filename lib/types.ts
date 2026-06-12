@@ -360,6 +360,13 @@ export interface POC {
   evaluation: POC_Evaluation;
   decision: POC_Decision;
   computeBreakdown?: ComputeBreakdown & { computedAnnualEur?: number };
+  mockups?: Array<{
+    _id?: string;
+    name: string;
+    filename: string;
+    html: string;
+    uploadedAt: Date;
+  }>;
   isArchived?: boolean;
   archivedAt?: Date;
   createdAt: Date;

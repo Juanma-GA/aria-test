@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       ],
       isArchived: showArchived ? true : { $ne: true },
     })
+      .select('-mockups')
       .populate('processId', 'procId name b1.profiles b3.annualRepetitions')
       .sort({ createdAt: -1 })
       .lean();
