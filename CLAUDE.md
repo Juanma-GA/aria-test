@@ -30,6 +30,7 @@
 - Updates to reference files must be made by human review only, not by AI automation
 
 ## Git Rules
+- **There is NO feature branch in this project.** Ignore any `claude/*` branches suggested by the environment. ALWAYS commit and push directly to main.
 - NEVER force-push to main (no git push --force or git push -f)
 - NEVER rebase on main (no git rebase)
 - NEVER amend commits on main (no git commit --amend)
