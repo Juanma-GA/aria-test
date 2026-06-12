@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -76,6 +76,10 @@ export default function POCDetailPage() {
   const { canEdit } = useAuditAccess();
 
   const [assignedUCs, setAssignedUCs] = useState<any[]>([]);
+  const [mockups, setMockups] = useState<Array<{ _id: string; name: string; filename: string; uploadedAt: Date }>>([]);
+  const [mockupLoading, setMockupLoading] = useState(false);
+  const [mockupError, setMockupError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showUCPicker, setShowUCPicker] = useState(false);
   const [pickerUCs, setPickerUCs] = useState<any[]>([]);
   const [pickerSelectedUCId, setPickerSelectedUCId] = useState('');
@@ -94,6 +98,15 @@ export default function POCDetailPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [auditId, pocId]);
+
+  // Load mockups
+  useEffect(() => {
+    if (!pocId || !auditId) return;
+    fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && setMockups(data.mockups || []))
+      .catch(() => {});
   }, [auditId, pocId]);
 
   // Pre-fill B2 Restrictions and UseCase data on mount
@@ -469,6 +482,85 @@ export default function POCDetailPage() {
       if (next) router.push(`/audits/${auditId}/pocs`);
     } else {
       setSaveStatus('unsaved');
+    }
+  };
+
+  const fetchMockups = useCallback(async () => {
+    try {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setMockups(data.mockups || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch mockups:', err);
+    }
+  }, [auditId, pocId]);
+
+  const handleImportMockup = async (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      setMockupError(`File exceeds 2MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        setMockupLoading(true);
+        setMockupError(null);
+        const html = e.target?.result as string;
+        const name = file.name.replace(/\.[^.]+$/, '');
+        const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, html }),
+        });
+        if (res.ok) {
+          await fetchMockups();
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        } else {
+          const data = await res.json();
+          setMockupError(data?.error || 'Failed to upload mockup');
+        }
+      } catch (err) {
+        setMockupError('Upload failed');
+        console.error(err);
+      } finally {
+        setMockupLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleViewMockup = async (mockupId: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups/${mockupId}`), { credentials: 'include' });
+      if (res.ok) {
+        const mockup = await res.json();
+        const blob = new Blob([mockup.html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
+    } catch (err) {
+      setMockupError('Failed to load mockup');
+    }
+  };
+
+  const handleDeleteMockup = async (mockupId: string) => {
+    if (!confirm('Delete this mockup?')) return;
+    try {
+      setMockupLoading(true);
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups/${mockupId}`), {
+        method: 'DELETE', credentials: 'include',
+      });
+      if (res.ok) {
+        await fetchMockups();
+      } else {
+        setMockupError('Failed to delete mockup');
+      }
+    } catch (err) {
+      setMockupError('Delete failed');
+    } finally {
+      setMockupLoading(false);
     }
   };
 
@@ -926,6 +1018,65 @@ export default function POCDetailPage() {
               trigger({ computeBreakdown: merged } as any);
             }}
           />
+        </div>
+
+        {/* Mockups section */}
+        <div className="card p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Mockups</h3>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={mockupLoading || !canEdit}
+              className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
+            >
+              <Plus size={13} /> Import mockup
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".html,.htm"
+              onChange={(e) => e.target.files?.[0] && handleImportMockup(e.target.files[0])}
+              className="hidden"
+            />
+          </div>
+
+          {mockupError && (
+            <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{mockupError}</div>
+          )}
+
+          {mockups.length === 0 ? (
+            <p className="text-xs text-muted">No mockups yet</p>
+          ) : (
+            <div className="space-y-2">
+              {mockups.map((m) => (
+                <div key={m._id} className="flex items-center justify-between bg-white/50 p-2 rounded text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{m.name}</p>
+                    <p className="text-muted text-[10px]">
+                      {new Date(m.uploadedAt).toLocaleDateString('de-DE', { month: 'short', day: 'numeric', year: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleViewMockup(m._id)}
+                      className="p-1 hover:bg-white rounded transition-colors"
+                      title="View"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMockup(m._id)}
+                      disabled={mockupLoading || !canEdit}
+                      className="p-1 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} className="text-red-600" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {poc.phase === 'design' && (
