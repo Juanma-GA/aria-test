@@ -96,9 +96,8 @@ function SavingsDonut({
   const procCost = processCost ?? 0;
   const fSaved = procCost > 0 ? Math.min((netSaving ?? 0) / procCost, 1) : 0;
   const fRemaining = Math.max(1 - fSaved, 0);
-  const gap = procCost > 0 ? c * 0.012 : 0;
-  const lSaved = Math.max(fSaved * c - gap, 0);
-  const lRemaining = Math.max(fRemaining * c - gap, 0);
+  const lSaved = fSaved * c;
+  const lRemaining = fRemaining * c;
 
   return (
     <svg
@@ -138,7 +137,7 @@ function SavingsDonut({
           stroke="#475569"
           strokeWidth={sw}
           strokeDasharray={`${lRemaining} ${c}`}
-          strokeDashoffset={-(fSaved * c - gap)}
+          strokeDashoffset={-(fSaved * c)}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '80px 80px' }}
           strokeLinecap="butt"
         />
@@ -314,11 +313,7 @@ function SavingsInfographic({
             <div className="space-y-4">
               {auditsWithSaving.map((audit) => {
                 const netTotal = audit.totalNetAnnualSaving ?? 0;
-                const maxNetSaving = Math.max(
-                  ...auditsWithSaving.map(a => a.totalNetAnnualSaving ?? 0),
-                  1
-                );
-                const barWidthPct = (netTotal / maxNetSaving) * 100;
+                const barWidthPct = totalNetAnnualSaving > 0 ? (netTotal / totalNetAnnualSaving) * 100 : 0;
                 const covPct =
                   audit.totalProcessHoursPerRun > 0
                     ? Math.round(
@@ -343,7 +338,7 @@ function SavingsInfographic({
                         </Link>
                         {covPct !== null && (
                           <span className="text-[10px] text-slate-500">
-                            {covPct}% automated
+                            {covPct}% automated · ({audit.totalHoursSavedPerRun}h / {audit.totalProcessHoursPerRun}h per run)
                           </span>
                         )}
                       </div>
