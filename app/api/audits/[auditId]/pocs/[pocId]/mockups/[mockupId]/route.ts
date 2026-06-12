@@ -25,15 +25,15 @@ export async function DELETE(
     const denied = await requirePocEditAccess(req, poc);
     if (denied) return denied;
 
-    const mockups = poc.mockups || [];
-    const initialLength = mockups.length;
-    poc.mockups = mockups.filter((m: any) => m._id?.toString() !== mockupId);
+    const result = await POC.updateOne(
+      { _id: pocId },
+      { $pull: { mockups: { _id: new mongoose.Types.ObjectId(mockupId) } } }
+    );
 
-    if (poc.mockups.length === initialLength) {
+    if (result.modifiedCount === 0) {
       return NextResponse.json({ error: 'Mockup not found' }, { status: 404 });
     }
 
-    await poc.save();
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[API]', err);
