@@ -689,21 +689,6 @@ export default function POCDetailPage() {
       <fieldset disabled={!canEdit} className="contents">
 
       {/* Phase stepper */}
-      <div className="flex items-center gap-0 mb-6 card p-3">
-        {PHASES.map((p, i) => {
-          const active = poc.phase === p.key;
-          const done = currentPhaseIdx > i;
-          return (
-            <div key={p.key} className="flex items-center flex-1">
-              <div className={`flex items-center gap-2 flex-1 justify-center py-1 rounded text-xs font-medium ${active ? 'bg-teal-poc text-white' : done ? 'text-green-sov' : 'text-muted'}`}>
-                {done ? <CheckCircle2 size={14} /> : <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border ${active ? 'border-white bg-white/20' : 'border-current'}`}>{p.num}</span>}
-                {p.label}
-              </div>
-              {i < PHASES.length - 1 && <div className={`h-px w-4 ${done ? 'bg-green-sov' : 'bg-border'}`} />}
-            </div>
-          );
-        })}
-      </div>
 
       {/* Tabs nav */}
       <div className="flex gap-1 border-b border-border mb-5">
