@@ -478,12 +478,13 @@ ${pocSections}
   </div>
   <script>
     function openMockup(templateId) {
-      const template = document.getElementById(templateId);
+      var template = document.getElementById(templateId);
       if (!template) return;
-      const html = template.textContent;
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      var w = window.open('', '_blank');
+      if (!w) return; // popup blocked
+      w.document.open();
+      w.document.write(template.textContent);
+      w.document.close();
     }
   </script>
 </body>
