@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       effectiveUCIds = visibleUCIds.filter(id => auditUCIdStrs.has(String(id)));
     }
 
-    let query = POC.find({
+    let query: any = POC.find({
       $or: [
         { useCaseIds: { $in: effectiveUCIds } },
         { useCaseId: { $in: effectiveUCIds } },
