@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const showArchived = searchParams.get('archived') === 'true';
     const auditIdParam = searchParams.get('auditId');
+    const includeMockups = searchParams.get('include') === 'mockups';
 
     let effectiveUCIds = visibleUCIds;
 
@@ -26,14 +27,19 @@ export async function GET(req: NextRequest) {
       effectiveUCIds = visibleUCIds.filter(id => auditUCIdStrs.has(String(id)));
     }
 
-    const pocs = await POC.find({
+    let query = POC.find({
       $or: [
         { useCaseIds: { $in: effectiveUCIds } },
         { useCaseId: { $in: effectiveUCIds } },
       ],
       isArchived: showArchived ? true : { $ne: true },
-    })
-      .select('-mockups')
+    });
+
+    if (!includeMockups) {
+      query = query.select('-mockups');
+    }
+
+    const pocs = await query
       .populate('processId', 'procId name b1.profiles b3.annualRepetitions')
       .sort({ createdAt: -1 })
       .lean();

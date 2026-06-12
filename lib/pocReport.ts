@@ -429,6 +429,15 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       border-left: 3px solid var(--accent);
       overflow-x: auto;
     }
+    .mockups-table {
+      width: 100%;
+    }
+    .mockups-table button {
+      transition: background 0.2s;
+    }
+    .mockups-table button:hover {
+      background: var(--accent-2) !important;
+    }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }
@@ -438,6 +447,9 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       summary { display: none; }
       details > * { display: block !important; }
       h2 { page-break-before: avoid; }
+      .mockups-table button { display: none; }
+      .mockups-table tbody tr td:last-child { display: none; }
+      .mockups-table thead tr th:last-child { display: none; }
     }
   </style>
 </head>
@@ -464,6 +476,16 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
 ${pocSections}
 
   </div>
+  <script>
+    function openMockup(templateId) {
+      const template = document.getElementById(templateId);
+      if (!template) return;
+      const html = template.textContent;
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+  </script>
 </body>
 </html>`;
 
@@ -515,6 +537,7 @@ function generatePocSection(poc: any, pocNum: number): string {
       ${generateExecutionSection(poc)}
       ${generateEvaluationSection(poc)}
       ${generateDecisionSection(poc)}
+      ${generateMockupsSection(poc, pocNum)}
     </div>
   `;
 }
@@ -801,6 +824,55 @@ function generateDecisionSection(poc: any): string {
       ${decision.nextSteps ? `<h3>Next Steps</h3><p>${escapeHtml(decision.nextSteps)}</p>` : ''}
       ${decision.decidedAt ? `<p style="font-size: 0.85em; color: #6b7280;"><strong>Decided:</strong> ${new Date(decision.decidedAt).toLocaleDateString('de-DE')}</p>` : ''}
       ${!decision.decision || decision.decision === 'pending' ? '<p style="color: #6b7280;">No decision recorded.</p>' : ''}
+    </details>
+  `;
+}
+
+function generateMockupsSection(poc: any, pocNum: number): string {
+  const mockups = poc.mockups ?? [];
+  if (!mockups.length) return '';
+
+  const templates: string[] = [];
+
+  const mockupRows = mockups.map((m: any, idx: number) => {
+    const uploadedDate = m.uploadedAt ? new Date(m.uploadedAt).toLocaleDateString('de-DE') : '—';
+    const templateId = `mockup-${pocNum}-${idx}`;
+    // Escape only </script> as <\/script> to prevent template termination
+    const escapedHtml = m.html.replace(/<\/script>/gi, '<\\/script>');
+    templates.push(`<script type="text/template" id="${templateId}">${escapedHtml}</script>`);
+
+    return `
+      <tr>
+        <td>${escapeHtml(m.name)}</td>
+        <td>${uploadedDate}</td>
+        <td>
+          <button
+            onclick="openMockup('${templateId}')"
+            style="padding: 4px 8px; background: #a8742c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85rem;"
+          >
+            Open mockup
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('\n');
+
+  return `
+    <details>
+      <summary>Mockups</summary>
+      <table class="mockups-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Uploaded</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${mockupRows}
+        </tbody>
+      </table>
+      ${templates.join('\n')}
     </details>
   `;
 }
