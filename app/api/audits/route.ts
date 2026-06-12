@@ -112,6 +112,18 @@ export async function GET(_req: NextRequest) {
         totalProcessHoursPerRun += acts.reduce((s: number, act: any) => s + (act.estimatedTimeHours ?? 0), 0);
       }
 
+      // Calculate annual process cost per audit (Σ hours × avgRate × annualReps per process)
+      let totalProcessCostPerYear = 0;
+      for (const proc of procs) {
+        const acts: any[] = proc.b3?.activities ?? [];
+        const totalProcHours = acts.reduce((s: number, act: any) => s + (act.estimatedTimeHours ?? 0), 0);
+        const profiles: any[] = proc.b1?.profiles ?? [];
+        const rates = profiles.map((p: any) => p.hourlyRateEur ?? 0).filter((r: number) => r > 0);
+        const avgRate = rates.length > 0 ? rates.reduce((s: number, r: number) => s + r, 0) / rates.length : 0;
+        const annualReps: number = proc.b3?.annualRepetitions ?? 0;
+        totalProcessCostPerYear += totalProcHours * avgRate * annualReps;
+      }
+
       // Compute savings per use case (scoped) and classify by score category
       let totalAnnualSavingEur = 0;
       let totalHoursSavedPerRun = 0;
@@ -181,6 +193,7 @@ export async function GET(_req: NextRequest) {
         totalComputeCostPerYear,
         totalDevCost,
         paybackMonths,
+        totalProcessCostPerYear,
       };
     });
 

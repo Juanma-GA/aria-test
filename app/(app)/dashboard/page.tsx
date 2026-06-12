@@ -37,6 +37,7 @@ interface AuditSummary {
   totalComputeCostPerYear: number;
   totalDevCost: number;
   paybackMonths: number;
+  totalProcessCostPerYear: number;
 }
 
 type StatusFilter = 'all' | AuditStatus;
@@ -84,14 +85,20 @@ function fmt(n: number): string {
 
 function SavingsDonut({
   netSaving,
-  devCost,
+  processCost,
 }: {
   netSaving: number;
-  devCost: number;
+  processCost: number;
 }) {
   const r = 62;
   const sw = 18;
   const c = 2 * Math.PI * r;
+  const procCost = processCost ?? 0;
+  const fSaved = procCost > 0 ? Math.min((netSaving ?? 0) / procCost, 1) : 0;
+  const fRemaining = Math.max(1 - fSaved, 0);
+  const gap = procCost > 0 ? c * 0.012 : 0;
+  const lSaved = Math.max(fSaved * c - gap, 0);
+  const lRemaining = Math.max(fRemaining * c - gap, 0);
 
   return (
     <svg
@@ -108,7 +115,7 @@ function SavingsDonut({
         stroke="#1e293b"
         strokeWidth={sw}
       />
-      {netSaving > 0 && (
+      {lSaved > 0 && (
         <circle
           cx="80"
           cy="80"
@@ -116,8 +123,22 @@ function SavingsDonut({
           fill="none"
           stroke="#1B6CA8"
           strokeWidth={sw}
-          strokeDasharray={`${c} ${c}`}
+          strokeDasharray={`${lSaved} ${c}`}
           strokeDashoffset={0}
+          style={{ transform: 'rotate(-90deg)', transformOrigin: '80px 80px' }}
+          strokeLinecap="butt"
+        />
+      )}
+      {lRemaining > 0 && (
+        <circle
+          cx="80"
+          cy="80"
+          r={r}
+          fill="none"
+          stroke="#475569"
+          strokeWidth={sw}
+          strokeDasharray={`${lRemaining} ${c}`}
+          strokeDashoffset={-(fSaved * c - gap)}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '80px 80px' }}
           strokeLinecap="butt"
         />
@@ -145,13 +166,13 @@ function SavingsDonut({
       </text>
       <text
         x="80"
-        y="104"
+        y="102"
         textAnchor="middle"
         fontSize="8"
         fill="#64748b"
         fontFamily="inherit"
       >
-        Dev €{fmt(devCost)}
+        of €{fmt(processCost)}/yr process cost
       </text>
     </svg>
   );
@@ -169,6 +190,7 @@ interface SavingsProps {
   totalNetAnnualSaving: number;
   totalComputeCostPerYear: number;
   totalDevCost: number;
+  totalProcessCostPerYear: number;
 }
 
 function SavingsInfographic({
@@ -181,6 +203,7 @@ function SavingsInfographic({
   totalNetAnnualSaving,
   totalComputeCostPerYear,
   totalDevCost,
+  totalProcessCostPerYear,
 }: SavingsProps) {
   const auditsWithSaving = audits
     .filter((a) => (a.totalNetAnnualSaving ?? 0) > 0)
@@ -264,8 +287,18 @@ function SavingsInfographic({
         <div className="lg:col-span-2 flex flex-col items-center gap-5">
           <SavingsDonut
             netSaving={totalNetAnnualSaving}
-            devCost={totalDevCost}
+            processCost={totalProcessCostPerYear}
           />
+          <div className="text-[9px] text-slate-500 flex gap-3">
+            <span>
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-aria mr-1" />
+              AI savings
+            </span>
+            <span>
+              <span className="inline-block w-2 h-2 rounded-full bg-slate-600 mr-1" />
+              remaining cost
+            </span>
+          </div>
         </div>
 
         {/* Right: per-audit bars */}
@@ -501,6 +534,10 @@ export default function DashboardPage() {
     (s, a) => s + (a.totalDevCost ?? 0),
     0,
   );
+  const totalProcessCostPerYear = audits.reduce(
+    (s, a) => s + (a.totalProcessCostPerYear ?? 0),
+    0,
+  );
   const savingsByCategory = {
     quickWin: audits.reduce(
       (s, a) => s + (a.savingsByCategory?.quickWin ?? 0),
@@ -588,6 +625,7 @@ export default function DashboardPage() {
           totalNetAnnualSaving={totalNetAnnualSaving}
           totalComputeCostPerYear={totalComputeCostPerYear}
           totalDevCost={totalDevCost}
+          totalProcessCostPerYear={totalProcessCostPerYear}
         />
       )}
 
