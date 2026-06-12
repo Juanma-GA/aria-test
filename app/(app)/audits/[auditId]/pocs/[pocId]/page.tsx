@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -13,6 +13,7 @@ import { ComputeCalculator as PocComputeCalculator } from '@/components/cost/Com
 import { useAuditAccess } from '@/context/AuditAccessContext';
 import { apiUrl } from '@/lib/utils';
 import { computeAnnualCompute } from '@/lib/calculations';
+import { computePocRoi } from '@/lib/pocRoi';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -60,7 +61,7 @@ function milestonePct(m: { status: MilestoneStatus; progressPct?: number }): num
   return STATUS_WEIGHT.work_in_progress;
 }
 
-
+// Calculate per-UC dev cost: reference uses base, instances use only additional
 export default function POCDetailPage() {
   const { auditId, pocId } = useParams<{ auditId: string; pocId: string }>();
   const router = useRouter();
@@ -74,15 +75,14 @@ export default function POCDetailPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { canEdit } = useAuditAccess();
 
-  const [allAudits, setAllAudits] = useState<any[]>([]);
   const [assignedUCs, setAssignedUCs] = useState<any[]>([]);
+  const [mockups, setMockups] = useState<Array<{ _id: string; name: string; filename: string; uploadedAt: Date }>>([]);
+  const [mockupLoading, setMockupLoading] = useState(false);
+  const [mockupError, setMockupError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showUCPicker, setShowUCPicker] = useState(false);
-  const [pickerAuditId, setPickerAuditId] = useState('');
-  const [pickerProcessId, setPickerProcessId] = useState('');
-  const [pickerProcesses, setPickerProcesses] = useState<any[]>([]);
   const [pickerUCs, setPickerUCs] = useState<any[]>([]);
   const [pickerSelectedUCId, setPickerSelectedUCId] = useState('');
-  const [loadingPickerProcesses, setLoadingPickerProcesses] = useState(false);
   const [loadingPickerUCs, setLoadingPickerUCs] = useState(false);
   const assignedUCsInitialized = useRef(false);
 
@@ -98,6 +98,15 @@ export default function POCDetailPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [auditId, pocId]);
+
+  // Load mockups
+  useEffect(() => {
+    if (!pocId || !auditId) return;
+    fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && setMockups(data.mockups || []))
+      .catch(() => {});
   }, [auditId, pocId]);
 
   // Pre-fill B2 Restrictions and UseCase data on mount
@@ -192,13 +201,6 @@ export default function POCDetailPage() {
   }, [pocId]);
 
   useEffect(() => {
-    fetch(apiUrl('/api/audits'), { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setAllAudits(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     if (!poc || assignedUCsInitialized.current) return;
     const ids = (poc as any).useCaseIds as any[] ?? [];
     if (ids.length > 0) {
@@ -237,35 +239,23 @@ export default function POCDetailPage() {
     }
   }, [poc]);
 
+  // Load instances of reference UC when picker modal opens
   useEffect(() => {
-    if (!pickerAuditId) return;
-    setPickerProcessId('');
-    setPickerUCs([]);
-    setPickerSelectedUCId('');
-    setLoadingPickerProcesses(true);
-    fetch(apiUrl(`/api/audits/${pickerAuditId}/processes`),
-      { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setPickerProcesses(Array.isArray(data) ? data : []))
-      .catch(() => setPickerProcesses([]))
-      .finally(() => setLoadingPickerProcesses(false));
-  }, [pickerAuditId]);
+    if (!showUCPicker || assignedUCs.length === 0) {
+      setPickerUCs([]);
+      return;
+    }
 
-  useEffect(() => {
-    if (!pickerAuditId || !pickerProcessId) return;
-    setPickerSelectedUCId('');
     setLoadingPickerUCs(true);
-    fetch(apiUrl(`/api/audits/${pickerAuditId}/usecases?processId=${pickerProcessId}`),
+    const referenceUCId = assignedUCs[0]?._id ?? assignedUCs[0];
+
+    fetch(apiUrl(`/api/usecases?parentUCId=${referenceUCId}`),
       { credentials: 'include' })
       .then(r => r.json())
-      .then(data => setPickerUCs(
-        Array.isArray(data)
-          ? data.filter((u: any) => u.status === 'eligible' || u.status === 'in_poc')
-          : []
-      ))
+      .then(data => setPickerUCs(Array.isArray(data) ? data : []))
       .catch(() => setPickerUCs([]))
       .finally(() => setLoadingPickerUCs(false));
-  }, [pickerAuditId, pickerProcessId]);
+  }, [showUCPicker, assignedUCs]);
 
 
   const save = useCallback(async (updated: Partial<POC>) => {
@@ -317,8 +307,19 @@ export default function POCDetailPage() {
       .filter(u => String(u._id ?? u) !== String(ucId))
       .map(u => String(u._id ?? u));
     await patchPoc({ useCaseIds: newIds }, true);
-    setAssignedUCs(prev =>
-      prev.filter(u => String(u._id ?? u) !== String(ucId)));
+    // Re-fetch to get populated useCaseIds for ROI calculation
+    const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
+      { credentials: 'include' });
+    if (res.ok) {
+      const updated = await res.json();
+      setPoc(updated);
+      // Derive assignedUCs from re-fetched populated data
+      setAssignedUCs(updated.useCaseIds || []);
+    } else {
+      // Fallback: update from memory if re-fetch fails
+      setAssignedUCs(prev =>
+        prev.filter(u => String(u._id ?? u) !== String(ucId)));
+    }
   };
 
   const handleAddUC = async () => {
@@ -327,12 +328,25 @@ export default function POCDetailPage() {
     if (!uc) return;
     if (assignedUCs.find(u => String(u._id ?? u) === pickerSelectedUCId))
       return;
+
     const newIds = [...assignedUCs.map(u => String(u._id ?? u)),
       pickerSelectedUCId];
     await patchPoc({ useCaseIds: newIds }, true);
-    setAssignedUCs(prev => [...prev, uc]);
+
+    // Re-fetch to get populated useCaseIds for ROI calculation
+    const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}`),
+      { credentials: 'include' });
+    if (res.ok) {
+      const updated = await res.json();
+      setPoc(updated);
+      // Derive assignedUCs from re-fetched populated data
+      setAssignedUCs(updated.useCaseIds || []);
+    } else {
+      // Fallback: update from memory if re-fetch fails
+      setAssignedUCs(prev => [...prev, uc]);
+    }
+
     setPickerSelectedUCId('');
-    setPickerProcessId('');
     setPickerUCs([]);
     setShowUCPicker(false);
   };
@@ -471,6 +485,85 @@ export default function POCDetailPage() {
     }
   };
 
+  const fetchMockups = useCallback(async () => {
+    try {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setMockups(data.mockups || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch mockups:', err);
+    }
+  }, [auditId, pocId]);
+
+  const handleImportMockup = async (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      setMockupError(`File exceeds 2MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        setMockupLoading(true);
+        setMockupError(null);
+        const html = e.target?.result as string;
+        const name = file.name.replace(/\.[^.]+$/, '');
+        const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, html }),
+        });
+        if (res.ok) {
+          await fetchMockups();
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        } else {
+          const data = await res.json();
+          setMockupError(data?.error || 'Failed to upload mockup');
+        }
+      } catch (err) {
+        setMockupError('Upload failed');
+        console.error(err);
+      } finally {
+        setMockupLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleViewMockup = async (mockupId: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups/${mockupId}`), { credentials: 'include' });
+      if (res.ok) {
+        const mockup = await res.json();
+        const blob = new Blob([mockup.html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
+    } catch (err) {
+      setMockupError('Failed to load mockup');
+    }
+  };
+
+  const handleDeleteMockup = async (mockupId: string) => {
+    if (!confirm('Delete this mockup?')) return;
+    try {
+      setMockupLoading(true);
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups/${mockupId}`), {
+        method: 'DELETE', credentials: 'include',
+      });
+      if (res.ok) {
+        await fetchMockups();
+      } else {
+        setMockupError('Failed to delete mockup');
+      }
+    } catch (err) {
+      setMockupError('Delete failed');
+    } finally {
+      setMockupLoading(false);
+    }
+  };
+
   const [refreshingFill, setRefreshingFill] = useState(false);
   const aiGeneratedFields: string[] = (poc as any)?.aiGeneratedFields ?? [];
 
@@ -606,37 +699,9 @@ export default function POCDetailPage() {
             : [(poc as any).useCaseId].filter(Boolean);
 
           const proc = (poc as any).processId;
-          const b1Profiles = proc?.b1?.profiles ?? [];
-          const annualReps = proc?.b3?.annualRepetitions ?? 0;
+          const roi = computePocRoi(assignedUCsForROI, proc);
 
-          const grossSaving = assignedUCsForROI.reduce(
-            (total: number, uc: any) => {
-              const ucTimeSaved = uc?.timeSavedPerProfile ?? [];
-              return total + ucTimeSaved.reduce((s: number, e: any) => {
-                const profile = b1Profiles.find(
-                  (p: any) => p.id === e.profileId);
-                return s + (e.hoursPerExecution ?? 0)
-                  * (profile?.hourlyRateEur ?? 0) * annualReps;
-              }, 0);
-            }, 0);
-
-          const computeCost = assignedUCsForROI.reduce(
-            (total: number, uc: any) =>
-              total + (uc?.computeBreakdown?.computedAnnualEur ?? 0), 0);
-
-          const devCost = assignedUCsForROI.reduce(
-            (total: number, uc: any) => {
-              const base = uc?.estimatedDevCostEur ?? 0;
-              const additional = uc?.isInstance
-                ? (uc?.additionalDevCostEur ?? 0) : 0;
-              return total + base + additional;
-            }, 0);
-
-          const netSaving = Math.max(grossSaving - computeCost, 0);
-          const paybackMonths = devCost > 0 && netSaving > 0
-            ? devCost / (netSaving / 12) : 0;
-
-          if (grossSaving === 0) {
+          if (!roi.hasData) {
             return <p className="text-xs text-muted mt-2">No ROI data available.</p>;
           }
 
@@ -645,28 +710,31 @@ export default function POCDetailPage() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-green-50 border border-green-200 rounded p-2">
                   <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Gross Annual Saving</p>
-                  <p className="font-bold text-green-700 text-sm">€{Math.round(grossSaving).toLocaleString('de-DE')}/yr</p>
+                  <p className="font-bold text-green-700 text-sm">€{Math.round(roi.gross).toLocaleString('de-DE')}/yr</p>
                 </div>
-                {computeCost > 0 && (
+                {roi.compute > 0 && (
                   <div className="bg-amber-50 border border-amber-200 rounded p-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Compute Cost/yr</p>
-                    <p className="font-bold text-amber-700 text-sm">€{Math.round(computeCost).toLocaleString('de-DE')}/yr</p>
+                    <p className="font-bold text-amber-700 text-sm">€{Math.round(roi.compute).toLocaleString('de-DE')}/yr</p>
                   </div>
                 )}
                 <div className="bg-green-50 border border-green-200 rounded p-2">
                   <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Net Annual Saving</p>
-                  <p className="font-bold text-green-700 text-sm">€{Math.round(netSaving).toLocaleString('de-DE')}/yr</p>
+                  <p className="font-bold text-green-700 text-sm">€{Math.round(roi.net).toLocaleString('de-DE')}/yr</p>
                 </div>
-                {devCost > 0 && (
+                {roi.dev > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded p-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Dev Cost (one-time)</p>
-                    <p className="font-bold text-red-700 text-sm">€{devCost.toLocaleString('de-DE')}</p>
+                    <p className="font-bold text-red-700 text-sm">€{roi.dev.toLocaleString('de-DE')}</p>
                   </div>
                 )}
-                {paybackMonths > 0 && (
+                {roi.paybackMonths > 0 && (
                   <div className="bg-slate-50 border border-border rounded p-2 col-span-2">
                     <p className="text-muted uppercase tracking-wide text-[10px] mb-1">Payback Period</p>
-                    <p className="font-bold text-text text-sm">{paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                    <p className="font-bold text-text text-sm">{roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</p>
+                    <p className="text-[9px] text-muted border-t border-border/30 mt-1.5 pt-1.5">
+                      {roi.paybackFormula}
+                    </p>
                   </div>
                 )}
               </div>
@@ -675,43 +743,33 @@ export default function POCDetailPage() {
                 <div className="bg-slate-50 border border-border rounded p-3 text-xs space-y-2">
                   <p className="font-semibold text-muted uppercase tracking-wide text-[10px]">Breakdown by Use Case</p>
                   <div className="space-y-1.5">
-                    {assignedUCsForROI.map((uc: any) => {
-                      const ucGross = (uc?.timeSavedPerProfile ?? []).reduce((s: number, e: any) => {
-                        const profile = b1Profiles.find((p: any) => p.id === e.profileId);
-                        return s + (e.hoursPerExecution ?? 0) * (profile?.hourlyRateEur ?? 0) * annualReps;
-                      }, 0);
-                      const ucCompute = uc?.computeBreakdown?.computedAnnualEur ?? 0;
-                      const ucDevCost = (uc?.estimatedDevCostEur ?? 0) + (uc?.isInstance ? (uc?.additionalDevCostEur ?? 0) : 0);
-                      const ucNet = Math.max(ucGross - ucCompute, 0);
-
-                      return (
-                        <div key={uc._id} className="flex justify-between items-start text-[11px] py-1 border-t border-border/30 pt-1.5 first:border-t-0 first:pt-0">
-                          <span className="font-mono text-text">{uc.cuId}</span>
-                          <div className="flex gap-2 text-right">
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-muted">Gross</span>
-                              <span className="font-medium text-green-700">€{Math.round(ucGross).toLocaleString('de-DE')}</span>
-                            </div>
-                            {ucCompute > 0 && (
-                              <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">Compute</span>
-                                <span className="font-medium text-amber-700">€{Math.round(ucCompute).toLocaleString('de-DE')}</span>
-                              </div>
-                            )}
-                            <div className="flex flex-col">
-                              <span className="text-[9px] text-muted">Net</span>
-                              <span className="font-medium text-green-700">€{Math.round(ucNet).toLocaleString('de-DE')}</span>
-                            </div>
-                            {ucDevCost > 0 && (
-                              <div className="flex flex-col">
-                                <span className="text-[9px] text-muted">Dev</span>
-                                <span className="font-medium text-red-700">€{Math.round(ucDevCost).toLocaleString('de-DE')}</span>
-                              </div>
-                            )}
+                    {roi.breakdown.map((item) => (
+                      <div key={item.cuId} className="flex justify-between items-start text-[11px] py-1 border-t border-border/30 pt-1.5 first:border-t-0 first:pt-0">
+                        <span className="font-mono text-text">{item.cuId}</span>
+                        <div className="flex gap-2 text-right">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-muted">Gross</span>
+                            <span className="font-medium text-green-700">€{Math.round(item.gross).toLocaleString('de-DE')}</span>
                           </div>
+                          {item.compute > 0 && (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted">Compute</span>
+                              <span className="font-medium text-amber-700">€{Math.round(item.compute).toLocaleString('de-DE')}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-muted">Net</span>
+                            <span className="font-medium text-green-700">€{Math.round(item.net).toLocaleString('de-DE')}</span>
+                          </div>
+                          {item.dev > 0 && (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted">{item.devLabel}</span>
+                              <span className="font-medium text-red-700">€{Math.round(item.dev).toLocaleString('de-DE')}</span>
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -723,21 +781,6 @@ export default function POCDetailPage() {
       <fieldset disabled={!canEdit} className="contents">
 
       {/* Phase stepper */}
-      <div className="flex items-center gap-0 mb-6 card p-3">
-        {PHASES.map((p, i) => {
-          const active = poc.phase === p.key;
-          const done = currentPhaseIdx > i;
-          return (
-            <div key={p.key} className="flex items-center flex-1">
-              <div className={`flex items-center gap-2 flex-1 justify-center py-1 rounded text-xs font-medium ${active ? 'bg-teal-poc text-white' : done ? 'text-green-sov' : 'text-muted'}`}>
-                {done ? <CheckCircle2 size={14} /> : <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border ${active ? 'border-white bg-white/20' : 'border-current'}`}>{p.num}</span>}
-                {p.label}
-              </div>
-              {i < PHASES.length - 1 && <div className={`h-px w-4 ${done ? 'bg-green-sov' : 'bg-border'}`} />}
-            </div>
-          );
-        })}
-      </div>
 
       {/* Tabs nav */}
       <div className="flex gap-1 border-b border-border mb-5">
@@ -975,6 +1018,58 @@ export default function POCDetailPage() {
               trigger({ computeBreakdown: merged } as any);
             }}
           />
+        </div>
+
+        {/* Mockups section */}
+        <div className="card p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Mockups</h3>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={mockupLoading || !canEdit}
+              className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
+            >
+              <Plus size={13} /> Import mockup
+            </button>
+          </div>
+
+          {mockupError && (
+            <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{mockupError}</div>
+          )}
+
+          {mockups.length === 0 ? (
+            <p className="text-xs text-muted">No mockups yet</p>
+          ) : (
+            <div className="space-y-2">
+              {mockups.map((m) => (
+                <div key={m._id} className="flex items-center justify-between bg-white/50 p-2 rounded text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{m.name}</p>
+                    <p className="text-muted text-[10px]">
+                      {new Date(m.uploadedAt).toLocaleDateString('de-DE', { month: 'short', day: 'numeric', year: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleViewMockup(m._id)}
+                      className="p-1 hover:bg-white rounded transition-colors"
+                      title="View"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMockup(m._id)}
+                      disabled={mockupLoading || !canEdit}
+                      className="p-1 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} className="text-red-600" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {poc.phase === 'design' && (
@@ -1314,6 +1409,15 @@ export default function POCDetailPage() {
 
       </fieldset>
 
+      {/* File input for mockup uploads - kept outside fieldset to avoid being disabled */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".html,.htm"
+        onChange={(e) => e.target.files?.[0] && handleImportMockup(e.target.files[0])}
+        className="hidden"
+      />
+
       <ConfirmModal
         isOpen={confirmDelete.open}
         title={confirmDelete.cascade ? 'Delete POC and its industrialization?' : 'Delete POC?'}
@@ -1344,58 +1448,33 @@ export default function POCDetailPage() {
               </button>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted font-medium
-                  uppercase tracking-wide mb-1 block">Audit</label>
-                <select className="form-input w-full text-sm"
-                  value={pickerAuditId}
-                  onChange={e => setPickerAuditId(e.target.value)}>
-                  <option value="">Select audit...</option>
-                  {allAudits.map(a => (
-                    <option key={a._id} value={a._id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-              {pickerAuditId && (
+              {assignedUCs.length === 0 ? (
+                <p className="text-xs text-muted">No reference UC selected. Cannot add instances.</p>
+              ) : (
                 <div>
                   <label className="text-xs text-muted font-medium
-                    uppercase tracking-wide mb-1 block">Process</label>
-                  <select className="form-input w-full text-sm"
-                    value={pickerProcessId}
-                    onChange={e => setPickerProcessId(e.target.value)}
-                    disabled={loadingPickerProcesses}>
-                    <option value="">
-                      {loadingPickerProcesses
-                        ? 'Loading...' : 'Select process...'}
-                    </option>
-                    {pickerProcesses.map(p => (
-                      <option key={p._id} value={p._id}>
-                        {p.procId} — {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {pickerProcessId && (
-                <div>
-                  <label className="text-xs text-muted font-medium
-                    uppercase tracking-wide mb-1 block">Use Case</label>
+                    uppercase tracking-wide mb-1 block">
+                    Instances of {assignedUCs[0]?.cuId}
+                  </label>
                   <select className="form-input w-full text-sm"
                     value={pickerSelectedUCId}
                     onChange={e => setPickerSelectedUCId(e.target.value)}
                     disabled={loadingPickerUCs}>
                     <option value="">
                       {loadingPickerUCs
-                        ? 'Loading...' : 'Select use case...'}
+                        ? 'Loading...' : 'Select instance...'}
                     </option>
                     {pickerUCs
                       .filter(uc => !assignedUCs
                         .find(a => String(a._id ?? a) === uc._id))
-                      .map(uc => (
-                        <option key={uc._id} value={uc._id}>
-                          {uc.processId?.procId ? `${uc.processId.procId} • ` : ''}{uc.cuId}
-                        </option>
-                      ))}
+                      .map(uc => {
+                        const sameAudit = String(uc.audit?._id) === auditId;
+                        return (
+                          <option key={uc._id} value={uc._id}>
+                            {uc.cuId}{!sameAudit ? ` (${uc.audit?.name ?? 'Other audit'})` : ''} — {uc.description?.slice(0, 40)}
+                          </option>
+                        );
+                      })}
                   </select>
                 </div>
               )}
@@ -1404,7 +1483,7 @@ export default function POCDetailPage() {
               <button onClick={handleAddUC}
                 disabled={!pickerSelectedUCId}
                 className="btn-primary flex-1 disabled:opacity-50">
-                Add UC
+                Add Instance
               </button>
               <button onClick={() => setShowUCPicker(false)}
                 className="btn-secondary flex-1">
