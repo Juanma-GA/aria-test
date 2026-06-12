@@ -1031,13 +1031,6 @@ export default function POCDetailPage() {
             >
               <Plus size={13} /> Import mockup
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".html,.htm"
-              onChange={(e) => e.target.files?.[0] && handleImportMockup(e.target.files[0])}
-              className="hidden"
-            />
           </div>
 
           {mockupError && (
@@ -1415,6 +1408,15 @@ export default function POCDetailPage() {
       </div>
 
       </fieldset>
+
+      {/* File input for mockup uploads - kept outside fieldset to avoid being disabled */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".html,.htm"
+        onChange={(e) => e.target.files?.[0] && handleImportMockup(e.target.files[0])}
+        className="hidden"
+      />
 
       <ConfirmModal
         isOpen={confirmDelete.open}
