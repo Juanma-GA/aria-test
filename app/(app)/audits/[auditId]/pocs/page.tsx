@@ -347,9 +347,17 @@ ${body}
     setTimeout(() => win.print(), 250);
   };
 
-  const handleDownloadHtmlReport = () => {
+  const handleDownloadHtmlReport = async () => {
     try {
-      const { html, filename } = generatePocReportHtml(pocs, auditName);
+      // Fetch POCs with mockups for report (respects showArchived toggle like table)
+      const res = await fetch(
+        apiUrl(`/api/pocs?auditId=${auditId}&include=mockups${showArchived ? '&archived=true' : ''}`),
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Failed to fetch POCs with mockups');
+      const pocsWithMockups = await res.json();
+
+      const { html, filename } = generatePocReportHtml(pocsWithMockups, auditName);
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
