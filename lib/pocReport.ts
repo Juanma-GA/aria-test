@@ -477,15 +477,18 @@ ${pocSections}
 
   </div>
   <script>
-    function openMockup(templateId) {
-      var template = document.getElementById(templateId);
-      if (!template) return;
-      var html = template.textContent.replace(/<\\\/script>/gi, '</script>');
+    function openMockup(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var b64 = el.getAttribute('data-html-b64');
+      if (!b64) return;
+      var html = decodeURIComponent(escape(atob(b64)));
       var w = window.open('', '_blank');
-      if (!w) return;
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
+      if (w) {
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+      }
     }
   </script>
 </body>
@@ -834,14 +837,11 @@ function generateMockupsSection(poc: any, pocNum: number): string {
   const mockups = poc.mockups ?? [];
   if (!mockups.length) return '';
 
-  const templates: string[] = [];
-
   const mockupRows = mockups.map((m: any, idx: number) => {
     const uploadedDate = m.uploadedAt ? new Date(m.uploadedAt).toLocaleDateString('de-DE') : '—';
-    const templateId = `mockup-${pocNum}-${idx}`;
-    // Escape only </script> as <\/script> to prevent template termination
-    const escapedHtml = m.html.replace(/<\/script>/gi, '<\\/script>');
-    templates.push(`<script type="text/template" id="${templateId}">${escapedHtml}</script>`);
+    const mockupId = `mockup-${pocNum}-${idx}`;
+    // Encode HTML as base64 to avoid parser conflicts with embedded scripts/regex
+    const b64 = Buffer.from(m.html, 'utf-8').toString('base64');
 
     return `
       <tr>
@@ -849,13 +849,14 @@ function generateMockupsSection(poc: any, pocNum: number): string {
         <td>${uploadedDate}</td>
         <td>
           <button
-            onclick="openMockup('${templateId}')"
+            onclick="openMockup('${mockupId}')"
             style="padding: 4px 8px; background: #a8742c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85rem;"
           >
             Open mockup
           </button>
         </td>
       </tr>
+      <div id="${mockupId}" data-html-b64="${b64}" style="display:none;"></div>
     `;
   }).join('\n');
 
@@ -874,7 +875,6 @@ function generateMockupsSection(poc: any, pocNum: number): string {
           ${mockupRows}
         </tbody>
       </table>
-      ${templates.join('\n')}
     </details>
   `;
 }
