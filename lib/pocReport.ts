@@ -481,10 +481,13 @@ ${pocSections}
       var template = document.getElementById(templateId);
       if (!template) return;
       var w = window.open('', '_blank');
-      if (!w) return; // popup blocked
-      w.document.open();
-      w.document.write(template.textContent);
-      w.document.close();
+      if (!w) return;
+      var iframe = w.document.createElement('iframe');
+      iframe.style.cssText =
+        'position:fixed;inset:0;width:100%;height:100%;border:0;';
+      w.document.body.style.margin = '0';
+      w.document.body.appendChild(iframe);
+      iframe.srcdoc = template.textContent;
     }
   </script>
 </body>
