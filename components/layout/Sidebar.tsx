@@ -203,16 +203,24 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {/* Global nav */}
-        {mainNav.map((item) => (
-          <NavLink key={item.href} item={item} />
-        ))}
+      <nav className="flex-1 px-3 py-4">
+        {/* Workspace section */}
+        <div className="pb-1 mb-3">
+          <span className="px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            Workspace
+          </span>
+        </div>
+
+        <div className="space-y-0.5 mb-3 pb-3 border-b border-white/10">
+          {mainNav.map((item) => (
+            <NavLink key={item.href} item={item} />
+          ))}
+        </div>
 
         {/* Current Audit Section */}
         {auditId && (
           <>
-            <div className="pt-4 pb-1">
+            <div className="pb-1 mb-3">
               <span className="px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
                 Current Audit
               </span>
@@ -384,67 +392,75 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Bottom actions */}
-      <div className="px-3 pb-5 border-t border-white/10 pt-3 space-y-0.5">
-        {currentUser?.role === 'admin' && (
-          <>
-            <Link
-              href="/admin/users"
-              className={clsx(
-                'sidebar-item',
-                isActive('/admin/users')
-                  ? 'sidebar-item-active'
-                  : 'sidebar-item-inactive',
-              )}
-            >
-              <Users size={16} />
-              <span>Users</span>
-            </Link>
-            <Link
-              href="/admin/profiles"
-              className={clsx(
-                'sidebar-item',
-                isActive('/admin/profiles')
-                  ? 'sidebar-item-active'
-                  : 'sidebar-item-inactive',
-              )}
-            >
-              <BadgeEuro size={16} />
-              <span>Profiles</span>
-            </Link>
-            <Link
-              href="/admin/catalog"
-              className={clsx(
-                'sidebar-item',
-                isActive('/admin/catalog')
-                  ? 'sidebar-item-active'
-                  : 'sidebar-item-inactive',
-              )}
-            >
-              <Cpu size={16} />
-              <span>Catalog</span>
-            </Link>
-          </>
-        )}
-        <Link
-          href="/settings"
-          className={clsx(
-            'sidebar-item',
-            isActive('/settings')
-              ? 'sidebar-item-active'
-              : 'sidebar-item-inactive',
+      {/* System section */}
+      <div className="px-3 pb-5 border-t border-white/10 pt-3">
+        <div className="pb-1 mb-3">
+          <span className="px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            System
+          </span>
+        </div>
+
+        <div className="space-y-0.5">
+          {currentUser?.role === 'admin' && (
+            <>
+              <Link
+                href="/admin/users"
+                className={clsx(
+                  'sidebar-item',
+                  isActive('/admin/users')
+                    ? 'sidebar-item-active'
+                    : 'sidebar-item-inactive',
+                )}
+              >
+                <Users size={16} />
+                <span>Users</span>
+              </Link>
+              <Link
+                href="/admin/profiles"
+                className={clsx(
+                  'sidebar-item',
+                  isActive('/admin/profiles')
+                    ? 'sidebar-item-active'
+                    : 'sidebar-item-inactive',
+                )}
+              >
+                <BadgeEuro size={16} />
+                <span>Profiles</span>
+              </Link>
+              <Link
+                href="/admin/catalog"
+                className={clsx(
+                  'sidebar-item',
+                  isActive('/admin/catalog')
+                    ? 'sidebar-item-active'
+                    : 'sidebar-item-inactive',
+                )}
+              >
+                <Cpu size={16} />
+                <span>Catalog</span>
+              </Link>
+            </>
           )}
-        >
-          <Settings size={16} />
-          <span>Settings</span>
-        </Link>
-        <button
-          onClick={handleLogout}
-          className="sidebar-item sidebar-item-inactive w-full text-left"
-        >
-          <LogOut size={16} />
-          <span>Logout</span>
-        </button>
+          <Link
+            href="/settings"
+            className={clsx(
+              'sidebar-item',
+              isActive('/settings')
+                ? 'sidebar-item-active'
+                : 'sidebar-item-inactive',
+            )}
+          >
+            <Settings size={16} />
+            <span>Settings</span>
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="sidebar-item sidebar-item-inactive w-full text-left"
+          >
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
