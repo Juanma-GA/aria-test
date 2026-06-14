@@ -477,12 +477,18 @@ ${pocSections}
 
   </div>
   <script>
-    function openMockup(templateId) {
+    function openMockup(templateId, filename) {
       var template = document.getElementById(templateId);
       if (!template) return;
-      var url = 'data:text/html;charset=utf-8,' +
-                encodeURIComponent(template.textContent);
-      window.open(url, '_blank');
+      var blob = new Blob([template.textContent], { type: 'text/html' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'mockup.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
     }
   </script>
 </body>
@@ -840,16 +846,19 @@ function generateMockupsSection(poc: any, pocNum: number): string {
     const escapedHtml = m.html.replace(/<\/script>/gi, '<\\/script>');
     templates.push(`<script type="text/template" id="${templateId}">${escapedHtml}</script>`);
 
+    // Escape filename for onclick attribute (replace quotes with escaped versions)
+    const mockupFilename = `${escapeHtml(m.name || 'mockup')}.html`.replace(/'/g, "\\'");
+
     return `
       <tr>
         <td>${escapeHtml(m.name)}</td>
         <td>${uploadedDate}</td>
         <td>
           <button
-            onclick="openMockup('${templateId}')"
+            onclick="openMockup('${templateId}', '${mockupFilename}')"
             style="padding: 4px 8px; background: #a8742c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85rem;"
           >
-            Open mockup
+            Download mockup
           </button>
         </td>
       </tr>
