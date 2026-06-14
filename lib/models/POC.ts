@@ -112,7 +112,7 @@ export interface IPOC extends Document {
 }
 
 const POCSchema = new Schema<IPOC>({
-  auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true },
+  auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true, index: true },
   useCaseIds: {
     type: [Schema.Types.ObjectId],
     ref: 'UseCase',
@@ -206,6 +206,8 @@ const POCSchema = new Schema<IPOC>({
   isArchived: { type: Boolean, default: false, index: true },
   archivedAt: { type: Date },
 }, { timestamps: true });
+
+POCSchema.index({ useCaseIds: 1 });
 
 const POC: Model<IPOC> = mongoose.models.POC || mongoose.model<IPOC>('POC', POCSchema);
 export default POC;
