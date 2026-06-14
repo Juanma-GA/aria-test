@@ -480,7 +480,8 @@ ${pocSections}
     function openMockup(templateId, filename) {
       var template = document.getElementById(templateId);
       if (!template) return;
-      var blob = new Blob([template.textContent], { type: 'text/html' });
+      var html = template.textContent.replace(/<\\\/script>/gi, '</script>'); // Unescape
+      var blob = new Blob([html], { type: 'text/html' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
