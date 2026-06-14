@@ -837,11 +837,16 @@ function generateMockupsSection(poc: any, pocNum: number): string {
   const mockups = poc.mockups ?? [];
   if (!mockups.length) return '';
 
+  const mockupDivs: string[] = [];
+
   const mockupRows = mockups.map((m: any, idx: number) => {
     const uploadedDate = m.uploadedAt ? new Date(m.uploadedAt).toLocaleDateString('de-DE') : '—';
     const mockupId = `mockup-${pocNum}-${idx}`;
     // Encode HTML as base64 to avoid parser conflicts with embedded scripts/regex
     const b64 = Buffer.from(m.html, 'utf-8').toString('base64');
+
+    // Store data div separately to place outside table
+    mockupDivs.push(`<div id="${mockupId}" data-html-b64="${b64}" style="display:none;"></div>`);
 
     return `
       <tr>
@@ -856,7 +861,6 @@ function generateMockupsSection(poc: any, pocNum: number): string {
           </button>
         </td>
       </tr>
-      <div id="${mockupId}" data-html-b64="${b64}" style="display:none;"></div>
     `;
   }).join('\n');
 
@@ -875,6 +879,7 @@ function generateMockupsSection(poc: any, pocNum: number): string {
           ${mockupRows}
         </tbody>
       </table>
+      ${mockupDivs.join('\n')}
     </details>
   `;
 }
