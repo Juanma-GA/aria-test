@@ -477,19 +477,15 @@ ${pocSections}
 
   </div>
   <script>
-    function openMockup(templateId, filename) {
+    function openMockup(templateId) {
       var template = document.getElementById(templateId);
       if (!template) return;
-      var html = template.textContent.replace(/<\\\/script>/gi, '</script>'); // Unescape
-      var blob = new Blob([html], { type: 'text/html' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'mockup.html';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      var html = template.textContent.replace(/<\\\/script>/gi, '</script>');
+      var w = window.open('', '_blank');
+      if (!w) return;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
     }
   </script>
 </body>
@@ -847,19 +843,16 @@ function generateMockupsSection(poc: any, pocNum: number): string {
     const escapedHtml = m.html.replace(/<\/script>/gi, '<\\/script>');
     templates.push(`<script type="text/template" id="${templateId}">${escapedHtml}</script>`);
 
-    // Escape filename for onclick attribute (replace quotes with escaped versions)
-    const mockupFilename = `${escapeHtml(m.name || 'mockup')}.html`.replace(/'/g, "\\'");
-
     return `
       <tr>
         <td>${escapeHtml(m.name)}</td>
         <td>${uploadedDate}</td>
         <td>
           <button
-            onclick="openMockup('${templateId}', '${mockupFilename}')"
+            onclick="openMockup('${templateId}')"
             style="padding: 4px 8px; background: #a8742c; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85rem;"
           >
-            Download mockup
+            Open mockup
           </button>
         </td>
       </tr>
