@@ -480,14 +480,9 @@ ${pocSections}
     function openMockup(templateId) {
       var template = document.getElementById(templateId);
       if (!template) return;
-      var w = window.open('', '_blank');
-      if (!w) return;
-      var iframe = w.document.createElement('iframe');
-      iframe.style.cssText =
-        'position:fixed;inset:0;width:100%;height:100%;border:0;';
-      w.document.body.style.margin = '0';
-      w.document.body.appendChild(iframe);
-      iframe.srcdoc = template.textContent;
+      var url = 'data:text/html;charset=utf-8,' +
+                encodeURIComponent(template.textContent);
+      window.open(url, '_blank');
     }
   </script>
 </body>
