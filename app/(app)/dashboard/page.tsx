@@ -33,6 +33,11 @@ interface AuditSummary {
   totalProcessHoursPerRun: number;
   totalPeople: number;
   updatedAt: string;
+  totalNetAnnualSaving: number;
+  totalComputeCostPerYear: number;
+  totalDevCost: number;
+  paybackMonths: number;
+  totalProcessCostPerYear: number;
 }
 
 type StatusFilter = 'all' | AuditStatus;
@@ -79,26 +84,20 @@ function fmt(n: number): string {
 // ── Savings Donut (SVG) ────────────────────────────────────────────────────────
 
 function SavingsDonut({
-  qw,
-  mt,
-  st,
-  total,
+  netSaving,
+  processCost,
 }: {
-  qw: number;
-  mt: number;
-  st: number;
-  total: number;
+  netSaving: number;
+  processCost: number;
 }) {
   const r = 62;
   const sw = 18;
   const c = 2 * Math.PI * r;
-  const gap = total > 0 ? c * 0.012 : 0;
-  const fQW = total > 0 ? qw / total : 0;
-  const fMT = total > 0 ? mt / total : 0;
-  const fST = total > 0 ? st / total : 0;
-  const lQW = Math.max(fQW * c - gap, 0);
-  const lMT = Math.max(fMT * c - gap, 0);
-  const lST = Math.max(fST * c - gap, 0);
+  const procCost = processCost ?? 0;
+  const fSaved = procCost > 0 ? Math.min((netSaving ?? 0) / procCost, 1) : 0;
+  const fRemaining = Math.max(1 - fSaved, 0);
+  const lSaved = fSaved * c;
+  const lRemaining = fRemaining * c;
 
   return (
     <svg
@@ -115,44 +114,30 @@ function SavingsDonut({
         stroke="#1e293b"
         strokeWidth={sw}
       />
-      {lQW > 0 && (
+      {lSaved > 0 && (
         <circle
           cx="80"
           cy="80"
           r={r}
           fill="none"
-          stroke="#22c55e"
+          stroke="#1B6CA8"
           strokeWidth={sw}
-          strokeDasharray={`${lQW} ${c}`}
+          strokeDasharray={`${lSaved} ${c}`}
           strokeDashoffset={0}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '80px 80px' }}
           strokeLinecap="butt"
         />
       )}
-      {lMT > 0 && (
+      {lRemaining > 0 && (
         <circle
           cx="80"
           cy="80"
           r={r}
           fill="none"
-          stroke="#f59e0b"
+          stroke="#475569"
           strokeWidth={sw}
-          strokeDasharray={`${lMT} ${c}`}
-          strokeDashoffset={-(fQW * c)}
-          style={{ transform: 'rotate(-90deg)', transformOrigin: '80px 80px' }}
-          strokeLinecap="butt"
-        />
-      )}
-      {lST > 0 && (
-        <circle
-          cx="80"
-          cy="80"
-          r={r}
-          fill="none"
-          stroke="#0ea5e9"
-          strokeWidth={sw}
-          strokeDasharray={`${lST} ${c}`}
-          strokeDashoffset={-((fQW + fMT) * c)}
+          strokeDasharray={`${lRemaining} ${c}`}
+          strokeDashoffset={-(fSaved * c)}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '80px 80px' }}
           strokeLinecap="butt"
         />
@@ -166,7 +151,7 @@ function SavingsDonut({
         fill="white"
         fontFamily="inherit"
       >
-        €{fmt(total)}
+        €{fmt(netSaving)}
       </text>
       <text
         x="80"
@@ -176,7 +161,17 @@ function SavingsDonut({
         fill="#94a3b8"
         fontFamily="inherit"
       >
-        annual savings
+        net annual savings
+      </text>
+      <text
+        x="80"
+        y="102"
+        textAnchor="middle"
+        fontSize="8"
+        fill="#64748b"
+        fontFamily="inherit"
+      >
+        of €{fmt(processCost)}/yr process cost
       </text>
     </svg>
   );
@@ -191,6 +186,10 @@ interface SavingsProps {
   ucsByCategory: { quickWin: number; midTerm: number; strategic: number };
   coveragePct: number;
   totalPeople: number;
+  totalNetAnnualSaving: number;
+  totalComputeCostPerYear: number;
+  totalDevCost: number;
+  totalProcessCostPerYear: number;
 }
 
 function SavingsInfographic({
@@ -200,21 +199,14 @@ function SavingsInfographic({
   ucsByCategory,
   coveragePct,
   totalPeople,
+  totalNetAnnualSaving,
+  totalComputeCostPerYear,
+  totalDevCost,
+  totalProcessCostPerYear,
 }: SavingsProps) {
-  const maxSaving = Math.max(
-    ...audits.map((a) => a.totalAnnualSavingEur ?? 0),
-    1,
-  );
-
-  const categories = [
-    { key: 'quickWin' as const, label: 'Quick Win', color: '#22c55e' },
-    { key: 'midTerm' as const, label: 'Mid-term', color: '#f59e0b' },
-    { key: 'strategic' as const, label: 'Strategic', color: '#0ea5e9' },
-  ];
-
   const auditsWithSaving = audits
-    .filter((a) => (a.totalAnnualSavingEur ?? 0) > 0)
-    .sort((a, b) => b.totalAnnualSavingEur - a.totalAnnualSavingEur);
+    .filter((a) => (a.totalNetAnnualSaving ?? 0) > 0)
+    .sort((a, b) => (b.totalNetAnnualSaving ?? 0) - (a.totalNetAnnualSaving ?? 0));
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-sm overflow-hidden shadow-lg">
@@ -229,11 +221,16 @@ function SavingsInfographic({
         <div className="flex flex-wrap items-end gap-x-10 gap-y-2">
           <div>
             <p className="text-slate-400 text-[10px] uppercase tracking-widest">
-              Total Annual AI Savings
+              Total Net Annual Saving
             </p>
             <p className="text-4xl font-bold text-white mt-0.5 font-display">
-              €{fmt(totalSaving)}
+              €{fmt(totalNetAnnualSaving)}
             </p>
+            {totalComputeCostPerYear > 0 && (
+              <p className="text-[10px] text-slate-500">
+                incl. −€{fmt(totalComputeCostPerYear)} compute/yr
+              </p>
+            )}
           </div>
           {coveragePct > 0 && (
             <div>
@@ -248,11 +245,28 @@ function SavingsInfographic({
               </p>
             </div>
           )}
+          <div>
+            <p className="text-slate-400 text-[10px] uppercase tracking-widest">
+              Dev Cost
+            </p>
+            <p className="text-4xl font-bold text-white mt-0.5 font-display">
+              €{fmt(totalDevCost)}
+            </p>
+            {totalDevCost > 0 && totalNetAnnualSaving > 0 && (
+              <p className="text-[10px] text-slate-500">
+                payback ≈ {(totalDevCost / (totalNetAnnualSaving / 12)).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} months
+              </p>
+            )}
+            {(totalDevCost === 0 || totalNetAnnualSaving === 0) && (
+              <p className="text-[10px] text-slate-500">—</p>
+            )}
+          </div>
           <div className="ml-auto text-right hidden sm:block">
             <p className="text-slate-400 text-[10px] uppercase tracking-widest">
               Portfolio
             </p>
             <p className="text-2xl font-bold text-white mt-0.5">
+              {audits.reduce((s, a) => s + a.pocCount, 0)} POCs ·{' '}
               {audits.reduce((s, a) => s + a.useCaseCount, 0)} UCs ·{' '}
               {audits.length} audits
             </p>
@@ -267,21 +281,29 @@ function SavingsInfographic({
       </div>
 
       {/* Body */}
-      <div className="p-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
         {/* Left: donut only */}
         <div className="lg:col-span-2 flex flex-col items-center gap-5">
           <SavingsDonut
-            qw={savingsByCategory.quickWin}
-            mt={savingsByCategory.midTerm}
-            st={savingsByCategory.strategic}
-            total={totalSaving}
+            netSaving={totalNetAnnualSaving}
+            processCost={totalProcessCostPerYear}
           />
+          <div className="text-[9px] text-slate-500 flex gap-3">
+            <span>
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-aria mr-1" />
+              AI savings
+            </span>
+            <span>
+              <span className="inline-block w-2 h-2 rounded-full bg-slate-600 mr-1" />
+              remaining cost
+            </span>
+          </div>
         </div>
 
         {/* Right: per-audit bars */}
         <div className="lg:col-span-3 flex flex-col gap-3">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Savings by Audit
+            Value by Audit
           </p>
           {auditsWithSaving.length === 0 ? (
             <p className="text-slate-500 text-xs mt-2">
@@ -290,11 +312,8 @@ function SavingsInfographic({
           ) : (
             <div className="space-y-4">
               {auditsWithSaving.map((audit) => {
-                const total = audit.totalAnnualSavingEur;
-                const qwPct = (audit.savingsByCategory.quickWin / total) * 100;
-                const mtPct = (audit.savingsByCategory.midTerm / total) * 100;
-                const stPct = (audit.savingsByCategory.strategic / total) * 100;
-                const barWidthPct = (total / maxSaving) * 100;
+                const netTotal = audit.totalNetAnnualSaving ?? 0;
+                const barWidthPct = totalNetAnnualSaving > 0 ? (netTotal / totalNetAnnualSaving) * 100 : 0;
                 const covPct =
                   audit.totalProcessHoursPerRun > 0
                     ? Math.round(
@@ -303,6 +322,10 @@ function SavingsInfographic({
                           100,
                       )
                     : null;
+                const paybackDisplay =
+                  audit.totalDevCost > 0 && audit.totalNetAnnualSaving > 0
+                    ? (audit.totalDevCost / (audit.totalNetAnnualSaving / 12)).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                    : '—';
                 return (
                   <div key={audit._id}>
                     <div className="flex items-baseline justify-between mb-1.5">
@@ -315,60 +338,24 @@ function SavingsInfographic({
                         </Link>
                         {covPct !== null && (
                           <span className="text-[10px] text-slate-500">
-                            {covPct}% automated
+                            {covPct}% automated · ({audit.totalHoursSavedPerRun}h / {audit.totalProcessHoursPerRun}h per run)
                           </span>
                         )}
                       </div>
                       <span className="text-xs font-mono font-bold text-white ml-3 flex-shrink-0">
-                        €{fmt(total)}/yr
+                        {Math.round(barWidthPct)}% · €{fmt(netTotal)}/yr
                       </span>
                     </div>
-                    {/* Stacked bar */}
+                    {/* Solid bar */}
                     <div className="h-5 bg-white/5 rounded overflow-hidden">
                       <div
-                        className="h-full flex"
+                        className="h-full w-full bg-blue-aria transition-all"
                         style={{ width: `${barWidthPct}%` }}
-                      >
-                        {qwPct > 0 && (
-                          <div
-                            className="h-full bg-green-500 transition-all"
-                            style={{ width: `${qwPct}%` }}
-                            title={`Quick Win: €${fmt(audit.savingsByCategory.quickWin)}`}
-                          />
-                        )}
-                        {mtPct > 0 && (
-                          <div
-                            className="h-full bg-amber-400 transition-all"
-                            style={{ width: `${mtPct}%` }}
-                            title={`Mid-term: €${fmt(audit.savingsByCategory.midTerm)}`}
-                          />
-                        )}
-                        {stPct > 0 && (
-                          <div
-                            className="h-full bg-sky-500 transition-all"
-                            style={{ width: `${stPct}%` }}
-                            title={`Strategic: €${fmt(audit.savingsByCategory.strategic)}`}
-                          />
-                        )}
-                      </div>
+                      />
                     </div>
-                    {/* Segment labels */}
-                    <div className="flex gap-3 mt-1">
-                      {audit.savingsByCategory.quickWin > 0 && (
-                        <span className="text-[9px] text-green-400">
-                          QW €{fmt(audit.savingsByCategory.quickWin)}
-                        </span>
-                      )}
-                      {audit.savingsByCategory.midTerm > 0 && (
-                        <span className="text-[9px] text-amber-400">
-                          MT €{fmt(audit.savingsByCategory.midTerm)}
-                        </span>
-                      )}
-                      {audit.savingsByCategory.strategic > 0 && (
-                        <span className="text-[9px] text-sky-400">
-                          ST €{fmt(audit.savingsByCategory.strategic)}
-                        </span>
-                      )}
+                    {/* Sublínea */}
+                    <div className="text-[9px] text-slate-500 mt-1">
+                      Dev €{fmt(audit.totalDevCost)} · payback ≈ {paybackDisplay} months · {audit.totalPeople} people
                     </div>
                   </div>
                 );
@@ -530,6 +517,22 @@ export default function DashboardPage() {
   );
   const coveragePct =
     totalProcessHours > 0 ? (totalHoursSaved / totalProcessHours) * 100 : 0;
+  const totalNetAnnualSaving = audits.reduce(
+    (s, a) => s + (a.totalNetAnnualSaving ?? 0),
+    0,
+  );
+  const totalComputeCostPerYear = audits.reduce(
+    (s, a) => s + (a.totalComputeCostPerYear ?? 0),
+    0,
+  );
+  const totalDevCost = audits.reduce(
+    (s, a) => s + (a.totalDevCost ?? 0),
+    0,
+  );
+  const totalProcessCostPerYear = audits.reduce(
+    (s, a) => s + (a.totalProcessCostPerYear ?? 0),
+    0,
+  );
   const savingsByCategory = {
     quickWin: audits.reduce(
       (s, a) => s + (a.savingsByCategory?.quickWin ?? 0),
@@ -614,6 +617,10 @@ export default function DashboardPage() {
           ucsByCategory={ucsByCategory}
           coveragePct={coveragePct}
           totalPeople={totalPeople}
+          totalNetAnnualSaving={totalNetAnnualSaving}
+          totalComputeCostPerYear={totalComputeCostPerYear}
+          totalDevCost={totalDevCost}
+          totalProcessCostPerYear={totalProcessCostPerYear}
         />
       )}
 

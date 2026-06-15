@@ -19,9 +19,17 @@ const MilestoneSchema = new Schema({
   notes: { type: String, default: '' },
 }, { _id: false });
 
+const MockupSchema = new Schema({
+  name: { type: String, required: true },
+  filename: { type: String, required: true },
+  html: { type: String, required: true },
+  uploadedAt: { type: Date, default: Date.now },
+}, { _id: true });
+
 export interface IPOC extends Document {
   auditId: mongoose.Types.ObjectId;
-  useCaseId: mongoose.Types.ObjectId;
+  useCaseIds: mongoose.Types.ObjectId[];
+  useCaseId?: mongoose.Types.ObjectId;
   processId: mongoose.Types.ObjectId;
   pocId: string;
   name?: string;
@@ -89,6 +97,13 @@ export interface IPOC extends Document {
     /** Server-derived: Σ cloud + on-prem amortisation + electricity (EUR/yr). */
     computedAnnualEur?: number;
   };
+  mockups?: Array<{
+    _id?: mongoose.Types.ObjectId;
+    name: string;
+    filename: string;
+    html: string;
+    uploadedAt: Date;
+  }>;
   aiGeneratedFields?: string[];
   isArchived?: boolean;
   archivedAt?: Date;
@@ -97,8 +112,17 @@ export interface IPOC extends Document {
 }
 
 const POCSchema = new Schema<IPOC>({
-  auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true },
-  useCaseId: { type: Schema.Types.ObjectId, ref: 'UseCase', required: true },
+  auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true, index: true },
+  useCaseIds: {
+    type: [Schema.Types.ObjectId],
+    ref: 'UseCase',
+    required: true,
+    validate: {
+      validator: (v: mongoose.Types.ObjectId[]) => v.length >= 1,
+      message: 'POC must have at least one UseCase',
+    },
+  },
+  useCaseId: { type: Schema.Types.ObjectId, ref: 'UseCase' },
   processId: { type: Schema.Types.ObjectId, ref: 'Process', required: true },
   pocId: { type: String, required: true },
   name: { type: String, default: '' },
@@ -170,10 +194,20 @@ const POCSchema = new Schema<IPOC>({
     hwPreexisting: { type: Boolean, default: false },
     computedAnnualEur: { type: Number, default: 0, min: 0 },
   },
+  mockups: {
+    type: [MockupSchema],
+    default: [],
+    validate: {
+      validator: (v: any[]) => v.length <= 10,
+      message: 'POC cannot have more than 10 mockups',
+    },
+  },
   aiGeneratedFields: [{ type: String }],
   isArchived: { type: Boolean, default: false, index: true },
   archivedAt: { type: Date },
 }, { timestamps: true });
+
+POCSchema.index({ useCaseIds: 1 });
 
 const POC: Model<IPOC> = mongoose.models.POC || mongoose.model<IPOC>('POC', POCSchema);
 export default POC;

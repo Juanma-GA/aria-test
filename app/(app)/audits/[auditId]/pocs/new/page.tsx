@@ -44,6 +44,7 @@ export default function NewPOCPage() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          useCaseIds: [uc._id],
           useCaseId: uc._id,
           processId: uc.processId,
           cuId: uc.cuId,

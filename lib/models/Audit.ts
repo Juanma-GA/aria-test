@@ -52,7 +52,7 @@ const AuditSchema = new Schema<IAudit>({
   startDate: { type: Date, required: true },
   targetEndDate: { type: Date, required: true },
   auditCode: { type: String },
-  isArchived: { type: Boolean, default: false },
+  isArchived: { type: Boolean, default: false, index: true },
   report: {
     generatedAt: { type: Date },
     model: { type: String, default: '' },

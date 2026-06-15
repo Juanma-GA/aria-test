@@ -21,13 +21,16 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
     const showArchived = searchParams.get('archived') === 'true';
+    // TODO fase 2: este GET filtra por el auditId legacy del POC. Cuando la vista
+    // "POCs de esta auditoría" migre al modelo derivado, usará GET /api/pocs?auditId=X
+    // (filtro sobre UCs de esa auditoría), no este endpoint.
     const query: Record<string, any> = { auditId };
     if (processId) query.processId = processId;
     query.isArchived = showArchived ? true : { $ne: true };
 
     const pocs = await POC.find(query)
       .populate('processId', 'procId name')
-      .populate('useCaseId', 'cuId description')
+      .populate({ path: 'useCaseIds', select: 'cuId description targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur', strictPopulate: false })
       .lean();
 
     // POC.design.responsibleUserId is stored as a String (not a Mongoose ref),
@@ -85,21 +88,64 @@ export async function POST(
     const body = await req.json();
 
     const { useCaseId, processId, cuId, ...rest } = body;
+    let useCaseIds = body.useCaseIds || (useCaseId ? [useCaseId] : []);
+    // Cast to ObjectIds
+    useCaseIds = useCaseIds.map((id: any) =>
+      typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
+    );
 
-    if (!useCaseId || !processId || !cuId) {
+    if (!useCaseIds.length || !processId || !cuId) {
       return NextResponse.json(
-        { error: 'useCaseId, processId, and cuId are required' },
+        { error: 'useCaseIds (or useCaseId), processId, and cuId are required' },
         { status: 400 },
       );
     }
 
+    // Use first UC in array as reference UC for backward compat
+    const referenceUseCaseId = useCaseIds[0];
+
+    // Validate composition rule: reference UC must not be an instance
+    const referenceUC = await UseCase.findById(referenceUseCaseId)
+      .select('cuId isInstance parentUCId')
+      .lean() as any;
+
+    if (referenceUC?.isInstance) {
+      return NextResponse.json(
+        { error: `Cannot use instance UC ${referenceUC.cuId} as POC reference. Reference UC must be a normal UC, not an instance.` },
+        { status: 400 }
+      );
+    }
+
+    // Validate all non-reference UCs are instances of the reference
+    if (useCaseIds.length > 1) {
+      const otherUCs = await UseCase.find({ _id: { $in: useCaseIds.slice(1) } })
+        .select('cuId isInstance parentUCId')
+        .lean() as any[];
+
+      for (const other of otherUCs) {
+        if (!other.isInstance || String(other.parentUCId) !== String(referenceUseCaseId)) {
+          return NextResponse.json(
+            { error: `UC ${other.cuId} is not an instance of reference UC ${referenceUC?.cuId}. All non-reference UCs must be instances of the reference.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Determine sequence number for this use case's POCs
-    const existingCount = await POC.countDocuments({ auditId, useCaseId });
+    // Count both old useCaseId and new useCaseIds fields for backward compat
+    const existingCount = await POC.countDocuments({
+      auditId,
+      $or: [
+        { useCaseIds: { $in: [referenceUseCaseId, String(referenceUseCaseId)] } },
+        { useCaseId: { $in: [referenceUseCaseId, String(referenceUseCaseId)] } }
+      ],
+    });
     const sequence = String(existingCount + 1).padStart(2, '0');
     const pocId = `POC-${cuId}-${sequence}`;
 
     // Fetch the UseCase once with all needed fields
-    const uc = await UseCase.findById(useCaseId)
+    const uc = await UseCase.findById(referenceUseCaseId)
       .select('computeBreakdown estimatedImplWeeks nDevs devRateEur estimatedDevCostEur')
       .lean() as any;
 
@@ -151,7 +197,8 @@ export async function POST(
 
     const poc = await POC.create({
       auditId,
-      useCaseId,
+      useCaseIds,
+      useCaseId: referenceUseCaseId,
       processId,
       pocId,
       ...rest,
@@ -164,8 +211,11 @@ export async function POST(
       },
     });
 
-    // Transition UC to 'in_poc' when first POC is created
-    await UseCase.findByIdAndUpdate(useCaseId, { $set: { status: 'in_poc' } });
+    // Transition all UCs to 'in_poc' when POC is created
+    await UseCase.updateMany(
+      { _id: { $in: useCaseIds } },
+      { $set: { status: 'in_poc' } }
+    );
 
     return NextResponse.json(poc.toObject(), { status: 201 });
   } catch (err) {

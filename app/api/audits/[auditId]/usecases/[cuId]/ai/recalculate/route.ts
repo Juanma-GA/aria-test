@@ -45,7 +45,7 @@ export async function POST(
     const targetActivityIds = targetActivities ?? [];
 
     // Derive profile list from filtered B3 target activities
-    const profileList = (b3.activities ?? [])
+    const profileList: { profileId: string; role: string }[] = (b3.activities ?? [])
       .filter((a: any) => targetActivityIds.includes(a.id))
       .flatMap((a: any) => a.profileHours ?? [])
       .reduce((acc: any[], ph: any) => {

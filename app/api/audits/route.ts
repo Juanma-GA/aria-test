@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC } from '@/lib/models';
 import { calculateScore } from '@/lib/calculations';
+import { computeUCRoi } from '@/lib/pocRoi';
 import { nextSequence } from '@/lib/models/Counter';
 import { createAuditSchema, validationErrorResponse } from '@/lib/validators';
 import { requireRole } from '@/lib/auth';
@@ -36,7 +37,10 @@ export async function GET(_req: NextRequest) {
     const [allPocs, allProcesses, allUseCases] = await Promise.all([
       POC.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId phase').lean(),
       Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
-      UseCase.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId processId score status timeSavedPerProfile').lean(),
+      UseCase.find({ auditId: { $in: auditIds } })
+        .select('auditId processId status isArchived score timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
+        .populate('processId', 'b1.profiles b3.annualRepetitions')
+        .lean(),
     ]);
 
     // Group POCs by audit → phase counts
@@ -57,28 +61,48 @@ export async function GET(_req: NextRequest) {
       processesByAudit.get(aid)!.push(proc);
     }
 
-    // Group use cases by audit
-    const ucsByAudit = new Map<string, any[]>();
+    // Group use cases by audit (scoped: eligible/in_poc, not archived)
+    const scopedUcsByAudit = new Map<string, any[]>();
     for (const uc of allUseCases) {
       const aid = String((uc as any).auditId);
-      if (!ucsByAudit.has(aid)) ucsByAudit.set(aid, []);
-      ucsByAudit.get(aid)!.push(uc);
+      // In-scope: eligible/in_poc, not archived
+      if ((uc as any).status === 'eligible' || (uc as any).status === 'in_poc') {
+        if (!(uc as any).isArchived) {
+          if (!scopedUcsByAudit.has(aid)) scopedUcsByAudit.set(aid, []);
+          scopedUcsByAudit.get(aid)!.push(uc);
+        }
+      }
     }
+
+    // Helper to resolve process for UC (populated or fallback)
+    const getUCProcess = (uc: any, procMap: Map<string, any>): any => {
+      const procId = (uc as any).processId;
+      if (procId && typeof procId === 'object' && (procId.b1 || procId.b3)) {
+        return procId;
+      }
+      return procMap.get(String(procId)) ?? null;
+    };
 
     const enriched = audits.map((a) => {
       const aid = String(a._id);
       const procs = processesByAudit.get(aid) ?? [];
-      const useCases = ucsByAudit.get(aid) ?? [];
-      const pocPhases = pocsByAudit.get(aid) ?? { design: 0, execution: 0, evaluation: 0, closed: 0 };
-      const pocCount = Object.values(pocPhases).reduce((s, n) => s + n, 0);
+      const scopedUCs = scopedUcsByAudit.get(aid) ?? [];
 
       const procMap = new Map(procs.map((p: any) => [String(p._id), p]));
 
-      // People impacted: sum of profile counts across all processes
+      // People impacted: from scoped UCs only
       let totalPeople = 0;
-      for (const proc of procs) {
-        const profiles: any[] = proc.b1?.profiles ?? [];
-        totalPeople += profiles.reduce((s: number, p: any) => s + (p.count ?? 0), 0);
+      const profiled = new Set<string>();
+      for (const uc of scopedUCs) {
+        const ucProcess = getUCProcess(uc, procMap);
+        const profiles: any[] = (typeof ucProcess === 'object' ? ucProcess?.b1?.profiles : null) ?? [];
+        for (const profile of profiles) {
+          const key = `${aid}-${profile.id}`;
+          if (!profiled.has(key)) {
+            totalPeople += profile.count ?? 0;
+            profiled.add(key);
+          }
+        }
       }
 
       // Sum all activity hours per run across all processes in this audit
@@ -88,14 +112,26 @@ export async function GET(_req: NextRequest) {
         totalProcessHoursPerRun += acts.reduce((s: number, act: any) => s + (act.estimatedTimeHours ?? 0), 0);
       }
 
-      // Compute savings per use case and classify by score category
+      // Calculate annual process cost per audit (Σ hours × avgRate × annualReps per process)
+      let totalProcessCostPerYear = 0;
+      for (const proc of procs) {
+        const acts: any[] = proc.b3?.activities ?? [];
+        const totalProcHours = acts.reduce((s: number, act: any) => s + (act.estimatedTimeHours ?? 0), 0);
+        const profiles: any[] = proc.b1?.profiles ?? [];
+        const rates = profiles.map((p: any) => p.hourlyRateEur ?? 0).filter((r: number) => r > 0);
+        const avgRate = rates.length > 0 ? rates.reduce((s: number, r: number) => s + r, 0) / rates.length : 0;
+        const annualReps: number = proc.b3?.annualRepetitions ?? 0;
+        totalProcessCostPerYear += totalProcHours * avgRate * annualReps;
+      }
+
+      // Compute savings per use case (scoped) and classify by score category
       let totalAnnualSavingEur = 0;
       let totalHoursSavedPerRun = 0;
       const byCategory = { quickWin: 0, midTerm: 0, strategic: 0 };
       const savingsByCategory = { quickWin: 0, midTerm: 0, strategic: 0 };
 
-      for (const uc of useCases) {
-        const proc = procMap.get(String((uc as any).processId));
+      for (const uc of scopedUCs) {
+        const proc = getUCProcess(uc, procMap);
         const annualReps: number = proc?.b3?.annualRepetitions ?? 0;
         const profiles: any[] = proc?.b1?.profiles ?? [];
         const rates = profiles.map((p: any) => p.hourlyRateEur ?? 0).filter((r: number) => r > 0);
@@ -122,10 +158,29 @@ export async function GET(_req: NextRequest) {
         else { byCategory.strategic++; savingsByCategory.strategic += ucSaving; }
       }
 
+      // New metrics: scoped ROI aggregates
+      let totalNetAnnualSaving = 0;
+      let totalComputeCostPerYear = 0;
+      let totalDevCost = 0;
+      for (const uc of scopedUCs) {
+        const ucProcess = getUCProcess(uc, procMap);
+        const roi = computeUCRoi(uc, ucProcess);
+        totalNetAnnualSaving += roi.net;
+        totalComputeCostPerYear += roi.compute;
+        totalDevCost += roi.dev;
+      }
+      const paybackMonths = totalDevCost > 0 && totalNetAnnualSaving > 0
+        ? totalDevCost / (totalNetAnnualSaving / 12)
+        : 0;
+
+      // POC count: non-archived only
+      const pocPhases = pocsByAudit.get(aid) ?? { design: 0, execution: 0, evaluation: 0, closed: 0 };
+      const pocCount = Object.values(pocPhases).reduce((s, n) => s + n, 0);
+
       return {
         ...a,
         processCount: procs.length,
-        useCaseCount: useCases.length,
+        useCaseCount: scopedUCs.length,
         pocCount,
         totalPeople,
         pocsByPhase: pocPhases,
@@ -134,6 +189,11 @@ export async function GET(_req: NextRequest) {
         totalAnnualSavingEur,
         totalHoursSavedPerRun,
         totalProcessHoursPerRun,
+        totalNetAnnualSaving,
+        totalComputeCostPerYear,
+        totalDevCost,
+        paybackMonths,
+        totalProcessCostPerYear,
       };
     });
 

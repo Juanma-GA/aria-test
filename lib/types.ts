@@ -209,6 +209,9 @@ export interface UseCase {
     scoredBy: string;
     scoredAt: Date;
   };
+  parentUCId?: string;
+  isInstance?: boolean;
+  additionalDevCostEur?: number;
 }
 
 // ── B6 SCORING ─────────────────────────────────────────────────────────────────
@@ -346,7 +349,8 @@ export interface POC_Decision {
 export interface POC {
   _id: string;
   auditId: string;
-  useCaseId: string;
+  useCaseId?: string;
+  useCaseIds: string[];
   processId: string;
   pocId: string;
   name?: string;
@@ -356,6 +360,13 @@ export interface POC {
   evaluation: POC_Evaluation;
   decision: POC_Decision;
   computeBreakdown?: ComputeBreakdown & { computedAnnualEur?: number };
+  mockups?: Array<{
+    _id?: string;
+    name: string;
+    filename: string;
+    html: string;
+    uploadedAt: Date;
+  }>;
   isArchived?: boolean;
   archivedAt?: Date;
   createdAt: Date;

@@ -10,7 +10,7 @@ export interface OriginNode {
   href?: string;
 }
 
-const ICONS: Record<OriginNode['kind'], React.ComponentType<{ size?: number; className?: string }>> = {
+const ICONS: Record<OriginNode['kind'], React.ComponentType<{ size?: number | string; className?: string }>> = {
   audit: Building2,
   usecase: Lightbulb,
   process: GitBranch,

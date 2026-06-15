@@ -21,7 +21,7 @@ const STATUS_VARIANTS: Record<
   cancelled: 'red',
 };
 
-interface GlobalIndustrialization extends Industrialization {
+interface GlobalIndustrialization extends Omit<Industrialization, 'processId'> {
   audit: { _id: string; name: string; client?: string } | null;
   useCase: { _id: string; cuId: string; description?: string } | null;
   poc: {

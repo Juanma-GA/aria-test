@@ -8,45 +8,16 @@ import { Spinner } from '@/components/ui/Spinner';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/Modal';
-import type { POC } from '@/lib/types';
 import { apiUrl } from '@/lib/utils';
+import { PocListTable, type GlobalPOC } from '@/components/pocs/PocListTable';
+import { generatePocReportHtml } from '@/lib/pocReport';
 
-const PHASE_COLORS = {
-  design: 'slate',
-  execution: 'blue',
-  evaluation: 'amber',
-  decision: 'teal',
-  closed: 'green',
-} as const;
-const DECISION_COLORS = {
-  go: 'green',
-  go_conditional: 'teal',
-  no_go_redesign: 'amber',
-  no_go_discard: 'red',
-  paused: 'purple',
-  pending: 'slate',
-} as const;
-const DECISION_LABELS = {
-  go: 'GO',
-  go_conditional: 'GO Conditional',
-  no_go_redesign: 'No-Go – Redesign',
-  no_go_discard: 'No-Go – Discard',
-  paused: 'Paused',
-  pending: 'Pending',
-};
-
-type EnrichedPOC = POC & {
-  cuId?: string;
-  processData?: { procId: string; name: string };
-  /** Server-resolved user name for design.responsibleUserId (when it stored an ObjectId). */
-  responsibleName?: string;
-};
 
 export default function POCsPage() {
   const { auditId } = useParams<{ auditId: string }>();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [pocs, setPocs] = useState<EnrichedPOC[]>([]);
+  const [pocs, setPocs] = useState<GlobalPOC[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState<string | null>(null);
@@ -55,13 +26,11 @@ export default function POCsPage() {
   useEffect(() => {
     setLoading(true);
     fetch(
-      apiUrl(
-        `/api/audits/${auditId}/pocs${showArchived ? '?archived=true' : ''}`,
-      ),
+      apiUrl(`/api/pocs?auditId=${auditId}${showArchived ? '&archived=true' : ''}`),
       { credentials: 'include' },
     )
-      .then((r) => r.json())
-      .then((data) => {
+      .then(r => r.json())
+      .then(data => {
         setPocs(Array.isArray(data) ? data : []);
         setLoading(false);
       })
@@ -88,10 +57,9 @@ export default function POCsPage() {
     pocs.forEach((poc) => {
       md += `## ${poc.pocId}${poc.name ? ` — ${poc.name}` : ''}\n\n`;
       md += `**Phase:** ${poc.phase}\n`;
-      const processName = (poc.processData as any)?.name || (poc.processId as any)?.name || '—';
-      const uc = poc.useCaseId as any;
-      const ucId = uc?.cuId || poc.cuId || '—';
-      const ucDesc = uc?.description || '—';
+      const processName = (poc.processId as any)?.name || '—';
+      const ucId = poc.useCase?.cuId ?? '—';
+      const ucDesc = poc.useCase?.description ?? '—';
       md += `**Process:** ${processName}\n`;
       md += `**Use Case:** ${ucId} · ${ucDesc}\n\n`;
 
@@ -379,6 +347,31 @@ ${body}
     setTimeout(() => win.print(), 250);
   };
 
+  const handleDownloadHtmlReport = async () => {
+    try {
+      // Fetch POCs with mockups for report (respects showArchived toggle like table)
+      const res = await fetch(
+        apiUrl(`/api/pocs?auditId=${auditId}&include=mockups${showArchived ? '&archived=true' : ''}`),
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Failed to fetch POCs with mockups');
+      const pocsWithMockups = await res.json();
+
+      const { html, filename } = generatePocReportHtml(pocsWithMockups, auditName);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+      toast.error('Failed to generate report');
+    }
+  };
+
   if (loading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -387,7 +380,7 @@ ${body}
     );
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <button
@@ -413,7 +406,7 @@ ${body}
             Show archived
           </label>
           <button
-            onClick={generatePocTrackerReport}
+            onClick={handleDownloadHtmlReport}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-sm hover:bg-purple-700 transition-colors"
           >
             <FileText size={14} /> POC Report
@@ -432,103 +425,15 @@ ${body}
           No POCs yet. Create a POC from an eligible use case.
         </div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-smoke border-b border-border">
-              <tr>
-                {[
-                  'POC-ID',
-                  'Name',
-                  'Use Case',
-                  'Process',
-                  'Responsible',
-                  'Start',
-                  'Deadline',
-                  'Phase',
-                  'Decision',
-                  '',
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left py-2 px-3 text-xs font-medium text-muted"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pocs.map((poc) => {
-                const pd = poc.processData ?? (poc as any).processId;
-                const procLabel =
-                  pd?.procId && pd?.name
-                    ? `${pd.procId} · ${pd.name}`
-                    : (pd?.procId ?? '—');
-                return (
-                  <tr
-                    key={poc._id}
-                    className={`border-b border-border/50 hover:bg-smoke/30 cursor-pointer ${(poc as any).isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
-                    onClick={() =>
-                      router.push(`/audits/${auditId}/pocs/${poc._id}`)
-                    }
-                  >
-                    <td className="py-3 px-3 font-mono text-xs text-teal-poc font-medium">
-                      {poc.pocId}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-text font-medium">
-                      {poc.name || <span className="text-muted">—</span>}
-                    </td>
-                    <td className="py-3 px-3 text-muted text-xs">
-                      {poc.cuId ||
-                        (poc as any).useCaseId?.cuId ||
-                        poc.useCaseId?.toString().slice(-6)}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-muted">
-                      {procLabel}
-                    </td>
-                    <td className="py-3 px-3 text-xs">
-                      {poc.responsibleName ||
-                        (poc.design?.responsibleUserId &&
-                        !/^[a-f0-9]{24}$/i.test(poc.design.responsibleUserId)
-                          ? poc.design.responsibleUserId
-                          : null) ||
-                        '—'}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-muted">
-                      {poc.design?.startDate
-                        ? new Date(poc.design.startDate).toLocaleDateString()
-                        : '—'}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-muted">
-                      {poc.design?.deadlineDate
-                        ? new Date(poc.design.deadlineDate).toLocaleDateString()
-                        : '—'}
-                    </td>
-                    <td className="py-3 px-3">
-                      <Badge variant={PHASE_COLORS[poc.phase]}>
-                        {poc.phase}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-3">
-                      {(() => {
-                        const displayDecision =
-                          (poc.phase === 'decision' || poc.phase === 'closed') && poc.decision?.decision
-                            ? poc.decision.decision
-                            : 'pending';
-                        return (
-                          <Badge variant={DECISION_COLORS[displayDecision]}>
-                            {DECISION_LABELS[displayDecision]}
-                          </Badge>
-                        );
-                      })()}
-                    </td>
-                    <td className="py-3 px-3 text-blue-aria text-xs">Open →</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <PocListTable
+          pocs={pocs}
+          showAuditColumn={true}
+          highlightAuditId={auditId}
+          onRowClick={poc => {
+            if (!poc.audit?._id) return;
+            router.push(`/audits/${poc.audit._id}/pocs/${poc._id}`);
+          }}
+        />
       )}
 
       {/* POC Tracker Report Modal */}

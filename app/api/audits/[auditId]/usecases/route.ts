@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/mongodb';
 import { UseCase, Process } from '@/lib/models';
 import { nextSequence } from '@/lib/models/Counter';
@@ -48,13 +49,16 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const processId = searchParams.get('processId');
     const showArchived = searchParams.get('archived') === 'true';
+    const isInstanceParam = searchParams.get('isInstance');
 
     const query: Record<string, any> = { auditId };
     if (processId) query.processId = processId;
     query.isArchived = showArchived ? true : { $ne: true };
+    if (isInstanceParam !== null) query.isInstance = isInstanceParam === 'true';
 
     const useCases = await UseCase.find(query)
       .populate('processId', 'procId name b1 b3')
+      .populate({ path: 'parentUCId', select: 'cuId', strictPopulate: false })
       .lean();
 
     return NextResponse.json(useCases);
@@ -84,6 +88,29 @@ export async function POST(
       return NextResponse.json(validationErrorResponse(parsed.error), {
         status: 400,
       });
+    }
+
+    // Instance validation: if creating an instance, parent must exist and not be an instance
+    if (parsed.data.isInstance === true) {
+      if (!parsed.data.parentUCId) {
+        return NextResponse.json(
+          { error: 'isInstance requires parentUCId' },
+          { status: 400 },
+        );
+      }
+      const parent = await UseCase.findById(parsed.data.parentUCId).lean() as any;
+      if (!parent) {
+        return NextResponse.json(
+          { error: 'Parent use case not found' },
+          { status: 400 },
+        );
+      }
+      if (parent.isInstance === true) {
+        return NextResponse.json(
+          { error: 'Cannot create instance of an instance. Parent must be an original use case.' },
+          { status: 400 },
+        );
+      }
     }
 
     // Auto-generate cuId unique per process, compound with procId
@@ -141,6 +168,11 @@ export async function POST(
       status,
       notes: body.notes || '',
       requiredPreconditions: body.requiredPreconditions ?? { requiresClientIT: false, text: '' },
+      parentUCId: parsed.data.parentUCId
+        ? new mongoose.Types.ObjectId(parsed.data.parentUCId)
+        : null,
+      isInstance: parsed.data.isInstance ?? false,
+      additionalDevCostEur: parsed.data.additionalDevCostEur ?? 0,
     };
 
     // Carry the calculator state from the create payload, recomputing the

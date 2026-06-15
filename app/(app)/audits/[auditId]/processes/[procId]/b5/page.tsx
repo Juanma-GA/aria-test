@@ -17,6 +17,8 @@ import {
   Sparkles,
   Archive,
   ArchiveRestore,
+  ChevronDown,
+  Lock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -167,6 +169,7 @@ function emptyForm(processId: string): Partial<UseCase> & {
     devRateEur: 450,
     nDevs: 1,
     estimatedImplWeeks: 0,
+    additionalDevCostEur: 0,
     requiredPreconditions: { requiresClientIT: false, text: '' },
     computeBreakdown: { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '' },
     processId,
@@ -215,6 +218,8 @@ function SlideOver({
   b2Axes,
   showCalculateDialog,
   setShowCalculateDialog,
+  instanceMode = false,
+  selectedParentUC = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -229,6 +234,8 @@ function SlideOver({
   b2Axes?: Record<string, any>;
   showCalculateDialog: boolean;
   setShowCalculateDialog: (open: boolean) => void;
+  instanceMode?: boolean;
+  selectedParentUC?: UseCase | null;
 }) {
   type FormType = Partial<UseCase> & {
     aiTypes: AIType[];
@@ -261,7 +268,7 @@ function SlideOver({
     let requiresClientITAuto = false;
     if (b2Axes && Object.keys(b2Axes).length > 0) {
       try {
-        const sovResult = calculateSovereigntyIndex(b2Axes);
+        const sovResult = calculateSovereigntyIndex(b2Axes as any);
         d5AutoValue = sovereigntyLevelToD5(sovResult.level);
         const LEVEL_LABELS: Record<string, string> = {
           full_autonomy: 'Full Autonomy',
@@ -307,7 +314,6 @@ function SlideOver({
       savedHoursRef.current = Object.fromEntries(
         (editUC.timeSavedPerProfile ?? []).map(e => [e.profileId, e.hoursPerExecution])
       );
-      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
 
       setForm(newForm);
       setOriginalForm(newForm);
@@ -328,6 +334,22 @@ function SlideOver({
         setDims(newDims);
         setOriginalDims(newDims);
       }
+    } else if (instanceMode && selectedParentUC && !form._id) {
+      const base = { ...selectedParentUC } as any;
+      base.parentUCId = selectedParentUC._id;
+      base.isInstance = true;
+      base.additionalDevCostEur = 0;
+      base.timeSavedPerProfile = [];
+      delete base._id;
+      delete base.cuId;
+      savedHoursRef.current = {};
+
+      setForm(base);
+      setOriginalForm(base);
+      // Use parent's dimensions
+      const parentDims = selectedParentUC.score?.dimensions ?? emptyScore();
+      setDims(parentDims as any);
+      setOriginalDims(parentDims as any);
     } else {
       const base = emptyForm(processId);
       if (initialDesc) base.description = initialDesc;
@@ -336,7 +358,6 @@ function SlideOver({
       (base as any).sovereigntyAnalysis = '';
       (base as any).computeBreakdown = { ...DEFAULT_COMPUTE_BREAKDOWN, mode: '', annualReps };
       savedHoursRef.current = {};
-      console.log('[FormInit] savedHoursRef populated:', savedHoursRef.current);
 
       setForm(base as any);
       setOriginalForm(base as any);
@@ -349,19 +370,10 @@ function SlideOver({
     setError('');
     setComputeRationale('');
     setIsPhase2Visible(false);
-  }, [editUC, processId, open, initialDesc, b2Axes]);
+  }, [editUC, processId, open, initialDesc, b2Axes, instanceMode, selectedParentUC]);
 
   // Auto-derive timeSavedPerProfile from targetActivities changes
   useEffect(() => {
-    console.log('[Derive] run start', {
-      activitiesLen: activities?.length,
-      isFirstDeriveRun: isFirstDeriveRun.current,
-      savedHoursRef: savedHoursRef.current,
-      formHours: form.timeSavedPerProfile?.map(e => ({
-        profileId: e.profileId,
-        hoursPerExecution: e.hoursPerExecution
-      }))
-    });
     if (!activities?.length) return;
     if (isFirstDeriveRun.current) {
       isFirstDeriveRun.current = false;
@@ -407,7 +419,6 @@ function SlideOver({
     const currentIds = (form.timeSavedPerProfile ?? []).map(e => e.profileId).sort().join(',');
     const mergedIds = merged.map(e => e.profileId).sort().join(',');
     if (currentIds !== mergedIds) {
-      console.log('[Derive] merged result:', merged);
       set('timeSavedPerProfile', merged);
       savedHoursRef.current = {};
     }
@@ -487,10 +498,14 @@ function SlideOver({
     .filter((a) => (form.targetActivities ?? []).includes(a.id))
     .reduce((s, a) => s + (a.estimatedTimeHours ?? 0), 0);
 
+  const devCostEur = (form.estimatedDevCostEur ?? 0) +
+    (instanceMode || (editUC && (editUC as any).isInstance)
+      ? (form.additionalDevCostEur ?? 0) : 0);
+
   const roi = computeRoi(
     form.timeSavedPerProfile ?? [],
     b1Profiles,
-    form.estimatedDevCostEur ?? 0,
+    devCostEur,
     annualReps,
     targetActivityHours,
     computeAnnualCompute((form as any).computeBreakdown ?? null).totalEur,
@@ -533,13 +548,14 @@ function SlideOver({
   const handleSave_Phase1 = async () => {
     if (!form.description?.trim()) { setError('Description is required.'); return; }
     if (!form.aiTypes?.length) { setError('Select at least one AI type.'); return; }
+    if (instanceMode && !selectedParentUC?._id) { setError('Parent use case not selected'); return; }
     setSaving(true);
     try {
       const url = editUC
         ? `/api/audits/${auditId}/usecases/${editUC._id}`
         : `/api/audits/${auditId}/usecases`;
       const method = editUC ? 'PATCH' : 'POST';
-      const bodyData = {
+      const bodyData: any = {
         ...form,
         processId,
         targetActivities: form.targetActivities ?? [],
@@ -550,6 +566,10 @@ function SlideOver({
           scoredAt: new Date().toISOString(),
         },
       };
+      if (instanceMode && !editUC && selectedParentUC?._id) {
+        bodyData.parentUCId = String(selectedParentUC._id);
+        bodyData.isInstance = true;
+      }
 
       let bodyStr = '';
       try {
@@ -629,8 +649,8 @@ function SlideOver({
         };
       });
 
-      const consolidated = mapped.reduce((acc: typeof mapped, entry) => {
-        const existing = acc.find(e => e.profileId === entry.profileId);
+      const consolidated = mapped.reduce((acc: typeof mapped, entry: typeof mapped[number]) => {
+        const existing = acc.find((e: typeof mapped[number]) => e.profileId === entry.profileId);
         if (existing) {
           existing.hoursPerExecution += entry.hoursPerExecution;
         } else {
@@ -709,7 +729,7 @@ function SlideOver({
         ? `/api/audits/${auditId}/usecases/${ucId}`
         : `/api/audits/${auditId}/usecases`;
       const method = ucId ? 'PATCH' : 'POST';
-      const bodyData = {
+      const bodyData: any = {
         ...form,
         processId,
         targetActivities: form.targetActivities ?? [],
@@ -720,6 +740,17 @@ function SlideOver({
           scoredAt: new Date().toISOString(),
         },
       };
+
+      // Ensure instance fields are included for new instances
+      if (instanceMode && selectedParentUC?._id) {
+        bodyData.additionalDevCostEur = form.additionalDevCostEur ?? 0;
+        bodyData.parentUCId = String(selectedParentUC._id);
+        bodyData.isInstance = true;
+      } else if (editUC && (editUC as any).isInstance) {
+        bodyData.additionalDevCostEur = form.additionalDevCostEur ?? 0;
+        bodyData.parentUCId = String((editUC as any).parentUCId);
+        bodyData.isInstance = true;
+      }
 
       let bodyStr = '';
       try {
@@ -746,7 +777,7 @@ function SlideOver({
 
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (!data || !data._id) throw new Error('Invalid response from server');
-      onSaved(data);
+      onSaved(data, false);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -762,9 +793,16 @@ function SlideOver({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-3xl bg-white shadow-xl flex flex-col max-h-[90vh] rounded-sm">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold text-base">
-            {editUC ? 'Edit Use Case' : 'Add Use Case'}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-base">
+              {editUC ? 'Edit Use Case' : instanceMode ? 'Create Instance' : 'Add Use Case'}
+            </h2>
+            {instanceMode && selectedParentUC && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-aria font-medium">
+                {selectedParentUC.cuId}
+              </div>
+            )}
+          </div>
           <button onClick={onClose} className="text-muted hover:text-text">
             <X size={18} />
           </button>
@@ -781,8 +819,9 @@ function SlideOver({
 
           {/* Description */}
           <div>
-            <label className="form-label">
+            <label className="form-label flex items-center gap-1">
               Description <span className="text-red-sov">*</span>
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
             </label>
             <textarea
               rows={3}
@@ -795,8 +834,9 @@ function SlideOver({
 
           {/* AI Types — multi-select chips */}
           <div>
-            <label className="form-label">
+            <label className="form-label flex items-center gap-1">
               AI Types <span className="text-red-sov">*</span>
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
             </label>
             <div className="flex flex-wrap gap-2 mt-1">
               {(Object.keys(AI_TYPE_LABELS) as AIType[]).map((t) => {
@@ -858,7 +898,10 @@ function SlideOver({
 
           {/* Required Preconditions — NEW combined section */}
           <div className="border-t pt-4 mt-4 space-y-3">
-            <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
+            <div className="flex items-center gap-1">
+              <h3 className="text-sm font-semibold text-text">Required Preconditions</h3>
+              {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
+            </div>
 
             {/* Requires Client IT toggle switch (Yes/No) */}
             <div className="flex items-center gap-3">
@@ -909,7 +952,10 @@ function SlideOver({
           {/* Scoring B6 (moved to end of Phase 1) */}
           <div className="border border-border rounded p-4 space-y-3 mt-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
+              <div className="flex items-center gap-1">
+                <h3 className="text-sm font-semibold text-text">Scoring (B6)</h3>
+                {instanceMode && <Lock size={13} className="text-muted" aria-label="Pre-filled from parent" />}
+              </div>
               <span className="font-mono font-bold text-lg text-text">
                 {total}/25
               </span>
@@ -1022,7 +1068,14 @@ function SlideOver({
             </div>
 
             {/* Dev Cost Calculator Box */}
-            <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
+            <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
+              instanceMode ? 'pointer-events-none opacity-50' : ''
+            }`}>
+              {instanceMode && (
+                <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
+                  <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
+                </div>
+              )}
 
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -1110,6 +1163,21 @@ function SlideOver({
               })()}
 
             </div>
+
+            {/* Additional Dev Cost (Instance mode only) */}
+            {(instanceMode || (editUC && (editUC as any).isInstance)) && (
+              <div className="border border-amber-200 bg-amber-50 rounded p-4">
+                <label className="form-label">Additional Dev Cost (€)</label>
+                <p className="text-xs text-muted mb-2">One-time additional development cost specific to this instance</p>
+                <input type="number" min={0} className="form-input"
+                  disabled={!isPhase2Visible}
+                  value={form.additionalDevCostEur ?? 0}
+                  onChange={e => {
+                    const newValue = parseFloat(e.target.value) || 0;
+                    set('additionalDevCostEur', newValue);
+                  }} />
+              </div>
+            )}
 
             {/* Compute Cost Simulator */}
             <div className="border border-orange-200 bg-orange-50 rounded p-4 space-y-3">
@@ -1223,12 +1291,15 @@ function SlideOver({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-red-50 border border-red-200 rounded p-2">
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-0.5">Dev Cost (one-time)</div>
-                    <div className="font-bold text-red-700 text-sm">€{(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}</div>
+                    <div className="font-bold text-red-700 text-sm">€{Math.round(devCostEur).toLocaleString('de-DE')}</div>
                     {(form.estimatedImplWeeks ?? 0) > 0 && (
                       <>
                         <div className="text-red-600">{form.estimatedImplWeeks} weeks impl.</div>
                         <div className="text-[10px] text-red-500 mt-1">
                           {form.estimatedImplWeeks ?? 0}w × 5d × €{(form.devRateEur ?? 450).toLocaleString('de-DE')}/day × {(form.nDevs ?? 1).toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} devs = €{Math.round(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')}
+                          {(form.additionalDevCostEur ?? 0) > 0 && (
+                            <div className="mt-0.5">+ €{Math.round(form.additionalDevCostEur ?? 0).toLocaleString('de-DE')} additional = €{Math.round(devCostEur).toLocaleString('de-DE')}</div>
+                          )}
                         </div>
                       </>
                     )}
@@ -1239,7 +1310,7 @@ function SlideOver({
                       <div className="font-bold text-text text-sm">{roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months</div>
                       <div className="text-muted">on net saving</div>
                       <div className="text-[10px] text-muted mt-1">
-                        €{Math.round(form.estimatedDevCostEur ?? 0).toLocaleString('de-DE')} ÷ €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr × 12 = {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
+                        €{Math.round(devCostEur).toLocaleString('de-DE')} ÷ €{Math.round(roi.netAnnualSaving).toLocaleString('de-DE')}/yr × 12 = {roi.paybackMonths.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})} months
                       </div>
                     </div>
                   )}
@@ -1350,7 +1421,7 @@ export default function B5Page() {
   const [processName, setProcessName] = useState('');
   const [b2Axes, setB2Axes] = useState<Record<string, any>>({});
   const [filter, setFilter] = useState<
-    'all' | 'eligible' | 'blocked' | 'pending_review'
+    'all' | 'eligible' | 'in_poc' | 'discarded'
   >('all');
   const [slideOver, setSlideOver] = useState(false);
   const [editUC, setEditUC] = useState<UseCase | null>(null);
@@ -1372,6 +1443,17 @@ export default function B5Page() {
     new Set(),
   );
   const [importing, setImporting] = useState(false);
+  const [showUcMenu, setShowUcMenu] = useState(false);
+  const [showInstancePicker, setShowInstancePicker] = useState(false);
+  const [instanceMode, setInstanceMode] = useState(false);
+  const [selectedParentUC, setSelectedParentUC] = useState<UseCase | null>(null);
+  const [parentUCs, setParentUCs] = useState<UseCase[]>([]);
+  const [loadingParents, setLoadingParents] = useState(false);
+  const [allAudits, setAllAudits] = useState<Array<{ _id: string; name: string }>>([]);
+  const [pickerAuditId, setPickerAuditId] = useState(auditId);
+  const [showPickerAuditDropdown, setShowPickerAuditDropdown] = useState(false);
+  const [pickerAuditName, setPickerAuditName] = useState('');
+  const [parentUCCache, setParentUCCache] = useState<Record<string, { cuId: string; description: string }>>({});
 
   useBeforeUnload(slideOver || generateModal);
 
@@ -1382,7 +1464,7 @@ export default function B5Page() {
         fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}${showArchived ? '&archived=true' : ''}`), { credentials: 'include' }),
       ]);
 
-      let proc = {};
+      let proc: any = {};
       try {
         const procText = await procRes.text();
         proc = procText ? JSON.parse(procText) : {};
@@ -1416,6 +1498,125 @@ export default function B5Page() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Fetch parent UCs on component mount for dropdown menu
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCsOnMount]', err);
+      }
+    })();
+  }, [auditId, procId]);
+
+  // Fetch parent UCs when modal opens (refresh for latest)
+  useEffect(() => {
+    if (!slideOver) return;
+    setLoadingParents(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCs]', err);
+      } finally {
+        setLoadingParents(false);
+      }
+    })();
+  }, [slideOver, auditId, procId]);
+
+  // Fetch all audits when instance picker opens
+  useEffect(() => {
+    if (!showInstancePicker) return;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/audits'), { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const audits = Array.isArray(data) ? data : [];
+        setAllAudits(audits);
+        setPickerAuditId(auditId);
+        const currentAudit = audits.find((a: any) => a._id === auditId);
+        setPickerAuditName(currentAudit?.name || 'Current audit');
+      } catch (err) {
+        console.error('[LoadAuditsForPicker]', err);
+      }
+    })();
+  }, [showInstancePicker, auditId]);
+
+  // Fetch parent UCs when picker audit selection changes
+  useEffect(() => {
+    if (!showInstancePicker || !pickerAuditId) return;
+    setLoadingParents(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          apiUrl(`/api/audits/${pickerAuditId}/usecases?isInstance=false`),
+          { credentials: 'include' }
+        );
+        if (!res.ok) {
+          setParentUCs([]);
+          return;
+        }
+        const data = await res.json();
+        const parents = Array.isArray(data) ? data : [];
+        setParentUCs(parents);
+      } catch (err) {
+        console.error('[LoadParentUCsForAudit]', err);
+        setParentUCs([]);
+      } finally {
+        setLoadingParents(false);
+      }
+    })();
+  }, [pickerAuditId, showInstancePicker]);
+
+  // Fetch and cache parent UC metadata for instance badges
+  useEffect(() => {
+    (async () => {
+      const parentUCIds = useCases
+        .filter((uc) => (uc as any).isInstance && (uc as any).parentUCId)
+        .map((uc) => {
+          const pid = (uc as any).parentUCId;
+          return typeof pid === 'object' && pid !== null
+            ? String(pid._id ?? pid)
+            : String(pid ?? '');
+        })
+        .filter(Boolean);
+
+      if (parentUCIds.length === 0) return;
+
+      const uncached = parentUCIds.filter((id: string) => !parentUCCache[id]);
+      if (uncached.length === 0) return;
+
+      for (const id of uncached) {
+        try {
+          const res = await fetch(apiUrl(`/api/usecases/${String(id)}`), { credentials: 'include' });
+          if (!res.ok) continue;
+          const data = await res.json();
+          setParentUCCache((prev) => ({
+            ...prev,
+            [String(id)]: { cuId: data.cuId, description: data.description },
+          }));
+        } catch (err) {
+          console.error('[CacheParentUC]', err);
+        }
+      }
+    })();
+  }, [useCases]);
 
   // Handle ?newUC=1&desc=... from B3 "Create UC" button
   useEffect(() => {
@@ -1572,16 +1773,48 @@ export default function B5Page() {
           >
             <Sparkles size={13} /> Generate with AI
           </button>
-          <button
-            onClick={() => {
-              setEditUC(null);
-              setInitialDesc('');
-              setSlideOver(true);
-            }}
-            className="btn-primary flex items-center gap-1"
-          >
-            <Plus size={14} /> Add Use Case
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowUcMenu(!showUcMenu)}
+              className="btn-primary flex items-center gap-1"
+            >
+              <Plus size={14} /> Add Use Case
+              <ChevronDown size={14} />
+            </button>
+            {showUcMenu && (
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-border rounded shadow-lg z-10">
+                <button
+                  onClick={() => {
+                    setInstanceMode(false);
+                    setSelectedParentUC(null);
+                    setEditUC(null);
+                    setInitialDesc('');
+                    setShowUcMenu(false);
+                    setSlideOver(true);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-text hover:bg-slate-50 border-b border-border"
+                >
+                  ➕ Add New Use Case
+                </button>
+                <button
+                  disabled={parentUCs.length === 0}
+                  onClick={() => {
+                    setInstanceMode(true);
+                    setShowInstancePicker(true);
+                    setShowUcMenu(false);
+                  }}
+                  className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                    parentUCs.length === 0
+                      ? 'text-muted cursor-not-allowed bg-slate-50'
+                      : 'text-text hover:bg-slate-50'
+                  }`}
+                  title={parentUCs.length === 0 ? 'Create parent UCs first' : 'Create an instance from a parent UC'}
+                >
+                  Add as Instance
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1610,6 +1843,99 @@ export default function B5Page() {
           Show archived
         </label>
       </div>
+
+      {/* Instance Picker Modal */}
+      {showInstancePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowInstancePicker(false)} />
+          <div className="relative w-full max-w-2xl bg-white shadow-xl rounded-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base">Select Parent Use Case</h3>
+              <button
+                onClick={() => setShowInstancePicker(false)}
+                className="text-muted hover:text-text"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Audit Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPickerAuditDropdown(!showPickerAuditDropdown)}
+                className="w-full text-left px-3 py-2 border border-border rounded bg-white text-sm font-medium flex items-center justify-between hover:border-blue-aria transition-colors"
+              >
+                {pickerAuditName || 'Select audit…'}
+                <ChevronDown size={14} className={showPickerAuditDropdown ? 'rotate-180' : ''} />
+              </button>
+              {showPickerAuditDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded shadow-lg z-10 max-h-64 overflow-y-auto">
+                  {allAudits.map((audit: any) => (
+                    <button
+                      key={audit._id}
+                      onClick={() => {
+                        setPickerAuditId(audit._id);
+                        setPickerAuditName(audit.name);
+                        setShowPickerAuditDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm border-b border-border last:border-b-0 transition-colors ${
+                        pickerAuditId === audit._id
+                          ? 'bg-blue-50 text-blue-aria font-medium'
+                          : 'hover:bg-slate-50 text-text'
+                      }`}
+                    >
+                      {audit.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Parent UCs List */}
+            {loadingParents ? (
+              <div className="flex items-center justify-center py-12">
+                <Spinner size="md" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded p-2">
+                {parentUCs.length === 0 ? (
+                  <p className="text-sm text-muted italic py-4 text-center">
+                    No parent use cases found in this audit
+                  </p>
+                ) : (
+                  parentUCs.map((uc) => (
+                    <button
+                      key={uc._id}
+                      onClick={() => {
+                        setSelectedParentUC(uc);
+                        setEditUC(null);
+                        setInitialDesc('');
+                        setShowInstancePicker(false);
+                        setSlideOver(true);
+                      }}
+                      className="w-full text-left p-3 border border-border rounded hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="font-mono text-xs text-blue-aria font-medium">{uc.cuId}</div>
+                      <div className="text-sm text-text line-clamp-2">{uc.description}</div>
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {(uc.aiTypes?.length ? uc.aiTypes : [(uc as any).aiType]).map((t: AIType) => (
+                          <Badge
+                            key={t}
+                            variant={AI_TYPE_COLORS[t] ?? 'slate'}
+                            className="text-[10px]"
+                          >
+                            {AI_TYPE_LABELS[t]?.label ?? t}
+                          </Badge>
+                        ))}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Use case table */}
       {filtered.length === 0 ? (
@@ -1645,7 +1971,9 @@ export default function B5Page() {
                 return (
                   <tr
                     key={uc._id}
-                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''}`}
+                    className={`hover:bg-slate-50 transition-colors ${uc.isArchived ? 'opacity-60 bg-smoke/40' : ''} ${
+                      (uc as any).isInstance ? 'bg-blue-50 border-l-4 border-l-blue-400' : ''
+                    }`}
                   >
                     <td className="px-3 py-3">
                       <button
@@ -1653,11 +1981,73 @@ export default function B5Page() {
                           setEditUC(uc);
                           setInitialDesc('');
                           setSlideOver(true);
+                          if ((uc as any).isInstance) {
+                            setInstanceMode(true);
+                            const parent = useCases.find(
+                              u => String((u as any)._id) ===
+                                String((uc as any).parentUCId));
+                            if (parent) setSelectedParentUC(parent as any);
+                          } else {
+                            setInstanceMode(false);
+                            setSelectedParentUC(null);
+                          }
                         }}
-                        className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer"
+                        className="font-mono text-xs text-blue-aria font-medium hover:underline cursor-pointer block"
                       >
                         {uc.cuId}
                       </button>
+                      {(uc as any).isInstance === true && (
+                        <button
+                          onClick={() => {
+                            const parentId = typeof (uc as any).parentUCId === 'object'
+                              ? String((uc as any).parentUCId?._id ?? (uc as any).parentUCId)
+                              : String((uc as any).parentUCId ?? '');
+
+                            // Check if parent is in current useCases list (same audit)
+                            const parentUC = useCases.find(
+                              u => String((u as any)._id) === parentId);
+
+                            if (parentUC) {
+                              // Same audit — open in SlideOver
+                              setEditUC(parentUC);
+                              setInitialDesc('');
+                              setSlideOver(true);
+                            } else {
+                              // Cross-audit — fetch parent details and navigate
+                              fetch(apiUrl(`/api/usecases/${parentId}`),
+                                { credentials: 'include' })
+                                .then(r => r.json())
+                                .then(data => {
+                                  if (data.auditId && data.processId) {
+                                    const aid = typeof data.auditId === 'object'
+                                      ? data.auditId._id ?? data.auditId
+                                      : data.auditId;
+                                    const pid = typeof data.processId === 'object'
+                                      ? data.processId._id ?? data.processId
+                                      : data.processId;
+                                    window.open(
+                                      `/audits/${aid}/processes/${pid}/b5?edit=${parentId}`,
+                                      '_blank'
+                                    );
+                                  }
+                                })
+                                .catch(() => {});
+                            }
+                          }}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5 hover:bg-blue-200 transition-colors"
+                          title={
+                            parentUCCache[String((uc as any).parentUCId ?? '')]
+                              ?.description || ''
+                          }
+                        >
+                          instance of{' '}
+                          {parentUCCache[String((uc as any).parentUCId ?? '')]
+                            ?.cuId ??
+                            (typeof (uc as any).parentUCId === 'object'
+                              ? (uc as any).parentUCId?.cuId ?? String((uc as any).parentUCId)
+                              : String((uc as any).parentUCId ?? ''))}
+                        </button>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <p className="text-sm text-text line-clamp-2" title={uc.description}>
@@ -1780,6 +2170,9 @@ export default function B5Page() {
           setSlideOver(false);
           setEditUC(null);
           setInitialDesc('');
+          setInstanceMode(false);
+          setSelectedParentUC(null);
+          setShowUcMenu(false);
           openedEditIdRef.current = null;
           const hasParam =
             searchParams?.get('edit') || searchParams?.get('newUC');
@@ -1788,6 +2181,8 @@ export default function B5Page() {
         }}
         processId={procId}
         auditId={auditId}
+        instanceMode={instanceMode}
+        selectedParentUC={selectedParentUC}
         activities={activities}
         b1Profiles={b1Profiles}
         annualReps={annualReps}
@@ -1948,7 +2343,7 @@ export default function B5Page() {
                         const mappedActivityIds = (s.targetActivityNames ?? []).map((name: string) => activities.find(a => a.name === name)?.id).filter(Boolean) as string[];
 
                         // Map roles to profileIds and consolidate duplicates
-                        const mapped = (s.timeSavedPerProfile ?? []).map(entry => {
+                        const mapped = (s.timeSavedPerProfile ?? []).map((entry: any) => {
                           const matched = b1Profiles.find(
                             p => p.role.toLowerCase().trim() === entry.role?.toLowerCase().trim()
                           );
@@ -1959,8 +2354,8 @@ export default function B5Page() {
                           };
                         });
 
-                        const consolidated = mapped.reduce((acc, entry) => {
-                          const existing = acc.find(e => e.profileId === entry.profileId);
+                        const consolidated = mapped.reduce((acc: typeof mapped, entry: typeof mapped[number]) => {
+                          const existing = acc.find((e: typeof mapped[number]) => e.profileId === entry.profileId);
                           if (existing) {
                             existing.hoursPerExecution += entry.hoursPerExecution;
                           } else {

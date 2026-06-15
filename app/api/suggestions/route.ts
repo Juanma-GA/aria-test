@@ -46,7 +46,11 @@ export async function GET(req: NextRequest) {
         case 'tools':
         case 'inputs':
         case 'outputs':
-          const activities = proc.b3?.activities || [];
+          const activities = (proc.b3?.activities || []) as Array<{
+            tools?: string[];
+            inputs?: string[];
+            outputs?: string[];
+          }>;
           for (const act of activities) {
             const actValues =
               field === 'tools'

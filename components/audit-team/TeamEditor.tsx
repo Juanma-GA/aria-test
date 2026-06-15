@@ -46,7 +46,7 @@ const ROLE_LABELS: Record<AuditTeamRole, string> = {
   viewer: 'Viewer',
 };
 
-const ROLE_ICONS: Record<AuditTeamRole, React.ComponentType<{ size?: number; className?: string }>> = {
+const ROLE_ICONS: Record<AuditTeamRole, React.ComponentType<{ size?: number | string; className?: string }>> = {
   owner: Crown,
   editor: Edit3,
   viewer: Eye,

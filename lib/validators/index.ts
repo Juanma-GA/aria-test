@@ -47,7 +47,7 @@ export const createProcessSchema = z.object({
 export const createUseCaseSchema = z.object({
   processId: z.string().min(1, 'processId is required'),
   description: z.string().trim().min(1, 'description is required'),
-  aiTypes: z.array(z.enum(AI_TYPES)).optional(),
+  aiTypes: z.array(z.string()).optional(),
   aiType: z.string().optional(),
   targetActivities: z.array(z.string()).optional(),
   targetActivity: z.string().optional(),
@@ -64,6 +64,11 @@ export const createUseCaseSchema = z.object({
   status: z.string().optional(),
   notes: z.string().optional(),
   score: z.any().optional(),
+  parentUCId: z.string().optional(),
+  isInstance: z.boolean().optional(),
+  additionalDevCostEur: z.number().optional(),
+  devRateEur: z.number().optional(),
+  nDevs: z.number().optional(),
 });
 
 export const INDUSTRIALIZATION_STATUSES = [

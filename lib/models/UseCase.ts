@@ -64,6 +64,9 @@ export interface IUseCase extends Document {
     scoredBy: string;
     scoredAt: Date;
   };
+  parentUCId?: mongoose.Types.ObjectId | null;
+  isInstance?: boolean;
+  additionalDevCostEur?: number;
   createdAt: Date;
 }
 
@@ -85,8 +88,8 @@ const TimeSavedEntrySchema = new Schema({
 }, { _id: false });
 
 const UseCaseSchema = new Schema<IUseCase>({
-  auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true },
-  processId: { type: Schema.Types.ObjectId, ref: 'Process', required: true },
+  auditId: { type: Schema.Types.ObjectId, ref: 'Audit', required: true, index: true },
+  processId: { type: Schema.Types.ObjectId, ref: 'Process', required: true, index: true },
   cuId: { type: String, required: true },
   description: { type: String, required: true },
   aiTypes: [{ type: String }],
@@ -100,7 +103,7 @@ const UseCaseSchema = new Schema<IUseCase>({
   nDevs: { type: Number, default: 1 },
   requiredPreconditions: RequiredPreconditionsSchema,
   estimatedImplWeeks: { type: Number, default: 0 },
-  status: { type: String, enum: ['eligible', 'in_poc', 'discarded'], default: 'eligible' },
+  status: { type: String, enum: ['eligible', 'in_poc', 'discarded'], default: 'eligible', index: true },
   reviewDate: { type: Date },
   notes: { type: String, default: '' },
   sovereigntyAnalysis: { type: String, default: '' },
@@ -148,7 +151,23 @@ const UseCaseSchema = new Schema<IUseCase>({
     scoredBy: { type: String, default: '' },
     scoredAt: { type: Date },
   },
+  parentUCId: {
+    type: Schema.Types.ObjectId,
+    ref: 'UseCase',
+    default: null,
+  },
+  isInstance: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  additionalDevCostEur: {
+    type: Number,
+    default: 0,
+  },
 }, { timestamps: true });
+
+UseCaseSchema.index({ parentUCId: 1, isInstance: 1 });
 
 const UseCase: Model<IUseCase> = mongoose.models.UseCase || mongoose.model<IUseCase>('UseCase', UseCaseSchema);
 export default UseCase;

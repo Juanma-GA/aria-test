@@ -225,7 +225,7 @@ export function ROIEditor({ roi, cost, onChange, useCase, process }: Props) {
     onChange({ confirmed: { ...roi.confirmed, [field]: v } });
 
   const resetBaselineFromUC = () => {
-    setOverrides({ hours: false, rate: false, saving: false });
+    setOverrides({ hours: false, rate: false, saving: false, timeSaving: false });
     onChange({
       baseline: {
         ...roi.baseline,

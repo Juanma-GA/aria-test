@@ -49,37 +49,13 @@ export async function getAuthUser(req: NextRequest): Promise<JWTPayload | null> 
     return verifyToken(token);
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value;
   if (token) {
     return verifyToken(token);
   }
 
   return null;
-}
-
-export function setAuthCookies(accessToken: string, refreshToken: string): void {
-  const cookieStore = cookies();
-  cookieStore.set('access_token', accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 15 * 60, // 15 minutes
-    path: '/',
-  });
-  cookieStore.set('refresh_token', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-    path: '/',
-  });
-}
-
-export function clearAuthCookies(): void {
-  const cookieStore = cookies();
-  cookieStore.delete('access_token');
-  cookieStore.delete('refresh_token');
 }
 
 export type Role = 'admin' | 'consultant' | 'viewer';
