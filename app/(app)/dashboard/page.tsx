@@ -215,7 +215,7 @@ function SavingsInfographic({
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-aria" />
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            AI Value Landscape
+            All Audits
           </span>
         </div>
         <div className="flex flex-wrap items-end gap-x-10 gap-y-2">
@@ -281,7 +281,14 @@ function SavingsInfographic({
       </div>
 
       {/* Body */}
-      <div className="p-6 grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
+      <div className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-aria" />
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Audits with Savings
+          </span>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
         {/* Left: donut only */}
         <div className="lg:col-span-2 flex flex-col items-center gap-5">
           <SavingsDonut
@@ -338,7 +345,7 @@ function SavingsInfographic({
                         </Link>
                         {covPct !== null && (
                           <span className="text-[10px] text-slate-500">
-                            {covPct}% automated · ({audit.totalHoursSavedPerRun}h / {audit.totalProcessHoursPerRun}h per run)
+                            {covPct}% automated · ({audit.totalHoursSavedPerRun.toFixed(1)}h / {audit.totalProcessHoursPerRun.toFixed(1)}h per run)
                           </span>
                         )}
                       </div>
@@ -362,6 +369,7 @@ function SavingsInfographic({
               })}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
