@@ -805,7 +805,10 @@ export default function ProcessPage() {
                       {poc.decision?.decision?.replace(/_/g, ' ') ?? 'pending'}
                     </td>
                     <td className="py-2.5 px-4 max-w-[200px]">
-                      <p className="text-xs text-text truncate">
+                      <p
+                        className="text-xs text-text truncate"
+                        title={poc.design?.measurableObjective ?? '—'}
+                      >
                         {poc.design?.measurableObjective ?? '—'}
                       </p>
                     </td>
