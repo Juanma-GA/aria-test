@@ -7,8 +7,6 @@ import {
   Plus,
   Pencil,
   X,
-  Clock,
-  TrendingUp,
   Archive,
   Trash2,
   Users,
@@ -110,12 +108,6 @@ const PROCESS_STATUS_VARIANTS: Record<
   in_audit: 'blue',
   completed: 'green',
   paused: 'amber',
-};
-
-const PRIORITY_VARIANTS: Record<Priority, 'red' | 'amber' | 'slate'> = {
-  high: 'red',
-  medium: 'amber',
-  low: 'slate',
 };
 
 function getLeadName(
@@ -625,13 +617,9 @@ export default function AuditPage() {
                 key={proc._id}
                 className="bg-white border border-border rounded-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow"
               >
-                {/* Proc ID + priority */}
+                {/* Proc ID */}
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="amber">{proc.procId}</Badge>
-                  <Badge variant={PRIORITY_VARIANTS[proc.priority]}>
-                    {proc.priority.charAt(0).toUpperCase() +
-                      proc.priority.slice(1)}
-                  </Badge>
                 </div>
 
                 {/* Name */}
@@ -678,77 +666,14 @@ export default function AuditPage() {
                   </div>
                 )}
 
-                {/* Savings highlight */}
-                {proc.metrics &&
-                  (proc.metrics.totalTimeSavedHoursPerRun > 0 ||
-                    proc.metrics.projectedAnnualSavingEur > 0) && (
-                    <div className="bg-green-sov-light rounded px-2 py-1.5 space-y-1">
-                      <div className="flex items-center gap-3 text-xs">
-                        {proc.metrics.totalTimeSavedHoursPerRun > 0 && (
-                          <span className="flex items-center gap-1 text-green-700 font-medium">
-                            <Clock size={11} />
-                            {proc.metrics.totalTimeSavedHoursPerRun}h/run saved
-                          </span>
-                        )}
-                        {proc.metrics.projectedAnnualSavingEur > 0 && (
-                          <span className="flex items-center gap-1 text-green-700">
-                            <TrendingUp size={11} />€
-                            {proc.metrics.projectedAnnualSavingEur.toLocaleString()}
-                            /yr
-                          </span>
-                        )}
-                      </div>
-                      {proc.metrics.totalHoursPerRun > 0 && (
-                        <div className="flex items-center gap-3 text-xs text-green-700/80">
-                          <span>
-                            {proc.metrics.totalHoursPerRun}h/run total
-                            {proc.metrics.totalTimeSavedHoursPerRun > 0 && (
-                              <span className="ml-1.5 font-semibold text-green-700">
-                                (
-                                {Math.round(
-                                  (proc.metrics.totalTimeSavedHoursPerRun /
-                                    proc.metrics.totalHoursPerRun) *
-                                    100,
-                                )}
-                                % time saved)
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
-                {/* ROI metrics */}
-                {proc.metrics && (
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs border-t border-border pt-2 mt-1">
-                    {proc.metrics.totalAnnualHours > 0 && (
-                      <>
-                        <span className="text-muted">Annual time:</span>
-                        <span className="text-text font-medium">
-                          {proc.metrics.totalAnnualHours}h
-                        </span>
-                      </>
-                    )}
-                    {proc.metrics.eligibleUCCount > 0 && (
-                      <>
-                        <span className="text-muted">Eligible UCs:</span>
-                        <span className="text-text font-medium">
-                          {proc.metrics.eligibleUCCount}
-                        </span>
-                      </>
-                    )}
-                    {proc.metrics.roiPercent !== null && (
-                      <>
-                        <span className="text-muted">ROI:</span>
-                        <span
-                          className={`font-bold ${proc.metrics.roiPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                        >
-                          {proc.metrics.roiPercent > 0 ? '+' : ''}
-                          {proc.metrics.roiPercent}%
-                        </span>
-                      </>
-                    )}
+                {/* Annual time */}
+                {proc.metrics && proc.metrics.totalAnnualHours > 0 && (
+                  <div className="text-xs border-t border-border pt-2 mt-1">
+                    <span className="text-muted">Annual time:</span>
+                    <span className="text-text font-medium ml-2">
+                      {proc.metrics.totalAnnualHours}h
+                    </span>
                   </div>
                 )}
 
