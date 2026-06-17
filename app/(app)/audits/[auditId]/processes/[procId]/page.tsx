@@ -767,11 +767,10 @@ export default function ProcessPage() {
                 <tr className="border-b border-border bg-slate-50">
                   {[
                     'POC ID',
-                    'Use Case',
+                    'POC Name',
                     'Phase',
                     'Decision',
                     'Objective',
-                    'Deadline',
                   ].map((h) => (
                     <th
                       key={h}
@@ -794,8 +793,8 @@ export default function ProcessPage() {
                         {poc.pocId}
                       </span>
                     </td>
-                    <td className="py-2.5 px-4 text-xs text-muted">
-                      {(poc as any).useCaseId?.cuId ?? '—'}
+                    <td className="py-2.5 px-4 text-xs text-text">
+                      {poc.name || '—'}
                     </td>
                     <td className="py-2.5 px-4">
                       <Badge variant={PHASE_VARIANTS[poc.phase] ?? 'slate'}>
@@ -809,13 +808,6 @@ export default function ProcessPage() {
                       <p className="text-xs text-text truncate">
                         {poc.design?.measurableObjective ?? '—'}
                       </p>
-                    </td>
-                    <td className="py-2.5 px-4 text-xs text-muted">
-                      {poc.design?.deadlineDate
-                        ? new Date(poc.design.deadlineDate).toLocaleDateString(
-                            'en-GB',
-                          )
-                        : '—'}
                     </td>
                   </tr>
                 ))}
