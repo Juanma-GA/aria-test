@@ -23,6 +23,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Modal } from '@/components/ui/Modal';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type {
   UseCase,
@@ -1433,8 +1434,10 @@ export default function B5Page() {
     cascade: boolean;
     pocs: number;
     industrializations: number;
+    blocked: boolean;
+    instances: number;
     error?: string;
-  }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+  }>({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0, blocked: false, instances: 0 });
   const [showArchived, setShowArchived] = useState(false);
   const [generateModal, setGenerateModal] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -1623,7 +1626,7 @@ export default function B5Page() {
       if (res.ok) {
         const id = deleteModal.uc._id;
         setUseCases(prev => prev.filter(u => u._id !== id));
-        setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0 });
+        setDeleteModal({ open: false, uc: null, cascade: false, pocs: 0, industrializations: 0, blocked: false, instances: 0 });
         return;
       }
 
@@ -1636,7 +1639,12 @@ export default function B5Page() {
       }
 
       if (res.status === 409 && data?.dependents) {
-        setDeleteModal(s => ({ ...s, cascade: true, pocs: data.dependents.pocs ?? 0, industrializations: data.dependents.industrializations ?? 0, error: data.error }));
+        const instanceCount = data.dependents.instances ?? 0;
+        if (instanceCount > 0) {
+          setDeleteModal(s => ({ ...s, blocked: true, instances: instanceCount }));
+        } else {
+          setDeleteModal(s => ({ ...s, cascade: true, pocs: data.dependents.pocs ?? 0, industrializations: data.dependents.industrializations ?? 0, error: data.error }));
+        }
       } else {
         setDeleteModal(s => ({ ...s, error: data?.error || 'Delete failed' }));
       }
@@ -2103,6 +2111,8 @@ export default function B5Page() {
                               cascade: false,
                               pocs: 0,
                               industrializations: 0,
+                              blocked: false,
+                              instances: 0,
                             })
                           }
                           className="text-muted hover:text-red-sov p-1"
@@ -2366,30 +2376,63 @@ export default function B5Page() {
         </div>
       )}
 
-      <ConfirmModal
-        isOpen={deleteModal.open}
-        title={
-          deleteModal.cascade
-            ? 'Delete use case and dependents?'
-            : 'Delete use case?'
-        }
-        message={
-          deleteModal.cascade
-            ? `"${deleteModal.uc?.cuId}" has ${deleteModal.pocs} POC(s) and ${deleteModal.industrializations} industrialization(s). Deleting will remove them too. This cannot be undone.`
-            : `Are you sure you want to delete "${deleteModal.uc?.cuId}"? Consider archiving instead if you might need it later.`
-        }
-        confirmLabel={deleteModal.cascade ? 'Delete all' : 'Delete'}
-        onConfirm={handleDelete}
-        onClose={() =>
-          setDeleteModal({
-            open: false,
-            uc: null,
-            cascade: false,
-            pocs: 0,
-            industrializations: 0,
-          })
-        }
-      />
+      {deleteModal.blocked ? (
+        <Modal
+          isOpen={deleteModal.open}
+          onClose={() =>
+            setDeleteModal({
+              open: false, uc: null, cascade: false, pocs: 0,
+              industrializations: 0, blocked: false, instances: 0,
+            })
+          }
+          title="Cannot delete use case"
+          size="sm"
+        >
+          <p className="text-sm text-muted mb-6">
+            Cannot delete: this UC is the parent of {deleteModal.instances} UC instance(s). Delete them first.
+          </p>
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() =>
+                setDeleteModal({
+                  open: false, uc: null, cascade: false, pocs: 0,
+                  industrializations: 0, blocked: false, instances: 0,
+                })
+              }
+              className="btn-secondary"
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      ) : (
+        <ConfirmModal
+          isOpen={deleteModal.open}
+          title={
+            deleteModal.cascade
+              ? 'Delete use case and dependents?'
+              : 'Delete use case?'
+          }
+          message={
+            deleteModal.cascade
+              ? `"${deleteModal.uc?.cuId}" has ${deleteModal.pocs} POC(s) and ${deleteModal.industrializations} industrialization(s). Deleting will remove them too. This cannot be undone.`
+              : `Are you sure you want to delete "${deleteModal.uc?.cuId}"? Consider archiving instead if you might need it later.`
+          }
+          confirmLabel={deleteModal.cascade ? 'Delete all' : 'Delete'}
+          onConfirm={handleDelete}
+          onClose={() =>
+            setDeleteModal({
+              open: false,
+              uc: null,
+              cascade: false,
+              pocs: 0,
+              industrializations: 0,
+              blocked: false,
+              instances: 0,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
