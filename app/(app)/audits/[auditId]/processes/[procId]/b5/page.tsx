@@ -1499,46 +1499,6 @@ export default function B5Page() {
     load();
   }, [load]);
 
-  // Fetch parent UCs on component mount for dropdown menu
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(
-          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
-          { credentials: 'include' }
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        const parents = Array.isArray(data) ? data : [];
-        setParentUCs(parents);
-      } catch (err) {
-        console.error('[LoadParentUCsOnMount]', err);
-      }
-    })();
-  }, [auditId, procId]);
-
-  // Fetch parent UCs when modal opens (refresh for latest)
-  useEffect(() => {
-    if (!slideOver) return;
-    setLoadingParents(true);
-    (async () => {
-      try {
-        const res = await fetch(
-          apiUrl(`/api/audits/${auditId}/usecases?processId=${procId}&isInstance=false`),
-          { credentials: 'include' }
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        const parents = Array.isArray(data) ? data : [];
-        setParentUCs(parents);
-      } catch (err) {
-        console.error('[LoadParentUCs]', err);
-      } finally {
-        setLoadingParents(false);
-      }
-    })();
-  }, [slideOver, auditId, procId]);
-
   // Fetch all audits when instance picker opens
   useEffect(() => {
     if (!showInstancePicker) return;
@@ -1797,18 +1757,13 @@ export default function B5Page() {
                   ➕ Add New Use Case
                 </button>
                 <button
-                  disabled={parentUCs.length === 0}
                   onClick={() => {
                     setInstanceMode(true);
                     setShowInstancePicker(true);
                     setShowUcMenu(false);
                   }}
-                  className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                    parentUCs.length === 0
-                      ? 'text-muted cursor-not-allowed bg-slate-50'
-                      : 'text-text hover:bg-slate-50'
-                  }`}
-                  title={parentUCs.length === 0 ? 'Create parent UCs first' : 'Create an instance from a parent UC'}
+                  className="block w-full text-left px-4 py-2 text-sm text-text hover:bg-slate-50"
+                  title="Create an instance from an existing use case in any audit"
                 >
                   Add as Instance
                 </button>
