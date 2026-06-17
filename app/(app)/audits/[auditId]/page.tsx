@@ -667,6 +667,13 @@ export default function AuditPage() {
                 )}
 
 
+                {/* Hours per run */}
+                {proc.metrics && proc.metrics.totalHoursPerRun > 0 && (
+                  <p className="text-xs text-text font-medium">
+                    {proc.metrics.totalHoursPerRun}h/run
+                  </p>
+                )}
+
                 {/* Annual time */}
                 {proc.metrics && proc.metrics.totalAnnualHours > 0 && (
                   <div className="text-xs border-t border-border pt-2 mt-1">
