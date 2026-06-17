@@ -219,16 +219,28 @@ export async function DELETE(
     const { searchParams } = new URL(req.url);
     const cascade = searchParams.get('cascade') === 'true';
 
-    const [pocCount, indCount] = await Promise.all([
+    const [pocCount, indCount, instanceCount] = await Promise.all([
       POC.countDocuments({ useCaseId: cuId }),
       Industrialization.countDocuments({ useCaseId: cuId }),
+      UseCase.countDocuments({ parentUCId: cuId, isInstance: true }),
     ]);
+
+    if (instanceCount > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete: this UC is the parent of ${instanceCount} instance(s). Delete or convert them first.`,
+          dependents: { pocs: pocCount, industrializations: indCount, instances: instanceCount },
+          hint: 'Instances cannot be deleted in cascade. Manage or delete the instance use case(s) individually first.',
+        },
+        { status: 409 },
+      );
+    }
 
     if ((pocCount > 0 || indCount > 0) && !cascade) {
       return NextResponse.json(
         {
           error: 'Use case has dependent records',
-          dependents: { pocs: pocCount, industrializations: indCount },
+          dependents: { pocs: pocCount, industrializations: indCount, instances: instanceCount },
           hint: 'Archive the use case, or pass ?cascade=true to delete with all dependent POCs and industrializations.',
         },
         { status: 409 },
