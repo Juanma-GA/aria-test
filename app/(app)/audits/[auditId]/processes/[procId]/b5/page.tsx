@@ -25,6 +25,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Modal } from '@/components/ui/Modal';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
+import { toast } from 'sonner';
 import type {
   UseCase,
   AIType,
@@ -1457,6 +1458,8 @@ export default function B5Page() {
   const [showPickerAuditDropdown, setShowPickerAuditDropdown] = useState(false);
   const [pickerAuditName, setPickerAuditName] = useState('');
   const [parentUCCache, setParentUCCache] = useState<Record<string, { cuId: string; description: string }>>({});
+  const [orphanedParentIds, setOrphanedParentIds] = useState<Set<string>>(new Set());
+  const parentFetchRef = useRef<Set<string>>(new Set());
 
   useBeforeUnload(slideOver || generateModal);
 
@@ -1597,17 +1600,57 @@ export default function B5Page() {
   const openedEditIdRef = useRef<string | null>(null);
   useEffect(() => {
     const editId = searchParams?.get('edit');
-    if (editId && editId !== openedEditIdRef.current && useCases.length > 0) {
-      const uc = useCases.find((u) => u._id === editId);
-      if (uc) {
-        openedEditIdRef.current = editId;
-        setEditUC(uc);
-        setInitialDesc('');
-        setSlideOver(true);
-      }
+    if (!editId || editId === openedEditIdRef.current) return;
+
+    // Found in this process's UC list — safe to open inline (correct B3/profile context)
+    const uc = useCases.find((u) => u._id === editId);
+    if (uc) {
+      openedEditIdRef.current = editId;
+      setEditUC(uc);
+      setInitialDesc('');
+      setSlideOver(true);
+      return;
     }
-    if (!editId) openedEditIdRef.current = null;
-  }, [searchParams, useCases]);
+
+    // Not loaded yet — wait for load() to resolve before deciding it's missing
+    if (useCases.length === 0) return;
+
+    const fetchMissingUC = async () => {
+      if (parentFetchRef.current.has(editId)) return;
+      parentFetchRef.current.add(editId);
+      openedEditIdRef.current = editId;
+
+      try {
+        const res = await fetch(apiUrl(`/api/usecases/${editId}`), { credentials: 'include' });
+        if (!res.ok) {
+          setOrphanedParentIds((prev) => new Set([...prev, editId]));
+          return;
+        }
+        const data = await res.json();
+        const dataAuditId = typeof data.auditId === 'object'
+          ? String(data.auditId?._id ?? data.auditId)
+          : String(data.auditId ?? '');
+        const dataProcessId = typeof data.processId === 'object'
+          ? String(data.processId?._id ?? data.processId)
+          : String(data.processId ?? '');
+
+        if (dataAuditId === auditId && dataProcessId === procId) {
+          // Genuinely this process (e.g. archived UC filtered out of default list) — context matches
+          setEditUC(data);
+          setInitialDesc('');
+          setSlideOver(true);
+        } else {
+          // Wrong process/audit for this page — navigate to where it actually lives
+          window.location.href = `/audits/${dataAuditId}/processes/${dataProcessId}/b5?edit=${editId}`;
+        }
+      } catch (err) {
+        console.error('[FetchMissingUC]', err);
+        setOrphanedParentIds((prev) => new Set([...prev, editId]));
+      }
+    };
+
+    fetchMissingUC();
+  }, [searchParams, useCases, auditId, procId]);
 
   const handleSaved = (uc: UseCase, blocked: boolean) => {
     setUseCases((prev) => {
@@ -1959,58 +2002,78 @@ export default function B5Page() {
                       >
                         {uc.cuId}
                       </button>
-                      {(uc as any).isInstance === true && (
-                        <button
-                          onClick={() => {
-                            const parentId = typeof (uc as any).parentUCId === 'object'
-                              ? String((uc as any).parentUCId?._id ?? (uc as any).parentUCId)
-                              : String((uc as any).parentUCId ?? '');
+                      {(uc as any).isInstance === true && (() => {
+                        const parentId = typeof (uc as any).parentUCId === 'object'
+                          ? String((uc as any).parentUCId?._id ?? (uc as any).parentUCId)
+                          : String((uc as any).parentUCId ?? '');
+                        const isOrphaned = orphanedParentIds.has(parentId);
 
-                            // Check if parent is in current useCases list (same audit)
-                            const parentUC = useCases.find(
-                              u => String((u as any)._id) === parentId);
+                        return (
+                          <button
+                            onClick={() => {
+                              if (isOrphaned) return;
 
-                            if (parentUC) {
-                              // Same audit — open in SlideOver
-                              setEditUC(parentUC);
-                              setInitialDesc('');
-                              setSlideOver(true);
-                            } else {
-                              // Cross-audit — fetch parent details and navigate
-                              fetch(apiUrl(`/api/usecases/${parentId}`),
-                                { credentials: 'include' })
-                                .then(r => r.json())
-                                .then(data => {
-                                  if (data.auditId && data.processId) {
-                                    const aid = typeof data.auditId === 'object'
-                                      ? data.auditId._id ?? data.auditId
-                                      : data.auditId;
-                                    const pid = typeof data.processId === 'object'
-                                      ? data.processId._id ?? data.processId
-                                      : data.processId;
-                                    window.open(
-                                      `/audits/${aid}/processes/${pid}/b5?edit=${parentId}`,
-                                      '_blank'
-                                    );
+                              // Found in this process's UC list — safe to open inline
+                              const parentUC = useCases.find(
+                                u => String((u as any)._id) === parentId);
+                              if (parentUC) {
+                                setEditUC(parentUC);
+                                setInitialDesc('');
+                                setSlideOver(true);
+                                return;
+                              }
+
+                              // Not in this process — resolve where it lives, then navigate there
+                              if (parentFetchRef.current.has(parentId)) return;
+                              parentFetchRef.current.add(parentId);
+
+                              fetch(apiUrl(`/api/usecases/${parentId}`), { credentials: 'include' })
+                                .then(async (r) => {
+                                  if (!r.ok) {
+                                    setOrphanedParentIds((prev) => new Set([...prev, parentId]));
+                                    toast.error('Parent UC not found (orphaned)');
+                                    return;
                                   }
+                                  const data = await r.json();
+                                  const aid = typeof data.auditId === 'object'
+                                    ? String(data.auditId?._id ?? data.auditId)
+                                    : String(data.auditId ?? '');
+                                  const pid = typeof data.processId === 'object'
+                                    ? String(data.processId?._id ?? data.processId)
+                                    : String(data.processId ?? '');
+                                  if (!aid || !pid) {
+                                    setOrphanedParentIds((prev) => new Set([...prev, parentId]));
+                                    toast.error('Parent UC not found (orphaned)');
+                                    return;
+                                  }
+                                  window.open(
+                                    `/audits/${aid}/processes/${pid}/b5?edit=${parentId}`,
+                                    '_blank'
+                                  );
                                 })
-                                .catch(() => {});
+                                .catch((err) => {
+                                  console.error('Error fetching parent UC:', err);
+                                  setOrphanedParentIds((prev) => new Set([...prev, parentId]));
+                                  toast.error('Could not load parent UC');
+                                });
+                            }}
+                            disabled={isOrphaned}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium mt-0.5 transition-colors ${
+                              isOrphaned
+                                ? 'bg-gray-100 text-gray-500 cursor-default'
+                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer'
+                            }`}
+                            title={
+                              isOrphaned
+                                ? 'Parent UC no longer exists (orphaned)'
+                                : parentUCCache[parentId]?.description || 'Loading parent...'
                             }
-                          }}
-                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 mt-0.5 hover:bg-blue-200 transition-colors"
-                          title={
-                            parentUCCache[String((uc as any).parentUCId ?? '')]
-                              ?.description || ''
-                          }
-                        >
-                          instance of{' '}
-                          {parentUCCache[String((uc as any).parentUCId ?? '')]
-                            ?.cuId ??
-                            (typeof (uc as any).parentUCId === 'object'
-                              ? (uc as any).parentUCId?.cuId ?? String((uc as any).parentUCId)
-                              : String((uc as any).parentUCId ?? ''))}
-                        </button>
-                      )}
+                          >
+                            instance of{' '}
+                            {isOrphaned ? '(orphaned)' : parentUCCache[parentId]?.cuId ?? '…'}
+                          </button>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-3">
                       <p className="text-sm text-text line-clamp-2" title={uc.description}>
