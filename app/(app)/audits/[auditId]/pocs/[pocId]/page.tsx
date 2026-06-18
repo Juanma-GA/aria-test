@@ -491,7 +491,7 @@ export default function POCDetailPage() {
   const handleDownloadIndividualReport = async () => {
     setDownloading(true);
     try {
-      await downloadIndividualPocReport(auditId, pocId, audit?.name || '');
+      await downloadIndividualPocReport(auditId, pocId, poc?.name || '', audit?.name || '');
       toast.success('Report downloaded');
     } catch (err) {
       console.error('Failed to generate report:', err);

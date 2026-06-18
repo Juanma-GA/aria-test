@@ -569,6 +569,7 @@ export function Sidebar() {
                                   await downloadIndividualPocReport(
                                     auditId,
                                     poc._id,
+                                    poc.name,
                                     auditName,
                                   );
                                   toast.success('Report downloaded');

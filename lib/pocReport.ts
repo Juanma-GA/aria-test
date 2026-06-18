@@ -523,6 +523,7 @@ ${pocDetailHtml}
 export async function downloadIndividualPocReport(
   auditId: string,
   pocId: string,
+  pocName: string,
   auditName: string,
 ): Promise<void> {
   const res = await fetch(
