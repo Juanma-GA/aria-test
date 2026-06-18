@@ -135,6 +135,7 @@ export async function GET(req: NextRequest) {
           estimatedDevCostEur: uc.estimatedDevCostEur,
           additionalDevCostEur: uc.additionalDevCostEur,
           isInstance: uc.isInstance,
+          estimatedImplWeeks: uc.estimatedImplWeeks,
           audit: audit ? { _id: uc.auditId, name: audit.name, client: audit.client } : null,
           process: process ? { _id: process._id, procId: process.procId, name: process.name, b1: process.b1, b3: process.b3 } : null,
         };
@@ -155,6 +156,7 @@ export async function GET(req: NextRequest) {
               estimatedDevCostEur: refUC.estimatedDevCostEur,
               additionalDevCostEur: refUC.additionalDevCostEur,
               isInstance: refUC.isInstance,
+              estimatedImplWeeks: refUC.estimatedImplWeeks,
             }
           : null,
         ...(instances.length > 0 ? { instances } : {}),
