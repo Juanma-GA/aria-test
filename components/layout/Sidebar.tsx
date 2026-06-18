@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Spinner } from '@/components/ui/Spinner';
 import { apiUrl } from '@/lib/utils';
 import { downloadPocReport } from '@/lib/pocReport';
 import { toast } from 'sonner';
@@ -51,6 +52,37 @@ const BLOCKS = [
   { key: 'b3', label: 'B3 Process Map' },
   { key: 'b5', label: 'B5 Use Cases' },
 ];
+
+function DownloadNavItem({
+  label,
+  icon,
+  onRun,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onRun: () => Promise<void>;
+}) {
+  const [running, setRunning] = useState(false);
+  const handle = async () => {
+    if (running) return;
+    setRunning(true);
+    try {
+      await onRun();
+    } finally {
+      setRunning(false);
+    }
+  };
+  return (
+    <button
+      onClick={handle}
+      disabled={running}
+      className="sidebar-item sidebar-item-inactive w-full text-left disabled:opacity-70"
+    >
+      {running ? <Spinner size="sm" /> : icon}
+      <span>{running ? 'Downloading…' : label}</span>
+    </button>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -470,19 +502,18 @@ export function Sidebar() {
                       disabled: true,
                     }}
                   />
-                  <NavLink
-                    item={{
-                      label: 'Detailed POC Report',
-                      icon: <FlaskConical size={16} />,
-                      onClick: async () => {
-                        try {
-                          await downloadPocReport(auditId, auditName);
-                          toast.success('Report downloaded');
-                        } catch (err) {
-                          console.error('Failed to generate report:', err);
-                          toast.error('Failed to generate report');
-                        }
-                      },
+                  <DownloadNavItem
+                    label="Detailed POC Report"
+                    icon={<FlaskConical size={16} />}
+                    onRun={async () => {
+                      try {
+                        await downloadPocReport(auditId, auditName);
+                        toast.success('Report downloaded');
+                      } catch (err) {
+                        console.error('Failed to generate report:', err);
+                        toast.error('Failed to generate report');
+                        throw err;
+                      }
                     }}
                   />
                   <NavLink
