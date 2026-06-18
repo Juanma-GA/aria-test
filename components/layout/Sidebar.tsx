@@ -58,7 +58,7 @@ function DownloadNavItem({
   onRun,
 }: {
   label: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   onRun: () => Promise<void>;
 }) {
   const [running, setRunning] = useState(false);
@@ -77,7 +77,7 @@ function DownloadNavItem({
       disabled={running}
       className="sidebar-item sidebar-item-inactive w-full text-left disabled:opacity-70"
     >
-      {running ? <Spinner size="sm" /> : icon}
+      {running ? <Spinner size="sm" /> : (icon ?? null)}
       <span>{running ? 'Downloading…' : label}</span>
     </button>
   );
@@ -528,15 +528,14 @@ export function Sidebar() {
                     <div
                       onClick={() => setIndividualExpanded(!individualExpanded)}
                       className={clsx(
-                        'flex items-center rounded-sm transition-colors cursor-pointer',
+                        'sidebar-item w-full',
                         individualExpanded
-                          ? 'text-blue-light bg-white/10'
-                          : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
+                          ? 'sidebar-item-active'
+                          : 'sidebar-item-inactive',
                       )}
                     >
-                      <span className="flex-1 px-2 py-1.5 text-xs">
-                        Individual POC Report
-                      </span>
+                      <FlaskConical size={16} />
+                      <span className="flex-1">Individual POC Report</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -563,7 +562,6 @@ export function Sidebar() {
                             <DownloadNavItem
                               key={poc._id}
                               label={poc.name}
-                              icon={<FlaskConical size={16} />}
                               onRun={async () => {
                                 try {
                                   await downloadIndividualPocReport(
