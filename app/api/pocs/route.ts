@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
 
     const pocs = await query
-      .populate('processId', 'procId name b1.profiles b3.annualRepetitions')
+      .populate('processId', 'procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     ];
 
     const refUCs = await UseCase.find({ _id: { $in: refUCIds } })
-      .select('cuId description auditId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance estimatedImplWeeks')
+      .select('cuId description auditId targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance estimatedImplWeeks')
       .lean() as any[];
     const refUCMap = Object.fromEntries(refUCs.map(u => [String((u as any)._id), u]));
 
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
 
     if (instanceUCIds.size > 0) {
       const instanceUCs = await UseCase.find({ _id: { $in: [...instanceUCIds] } })
-        .select('_id cuId description auditId processId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance estimatedImplWeeks')
+        .select('_id cuId description auditId processId targetActivities timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance estimatedImplWeeks')
         .lean() as any[];
       instanceUCMap = Object.fromEntries(instanceUCs.map(u => [String(u._id), u]));
 
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
 
       const instProcessIds = [...new Set(instanceUCs.map(u => String(u.processId)).filter(Boolean))];
       const instProcesses = await Process.find({ _id: { $in: instProcessIds } })
-        .select('_id procId name b1.profiles b3.annualRepetitions')
+        .select('_id procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours')
         .lean() as any[];
       instanceProcessMap = new Map(instProcesses.map(pr => [String(pr._id), pr]));
     }
