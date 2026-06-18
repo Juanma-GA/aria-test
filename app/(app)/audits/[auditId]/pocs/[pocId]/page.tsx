@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Bot, RefreshCw, Archive, ArchiveRestore, TrendingUp, ChevronDown, Eye, FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { SaveIndicator } from '@/components/ui/SaveIndicator';
@@ -14,6 +15,7 @@ import { useAuditAccess } from '@/context/AuditAccessContext';
 import { apiUrl } from '@/lib/utils';
 import { computeAnnualCompute } from '@/lib/calculations';
 import { computePocRoi } from '@/lib/pocRoi';
+import { downloadIndividualPocReport } from '@/lib/pocReport';
 import type { POC, POCPhase, POCDecisionType, POCCriterion, POCMilestone } from '@/lib/types';
 
 const PHASES: { key: POCPhase; label: string; num: number }[] = [
@@ -72,6 +74,7 @@ export default function POCDetailPage() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; cascade: boolean; indCount: number; error?: string }>({ open: false, cascade: false, indCount: 0 });
   const [roiOpen, setRoiOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { canEdit } = useAuditAccess();
 
@@ -485,6 +488,19 @@ export default function POCDetailPage() {
     }
   };
 
+  const handleDownloadIndividualReport = async () => {
+    setDownloading(true);
+    try {
+      await downloadIndividualPocReport(auditId, pocId, audit?.name || '');
+      toast.success('Report downloaded');
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+      toast.error('Failed to generate report');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const fetchMockups = useCallback(async () => {
     try {
       const res = await fetch(apiUrl(`/api/audits/${auditId}/pocs/${pocId}/mockups`), { credentials: 'include' });
@@ -591,6 +607,14 @@ export default function POCDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           <SaveIndicator status={saveStatus} />
+          <button
+            onClick={handleDownloadIndividualReport}
+            disabled={downloading}
+            className="text-muted hover:text-blue-aria disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Download POC Report"
+          >
+            {downloading ? <Spinner size="sm" /> : <FileText size={16} />}
+          </button>
           {canEdit && (
             <button onClick={toggleArchive} className="text-muted hover:text-blue-aria" title={(poc as any).isArchived ? 'Unarchive' : 'Archive'}>
               {(poc as any).isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
