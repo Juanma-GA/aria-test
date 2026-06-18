@@ -72,20 +72,20 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
   <title>POC Report — ${escapeHtml(auditName)}</title>
   <style>
     :root {
-      --paper: #faf9f6;
+      --paper: #f8f9fb;
       --surface: #ffffff;
-      --surface-2: #f4f2ec;
-      --ink: #1c1a16;
-      --ink-soft: #46423a;
-      --muted: #857f72;
-      --faint: #a8a293;
-      --line: #e3dfd4;
-      --line-soft: #edeae1;
-      --accent: #a8742c;
-      --accent-2: #c2872f;
-      --good: #3c7a5e;
-      --bad: #b04f49;
-      --neutral: #5b7298;
+      --surface-2: #edf1f7;
+      --ink: #0f1e33;
+      --ink-soft: #1e3251;
+      --muted: #4a6480;
+      --faint: #8aa0b8;
+      --line: #b8ccdf;
+      --line-soft: #e8eef5;
+      --accent: #1e3251;
+      --accent-2: #b5842a;
+      --good: #2e7050;
+      --bad: #8f3030;
+      --neutral: #2e5080;
       --serif: Georgia, 'Times New Roman', serif;
       --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --mono: ui-monospace, 'SF Mono', Consolas, monospace;
@@ -180,12 +180,26 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       background: var(--surface-2);
       border: 1px solid var(--line);
     }
+    .uc-roi-block--ref {
+      border-left: 4px solid var(--accent);
+    }
+    .uc-roi-block--inst {
+      border-left: 2px solid var(--accent-2);
+    }
     .uc-roi-title {
       font-family: var(--serif);
       font-size: 1rem;
       font-weight: 500;
       margin: 0 0 12px 0;
       color: var(--ink-soft);
+    }
+    .uc-type-ref {
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .uc-type-inst {
+      font-weight: 700;
+      color: var(--accent-2);
     }
     .exec-summary-table {
       width: 100%;
@@ -464,8 +478,8 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
 
     if (!process) {
       return `
-    <div class="uc-roi-block">
-      <h4 class="uc-roi-title">${type}: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+    <div class="uc-roi-block uc-roi-block--${isRef ? 'ref' : 'inst'}">
+      <h4 class="uc-roi-title"><span class="uc-type-${isRef ? 'ref' : 'inst'}">${type}</span>: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
       <p style="color: var(--muted); margin-top: 8px;">Process not available.</p>
     </div>
       `;
@@ -479,8 +493,8 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
 
     if (!activitiesForUC.length) {
       return `
-    <div class="uc-roi-block">
-      <h4 class="uc-roi-title">${type}: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+    <div class="uc-roi-block uc-roi-block--${isRef ? 'ref' : 'inst'}">
+      <h4 class="uc-roi-title"><span class="uc-type-${isRef ? 'ref' : 'inst'}">${type}</span>: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
       <p style="color: var(--muted); margin-top: 8px;">No target steps defined.</p>
     </div>
       `;
@@ -568,8 +582,8 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
       .join('');
 
     return `
-    <div class="uc-roi-block">
-      <h4 class="uc-roi-title">${type}: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+    <div class="uc-roi-block uc-roi-block--${isRef ? 'ref' : 'inst'}">
+      <h4 class="uc-roi-title"><span class="uc-type-${isRef ? 'ref' : 'inst'}">${type}</span>: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
       <table class="roi-table" style="margin-top: 12px;">
         <thead>
           <tr>
