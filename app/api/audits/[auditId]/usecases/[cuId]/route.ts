@@ -125,8 +125,18 @@ export async function PATCH(
       if (key in body) $set[key] = body[key];
     }
     // Cast ID fields to ObjectId to ensure correct data type
-    if ($set.parentUCId && typeof $set.parentUCId === 'string') {
-      $set.parentUCId = new mongoose.Types.ObjectId($set.parentUCId as string);
+    if ('parentUCId' in $set && $set.parentUCId !== null) {
+      let pid: any = $set.parentUCId;
+      // If it came as a populated object, extract its _id
+      if (typeof pid === 'object') pid = pid?._id;
+      // Must be a valid ObjectId; if not, 400 clean (not 500, not corruption)
+      if (typeof pid !== 'string' || !mongoose.isValidObjectId(pid)) {
+        return NextResponse.json(
+          { error: 'Invalid parentUCId format' },
+          { status: 400 },
+        );
+      }
+      $set.parentUCId = new mongoose.Types.ObjectId(pid);
     }
 
     // Stamp archivedAt whenever isArchived flips, so the audit log is implicit.
