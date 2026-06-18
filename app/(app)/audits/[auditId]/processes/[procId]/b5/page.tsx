@@ -313,6 +313,13 @@ function SlideOver({
         },
         sovereigntyAnalysis: (editUC as any).sovereigntyAnalysis ?? '',
       };
+      // Normalize parentUCId to string (defensive: handle populated objects)
+      const rawParent = (editUC as any).parentUCId;
+      newForm.parentUCId =
+        rawParent && typeof rawParent === 'object'
+          ? String(rawParent._id ?? '')
+          : (rawParent ? String(rawParent) : undefined);
+
       savedHoursRef.current = Object.fromEntries(
         (editUC.timeSavedPerProfile ?? []).map(e => [e.profileId, e.hoursPerExecution])
       );
@@ -750,7 +757,11 @@ function SlideOver({
         bodyData.isInstance = true;
       } else if (editUC && (editUC as any).isInstance) {
         bodyData.additionalDevCostEur = form.additionalDevCostEur ?? 0;
-        bodyData.parentUCId = String((editUC as any).parentUCId);
+        const rawParent = (editUC as any).parentUCId;
+        bodyData.parentUCId =
+          rawParent && typeof rawParent === 'object'
+            ? String(rawParent._id ?? '')
+            : String(rawParent ?? '');
         bodyData.isInstance = true;
       }
 
