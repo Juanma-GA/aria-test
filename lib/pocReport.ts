@@ -170,7 +170,7 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
     h3 {
       font-family: var(--serif);
       font-size: 1.12rem;
-      font-weight: 400;
+      font-weight: 600;
       margin: 20px 0 12px 0;
       color: var(--ink-soft);
     }
@@ -364,7 +364,7 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
           <td colspan="1">TOTAL</td>
           <td>${formatEur(totalNet)}</td>
           <td>${formatEur(totalDev)}</td>
-          <td>${totalPaybackMonths > 0 ? totalPaybackMonths.toFixed(1) : '—'}</td>
+          <td>${totalPaybackMonths > 0 ? totalPaybackMonths.toFixed(1) + ' months' : '—'}</td>
         </tr>
         ` : ''}
       </tbody>
@@ -426,20 +426,20 @@ function generatePocDetailBlock(poc: any, num: number, auditName: string): strin
 
   return `
     <details class="poc-block" id="poc-${num}">
-      <summary><h2>2.${num} ${escapeHtml(poc.pocId || `POC ${num}`)} — ${escapeHtml(poc.name || 'Untitled')}</h2></summary>
+      <summary><h2>2.${num} ${escapeHtml(poc.name || 'Untitled')}</h2></summary>
       ${generateMockupBlock(poc, num)}
-      ${generateScopeBlock(poc)}
-      ${roi ? generateRoiTableBlock(roi, assignedUCs, auditName) : '<p style="color: #6b7280;">ROI data unavailable.</p>'}
-      ${generateSovereigntyBlock(poc)}
+      ${generateScopeBlock(poc, num)}
+      ${generateSovereigntyBlock(poc, num)}
+      ${roi ? generateRoiTableBlock(roi, assignedUCs, auditName, num) : '<p style="color: #6b7280;">ROI data unavailable.</p>'}
     </details>
   `;
 }
 
-function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string): string {
+function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, num: number): string {
   if (!assignedUCs.length) return '';
 
   return `
-    <h3>ROI Estimation</h3>
+    <h3>2.${num}.3 ROI Estimation Breakdown per Use Case</h3>
     <table class="roi-table">
       <thead>
         <tr>
@@ -503,7 +503,6 @@ function generateMockupBlock(poc: any, pocNum: number): string {
   }).join('\n');
 
   return `
-    <h3>Mockups</h3>
     <table class="mockups-table">
       <thead>
         <tr>
@@ -520,15 +519,15 @@ function generateMockupBlock(poc: any, pocNum: number): string {
   `;
 }
 
-function generateScopeBlock(poc: any): string {
+function generateScopeBlock(poc: any, num: number): string {
   if (!poc.design?.scopeDescription) return '';
   return `
-    <h3>Scope</h3>
+    <h3>2.${num}.1 Scope</h3>
     <p>${escapeHtml(poc.design.scopeDescription)}</p>
   `;
 }
 
-function generateSovereigntyBlock(poc: any): string {
+function generateSovereigntyBlock(poc: any, num: number): string {
   if (!poc.design?.activeB2Restrictions) return '';
 
   const restrictions = poc.design.activeB2Restrictions;
@@ -551,7 +550,7 @@ function generateSovereigntyBlock(poc: any): string {
   if (!sovereigntyHeader && matrices.length === 0) return '';
 
   return `
-    <h3>Sovereignty Matrix</h3>
+    <h3>2.${num}.2 Sovereignty Matrix</h3>
     ${sovereigntyHeader ? `<p><strong>${escapeHtml(sovereigntyHeader)}</strong></p>` : ''}
     ${matrices.length > 0 ? `
     <table class="roi-table">
