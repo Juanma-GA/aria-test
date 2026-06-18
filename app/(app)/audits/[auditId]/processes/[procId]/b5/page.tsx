@@ -263,6 +263,11 @@ function SlideOver({
   const isFirstDeriveRun = useRef(true);
   const savedHoursRef = useRef<Record<string, number>>({});
 
+  // Una instancia hereda el coste del padre: la calculadora Dev Cost va
+  // bloqueada SIEMPRE, abras el editor por donde lo abras (cuId, lápiz,
+  // badge o deep-link). Derivado del dato, no del modo de UI.
+  const isInstanceUC = instanceMode || editUC?.isInstance === true || form.isInstance === true;
+
   useEffect(() => {
     // Compute D5 autofill from B2 axes
     let d5AutoValue: ScoreValue = 3;
@@ -1082,9 +1087,9 @@ function SlideOver({
 
             {/* Dev Cost Calculator Box */}
             <div className={`border border-orange-200 bg-orange-50 rounded p-4 space-y-3 ${
-              instanceMode ? 'pointer-events-none opacity-50' : ''
+              isInstanceUC ? 'pointer-events-none opacity-50' : ''
             }`}>
-              {instanceMode && (
+              {isInstanceUC && (
                 <div className="flex items-center gap-1 text-xs text-muted mb-2 pointer-events-auto">
                   <Lock size={12} /> Inherited from parent UC (read-only in instance mode)
                 </div>
@@ -1097,7 +1102,7 @@ function SlideOver({
                 </div>
                 <button
                   onClick={handleRecalculateOnly}
-                  disabled={isRecalculating || !isPhase2Visible}
+                  disabled={isRecalculating || !isPhase2Visible || isInstanceUC}
                   className="flex items-center gap-1 text-xs text-blue-aria border border-blue-aria rounded px-2 py-1 hover:bg-blue-50 transition-colors disabled:opacity-50"
                 >
                   {isRecalculating ? <Spinner size="sm" /> : <RefreshCw size={11} />}
@@ -1118,7 +1123,7 @@ function SlideOver({
                 <div>
                   <label className="form-label">Impl. Time (weeks)</label>
                   <input type="number" min={0} className="form-input"
-                    disabled={!isPhase2Visible}
+                    disabled={!isPhase2Visible || isInstanceUC}
                     value={form.estimatedImplWeeks ?? 0}
                     onChange={e => {
                       const newValue = parseInt(e.target.value) || 0;
@@ -1129,7 +1134,7 @@ function SlideOver({
                 <div>
                   <label className="form-label">Nº Developers</label>
                   <input type="number" min={0.1} step={0.1} className="form-input"
-                    disabled={!isPhase2Visible}
+                    disabled={!isPhase2Visible || isInstanceUC}
                     value={form.nDevs ?? 1}
                     onChange={e => {
                       const newValue = parseFloat(e.target.value) || 1;
@@ -1140,7 +1145,7 @@ function SlideOver({
                 <div>
                   <label className="form-label">Dev Rate Reference (€/day)</label>
                   <input type="number" min={0} className="form-input"
-                    disabled={!isPhase2Visible}
+                    disabled={!isPhase2Visible || isInstanceUC}
                     value={form.devRateEur ?? 450}
                     onChange={e => {
                       const newValue = parseFloat(e.target.value) || 450;
@@ -1156,7 +1161,7 @@ function SlideOver({
               {/* Dev Cost Explanation */}
               <div>
                 <label className="form-label">Dev Cost Explanation</label>
-                <textarea rows={2} className="form-textarea" disabled={!isPhase2Visible}
+                <textarea rows={2} className="form-textarea" disabled={!isPhase2Visible || isInstanceUC}
                   placeholder="Briefly explain the cost estimate…"
                   value={form.devCostExplanation || ''}
                   onChange={e => set('devCostExplanation', e.target.value)} />
