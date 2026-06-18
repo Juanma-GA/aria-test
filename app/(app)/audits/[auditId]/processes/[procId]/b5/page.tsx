@@ -356,6 +356,15 @@ function SlideOver({
       base.timeSavedPerProfile = [];
       delete base._id;
       delete base.cuId;
+      // Annual Executions debe venir del PROCESO de la instancia, no del parent.
+      // El resto del computeBreakdown (modelo, GPU, tokens, etc.) sí se hereda.
+      if (base.computeBreakdown) {
+        base.computeBreakdown = {
+          ...base.computeBreakdown,
+          annualReps: annualReps,
+          annualRepsManuallyEdited: false,
+        };
+      }
       savedHoursRef.current = {};
 
       setForm(base);
