@@ -499,17 +499,40 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
         });
       } else {
         profileHours.forEach((ph: any) => {
-          const saved =
-            uc.timeSavedPerProfile?.find((t: any) => t.profileId === ph.profileId)
-              ?.hoursPerExecution ?? 0;
           rows.push({
             step: activity.name,
             profile: ph.role,
             current: ph.hours,
-            saved,
+            profileId: ph.profileId,
           });
         });
       }
+    });
+
+    // Distribute saved hours proportionally by current hours within each profile group
+    const profileGroups: Record<string, (typeof rows)> = {};
+    rows.forEach(row => {
+      if (row.profileId) {
+        if (!profileGroups[row.profileId]) profileGroups[row.profileId] = [];
+        profileGroups[row.profileId].push(row);
+      }
+    });
+
+    rows.forEach(row => {
+      if (!row.profileId) {
+        row.saved = 0;
+        return;
+      }
+      const totalProfile =
+        uc.timeSavedPerProfile?.find((t: any) => t.profileId === row.profileId)
+          ?.hoursPerExecution ?? 0;
+      const groupRows = profileGroups[row.profileId];
+      const sumCurrent = groupRows.reduce((s: number, r: any) => s + r.current, 0);
+      row.saved =
+        sumCurrent > 0
+          ? Math.round((totalProfile * (row.current / sumCurrent)) * 10) / 10
+          : totalProfile / groupRows.length;
+      delete row.profileId;
     });
 
     const totalRows = rows.length;
