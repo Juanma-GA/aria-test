@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     ];
 
     const refUCs = await UseCase.find({ _id: { $in: refUCIds } })
-      .select('cuId description auditId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
+      .select('cuId description auditId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance estimatedImplWeeks')
       .lean() as any[];
     const refUCMap = Object.fromEntries(refUCs.map(u => [String((u as any)._id), u]));
 
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
 
     if (instanceUCIds.size > 0) {
       const instanceUCs = await UseCase.find({ _id: { $in: [...instanceUCIds] } })
-        .select('_id cuId description auditId processId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
+        .select('_id cuId description auditId processId timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance estimatedImplWeeks')
         .lean() as any[];
       instanceUCMap = Object.fromEntries(instanceUCs.map(u => [String(u._id), u]));
 
