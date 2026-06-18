@@ -443,12 +443,12 @@ function generatePocDetailBlock(poc: any, num: number, auditName: string): strin
       ${generateMockupBlock(poc, num)}
       ${generateScopeBlock(poc, num)}
       ${generateSovereigntyBlock(poc, num)}
-      ${roi ? generateRoiTableBlock(roi, assignedUCs, auditName, num) : '<p style="color: #6b7280;">ROI data unavailable.</p>'}
+      ${roi ? generateRoiTableBlock(roi, assignedUCs, auditName, num, process) : '<p style="color: #6b7280;">ROI data unavailable.</p>'}
     </details>
   `;
 }
 
-function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, num: number): string {
+function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, num: number, pocProcess: any): string {
   if (!assignedUCs.length) return '';
 
   // Build a UC table per UC with per-activity, per-profile rows
@@ -459,7 +459,7 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
 
     // Resolve process: reference uses POC's, instance uses its own
     const process = isRef
-      ? (typeof uc.processId === 'object' ? uc.processId : null)
+      ? pocProcess
       : uc.process;
 
     if (!process) {
