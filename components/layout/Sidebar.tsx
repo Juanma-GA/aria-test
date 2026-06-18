@@ -4,7 +4,7 @@ import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/Spinner';
 import { apiUrl } from '@/lib/utils';
-import { downloadPocReport } from '@/lib/pocReport';
+import { downloadPocReport, downloadIndividualPocReport } from '@/lib/pocReport';
 import { toast } from 'sonner';
 import {
   LayoutDashboard,
@@ -101,6 +101,8 @@ export function Sidebar() {
   const [expandedUCs, setExpandedUCs] = useState<string | null>(null);
   const [auditName, setAuditName] = useState('');
   const [reportsExpanded, setReportsExpanded] = useState(false);
+  const [individualExpanded, setIndividualExpanded] = useState(false);
+  const [pocsList, setPocsList] = useState<{ _id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!auditId) {
@@ -161,6 +163,22 @@ export function Sidebar() {
       )
       .catch(() => {});
   }, [auditId, expandedProc, pathname]);
+
+  // Fetch POCs when Individual POC Report is expanded (lazy)
+  useEffect(() => {
+    if (!auditId || !individualExpanded) return;
+    fetch(apiUrl(`/api/pocs?auditId=${auditId}`), { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: any[]) =>
+        setPocsList(
+          data.map((p) => ({
+            _id: String(p._id),
+            name: p.name || p.pocId || 'Untitled',
+          })),
+        ),
+      )
+      .catch(() => {});
+  }, [auditId, individualExpanded]);
 
   const mainNav: NavItem[] = [
     {
@@ -505,13 +523,70 @@ export function Sidebar() {
                       }
                     }}
                   />
-                  <NavLink
-                    item={{
-                      label: 'Individual POC Report',
-                      icon: <FlaskConical size={16} />,
-                      disabled: true,
-                    }}
-                  />
+                  {/* Individual POC Report — desplegable inline con lista de POCs */}
+                  <div>
+                    <div
+                      onClick={() => setIndividualExpanded(!individualExpanded)}
+                      className={clsx(
+                        'flex items-center rounded-sm transition-colors cursor-pointer',
+                        individualExpanded
+                          ? 'text-blue-light bg-white/10'
+                          : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
+                      )}
+                    >
+                      <span className="flex-1 px-2 py-1.5 text-xs">
+                        Individual POC Report
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIndividualExpanded(!individualExpanded);
+                        }}
+                        className="px-1.5 py-1 shrink-0"
+                        aria-label={individualExpanded ? 'Collapse' : 'Expand'}
+                      >
+                        {individualExpanded ? (
+                          <ChevronDown size={11} />
+                        ) : (
+                          <ChevronRight size={11} />
+                        )}
+                      </button>
+                    </div>
+                    {individualExpanded && (
+                      <div className="ml-5 pl-2 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
+                        {pocsList.length === 0 ? (
+                          <div className="px-2 py-1 text-xs text-slate-600">
+                            No POCs
+                          </div>
+                        ) : (
+                          pocsList.map((poc) => (
+                            <DownloadNavItem
+                              key={poc._id}
+                              label={poc.name}
+                              icon={<FlaskConical size={16} />}
+                              onRun={async () => {
+                                try {
+                                  await downloadIndividualPocReport(
+                                    auditId,
+                                    poc._id,
+                                    auditName,
+                                  );
+                                  toast.success('Report downloaded');
+                                } catch (err) {
+                                  console.error(
+                                    'Failed to generate report:',
+                                    err,
+                                  );
+                                  toast.error('Failed to generate report');
+                                  throw err;
+                                }
+                              }}
+                            />
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
