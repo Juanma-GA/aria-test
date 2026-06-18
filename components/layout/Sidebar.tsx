@@ -28,7 +28,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 interface NavItem {
   href?: string;
   label: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   onClick?: () => void | Promise<void>;
   disabled?: boolean;
 }
@@ -56,10 +56,12 @@ function DownloadNavItem({
   label,
   icon,
   onRun,
+  compact,
 }: {
   label: string;
   icon?: React.ReactNode;
   onRun: () => Promise<void>;
+  compact?: boolean;
 }) {
   const [running, setRunning] = useState(false);
   const handle = async () => {
@@ -75,7 +77,10 @@ function DownloadNavItem({
     <button
       onClick={handle}
       disabled={running}
-      className="sidebar-item sidebar-item-inactive w-full text-left disabled:opacity-70"
+      className={clsx(
+        'sidebar-item sidebar-item-inactive w-full text-left disabled:opacity-70',
+        compact && '!text-xs py-1',
+      )}
     >
       {running ? <Spinner size="sm" /> : (icon ?? null)}
       <span>{running ? 'Downloading…' : label}</span>
@@ -499,19 +504,16 @@ export function Sidebar() {
                     item={{
                       href: `/audits/${auditId}/report`,
                       label: 'AI Audit Report',
-                      icon: <FileText size={16} />,
                     }}
                   />
                   <NavLink
                     item={{
                       label: 'Audit Report',
-                      icon: <FileText size={16} />,
                       disabled: true,
                     }}
                   />
                   <DownloadNavItem
                     label="POC Report"
-                    icon={<FlaskConical size={16} />}
                     onRun={async () => {
                       try {
                         await downloadPocReport(auditId, auditName);
@@ -534,7 +536,6 @@ export function Sidebar() {
                           : 'sidebar-item-inactive',
                       )}
                     >
-                      <FlaskConical size={16} />
                       <span className="flex-1">Individual POC Report</span>
                       <button
                         onClick={(e) => {
@@ -562,6 +563,7 @@ export function Sidebar() {
                             <DownloadNavItem
                               key={poc._id}
                               label={poc.name}
+                              compact={true}
                               onRun={async () => {
                                 try {
                                   await downloadIndividualPocReport(
