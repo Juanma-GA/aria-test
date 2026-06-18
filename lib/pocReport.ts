@@ -46,8 +46,7 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       const roi = pocRois[i];
       return `
     <tr>
-      <td>${escapeHtml(poc.pocId || 'POC')}</td>
-      <td>${escapeHtml(poc.name || '—')}</td>
+      <td><a href="#poc-${i + 1}">${escapeHtml(poc.name || '—')}</a></td>
       <td>${roi ? formatEur(roi.net) : '—'}</td>
       <td>${roi ? formatEur(roi.dev) : '—'}</td>
       <td>${roi && roi.net > 0 ? roi.paybackMonths.toFixed(1) : '—'} months</td>
@@ -128,37 +127,30 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       text-align: right;
       line-height: 1.5;
     }
-    .nav-toc {
-      background: var(--surface-2);
-      padding: 16px 20px;
-      margin-bottom: 32px;
-      border-left: 3px solid var(--accent);
+    details {
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: none;
     }
-    .nav-toc strong {
-      display: block;
-      margin-bottom: 12px;
-      font-family: var(--mono);
-      font-size: 0.62rem;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--muted);
+    summary {
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
     }
-    .nav-toc a {
-      display: block;
-      margin-bottom: 6px;
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      color: var(--accent);
-      text-decoration: none;
+    summary::-webkit-details-marker {
+      display: none;
     }
-    .nav-toc a:last-child { margin-bottom: 0; }
-    .nav-toc a:hover { color: var(--accent-2); }
+    summary h2 {
+      margin: 32px 0 20px 0;
+      display: inline;
+    }
     .poc-block {
       page-break-after: always;
       margin-bottom: 48px;
       padding-bottom: 32px;
     }
-    .poc-block:not(:last-child) {
+    details:not(:last-child) {
       border-bottom: 1px solid var(--line);
     }
     h2 {
@@ -336,7 +328,6 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }
-      .nav-toc { display: none; }
       .poc-block { page-break-after: always; }
       h2 { page-break-before: avoid; }
       .mockups-table button { display: none; }
@@ -356,20 +347,10 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       </div>
     </div>
 
-    <div class="nav-toc">
-      <strong>POCs:</strong>
-      ${pocs.map((p, i) => {
-        const id = escapeHtml(p.pocId || `POC ${i + 1}`);
-        const label = p.name ? `${id} — ${escapeHtml(p.name)}` : id;
-        return `<a href="#poc-${i + 1}">${label}</a>`;
-      }).join('')}
-    </div>
-
-    <h2 class="section-title">Executive Summary</h2>
+    <h2 class="section-title">1 - Executive Summary</h2>
     <table class="exec-summary-table">
       <thead>
         <tr>
-          <th>POC ID</th>
           <th>POC Name</th>
           <th>Net Annual Saving (€)</th>
           <th>Dev Cost (€)</th>
@@ -380,7 +361,7 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
         ${execSummaryRows}
         ${pocs.length > 1 ? `
         <tr class="total-row">
-          <td colspan="2">TOTAL</td>
+          <td colspan="1">TOTAL</td>
           <td>${formatEur(totalNet)}</td>
           <td>${formatEur(totalDev)}</td>
           <td>${totalPaybackMonths > 0 ? totalPaybackMonths.toFixed(1) : '—'}</td>
@@ -390,7 +371,7 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
     </table>
     ${totalNet > 0 ? `<p style="font-size: 0.8rem; color: var(--muted); margin-top: 8px;"><em>Note: Payback period calculated as Total Dev Cost ÷ (Total Net Annual Saving ÷ 12).</em></p>` : ''}
 
-    <h2 class="section-title">POC Details</h2>
+    <h2 class="section-title">2 - POC Details</h2>
 ${pocDetailsHtml}
 
   </div>
@@ -444,13 +425,13 @@ function generatePocDetailBlock(poc: any, num: number, auditName: string): strin
   const roi = process && assignedUCs.length > 0 ? computePocRoi(assignedUCs, process) : null;
 
   return `
-    <div class="poc-block" id="poc-${num}">
-      <h2>2.${num} ${escapeHtml(poc.pocId || `POC ${num}`)} — ${escapeHtml(poc.name || 'Untitled')}</h2>
+    <details class="poc-block" id="poc-${num}">
+      <summary><h2>2.${num} ${escapeHtml(poc.pocId || `POC ${num}`)} — ${escapeHtml(poc.name || 'Untitled')}</h2></summary>
       ${generateMockupBlock(poc, num)}
       ${generateScopeBlock(poc)}
       ${roi ? generateRoiTableBlock(roi, assignedUCs, auditName) : '<p style="color: #6b7280;">ROI data unavailable.</p>'}
       ${generateSovereigntyBlock(poc)}
-    </div>
+    </details>
   `;
 }
 
@@ -483,7 +464,7 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string):
           <td>${escapeHtml(uc.description ?? '—')}</td>
           <td><span class="badge ${isRef ? 'badge-ref' : 'badge-inst'}">${type}</span></td>
           <td>${escapeHtml(audit)}</td>
-          <td>${uc.estimatedImplWeeks ?? '—'}</td>
+          <td>${isRef ? (uc.estimatedImplWeeks ?? '—') : 0}</td>
           <td>${formatEur(item.net)}</td>
           <td>${formatEur(item.dev)} <small>${escapeHtml(item.devLabel)}</small></td>
         </tr>
@@ -570,14 +551,27 @@ function generateSovereigntyBlock(poc: any): string {
   if (!sovereigntyHeader && matrices.length === 0) return '';
 
   return `
-    <h3>Sovereignty Matrix (B2)</h3>
+    <h3>Sovereignty Matrix</h3>
     ${sovereigntyHeader ? `<p><strong>${escapeHtml(sovereigntyHeader)}</strong></p>` : ''}
     ${matrices.length > 0 ? `
-      ${matrices.map((m: any) => `<div class="b2-row">
-        <div class="b2-axis">${escapeHtml(m.axis)}</div>
-        <div class="b2-status ${m.status}">${m.status.toUpperCase()}</div>
-        <div>${escapeHtml(m.findings)}</div>
-      </div>`).join('')}
+    <table class="roi-table">
+      <thead>
+        <tr>
+          <th>Axis</th>
+          <th>Status</th>
+          <th>Findings</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${matrices.map((m: any) => `
+        <tr>
+          <td>${escapeHtml(m.axis)}</td>
+          <td><span class="b2-status ${m.status}">${m.status.toUpperCase()}</span></td>
+          <td>${escapeHtml(m.findings)}</td>
+        </tr>
+        `).join('')}
+      </tbody>
+    </table>
     ` : ''}
   `;
 }
