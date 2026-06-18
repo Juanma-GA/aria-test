@@ -537,7 +537,14 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
 
     const totalRows = rows.length;
     const procName = process.procId ? `${process.procId} / ${process.name}` : process.name;
-    const implWeeks = uc.estimatedImplWeeks ?? 0;
+    let implWeeks;
+    if (uc.isInstance) {
+      const rate = uc.devRateEur ?? 450;
+      const addCost = uc.additionalDevCostEur ?? 0;
+      implWeeks = rate > 0 ? Math.round((addCost / rate / 5) * 10) / 10 : 0;
+    } else {
+      implWeeks = uc.estimatedImplWeeks ?? 0;
+    }
 
     const rowsHtml = rows
       .map((row, idx) => {
