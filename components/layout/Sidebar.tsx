@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/utils';
+import { downloadPocReport } from '@/lib/pocReport';
+import { toast } from 'sonner';
 import {
   LayoutDashboard,
   GitBranch,
@@ -24,9 +26,11 @@ import { clsx } from 'clsx';
 import { useAuthStore } from '@/lib/store/authStore';
 
 interface NavItem {
-  href: string;
+  href?: string;
   label: string;
   icon: React.ReactNode;
+  onClick?: () => void | Promise<void>;
+  disabled?: boolean;
 }
 
 interface ProcessStub {
@@ -64,6 +68,8 @@ export function Sidebar() {
   );
   const [ucsByProc, setUcsByProc] = useState<Record<string, UCStub[]>>({});
   const [expandedUCs, setExpandedUCs] = useState<string | null>(null);
+  const [auditName, setAuditName] = useState('');
+  const [reportsExpanded, setReportsExpanded] = useState(false);
 
   useEffect(() => {
     if (!auditId) {
@@ -82,6 +88,19 @@ export function Sidebar() {
       .catch(() => {});
   }, [auditId]);
 
+  useEffect(() => {
+    if (!auditId) {
+      setAuditName('');
+      return;
+    }
+    fetch(apiUrl(`/api/audits/${auditId}`), { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: any) => {
+        if (data?.name) setAuditName(data.name);
+      })
+      .catch(() => {});
+  }, [auditId]);
+
   // Auto-expand the active process and its UC list when on b5
   useEffect(() => {
     if (procId) {
@@ -89,6 +108,10 @@ export function Sidebar() {
       if (pathname?.includes('/b5')) setExpandedUCs(procId);
     }
   }, [procId, pathname]);
+
+  useEffect(() => {
+    if (pathname?.includes('/report')) setReportsExpanded(true);
+  }, [pathname]);
 
   // Fetch use cases when a process is expanded (re-fetch on b5 navigation to pick up new UCs)
   useEffect(() => {
@@ -124,7 +147,7 @@ export function Sidebar() {
     { href: '/roadmap', label: 'Roadmap', icon: <Map size={16} /> },
   ];
 
-  const auditNav: NavItem[] = auditId
+  const auditNavTop: NavItem[] = auditId
     ? [
         {
           href: `/audits/${auditId}/usecases`,
@@ -146,11 +169,11 @@ export function Sidebar() {
           label: 'Roadmap',
           icon: <Map size={16} />,
         },
-        {
-          href: `/audits/${auditId}/report`,
-          label: 'AI Report',
-          icon: <FileText size={16} />,
-        },
+      ]
+    : [];
+
+  const auditNavBottom: NavItem[] = auditId
+    ? [
         {
           href: `/audits/${auditId}/export`,
           label: 'Export',
@@ -172,18 +195,43 @@ export function Sidebar() {
   const isActive = (href: string) =>
     pathname === href || pathname?.startsWith(href + '/');
 
-  const NavLink = ({ item }: { item: NavItem }) => (
-    <Link
-      href={item.href}
-      className={clsx(
-        'sidebar-item',
-        isActive(item.href) ? 'sidebar-item-active' : 'sidebar-item-inactive',
-      )}
-    >
-      {item.icon}
-      <span>{item.label}</span>
-    </Link>
-  );
+  const reportsActive = pathname?.includes('/report') ?? false;
+
+  const NavLink = ({ item }: { item: NavItem }) => {
+    if (item.disabled) {
+      return (
+        <div className="sidebar-item opacity-50 cursor-not-allowed text-slate-600">
+          {item.icon}
+          <span>
+            {item.label} <span className="text-[10px]">(soon)</span>
+          </span>
+        </div>
+      );
+    }
+    if (item.onClick) {
+      return (
+        <button
+          onClick={item.onClick}
+          className="sidebar-item sidebar-item-inactive w-full text-left"
+        >
+          {item.icon}
+          <span>{item.label}</span>
+        </button>
+      );
+    }
+    return (
+      <Link
+        href={item.href!}
+        className={clsx(
+          'sidebar-item',
+          isActive(item.href!) ? 'sidebar-item-active' : 'sidebar-item-inactive',
+        )}
+      >
+        {item.icon}
+        <span>{item.label}</span>
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -385,7 +433,77 @@ export function Sidebar() {
               );
             })}
 
-            {auditNav.map((item) => (
+            {auditNavTop.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+
+            {/* Reports — desplegable inline, mismo patrón que Processes */}
+            <div>
+              <div
+                onClick={() => setReportsExpanded(!reportsExpanded)}
+                className={clsx(
+                  'sidebar-item cursor-pointer',
+                  reportsActive ? 'sidebar-item-active' : 'sidebar-item-inactive',
+                )}
+              >
+                <FileText size={16} />
+                <span className="flex-1">Reports</span>
+                {reportsExpanded ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronRight size={14} />
+                )}
+              </div>
+              {reportsExpanded && (
+                <div className="ml-5 pl-2 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
+                  <NavLink
+                    item={{
+                      href: `/audits/${auditId}/report`,
+                      label: 'AI Audit Report',
+                      icon: <FileText size={16} />,
+                    }}
+                  />
+                  <NavLink
+                    item={{
+                      label: 'Audit Report',
+                      icon: <FileText size={16} />,
+                      disabled: true,
+                    }}
+                  />
+                  <NavLink
+                    item={{
+                      label: 'Detailed POC Report',
+                      icon: <FlaskConical size={16} />,
+                      onClick: async () => {
+                        try {
+                          await downloadPocReport(auditId, auditName);
+                          toast.success('Report downloaded');
+                        } catch (err) {
+                          console.error('Failed to generate report:', err);
+                          toast.error('Failed to generate report');
+                        }
+                      },
+                    }}
+                  />
+                  <NavLink
+                    item={{
+                      label: 'POC Report',
+                      icon: <FlaskConical size={16} />,
+                      disabled: true,
+                    }}
+                  />
+                  <NavLink
+                    item={{
+                      label: 'Individual POC Report',
+                      icon: <FlaskConical size={16} />,
+                      disabled: true,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {auditNavBottom.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
           </>

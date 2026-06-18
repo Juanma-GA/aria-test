@@ -1,4 +1,5 @@
 import { computePocRoi } from './pocRoi';
+import { apiUrl } from './utils';
 
 /** Escape HTML special characters safely */
 function escapeHtml(text: string | undefined): string {
@@ -495,6 +496,29 @@ ${pocSections}
 </html>`;
 
   return { html, filename };
+}
+
+export async function downloadPocReport(
+  auditId: string,
+  auditName: string,
+  options?: { archived?: boolean },
+): Promise<void> {
+  const res = await fetch(
+    apiUrl(
+      `/api/pocs?auditId=${auditId}&include=mockups${options?.archived ? '&archived=true' : ''}`,
+    ),
+    { credentials: 'include' },
+  );
+  if (!res.ok) throw new Error('Failed to fetch POCs with mockups');
+  const pocsWithMockups = await res.json();
+  const { html, filename } = generatePocReportHtml(pocsWithMockups, auditName);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function generatePocSection(poc: any, pocNum: number): string {

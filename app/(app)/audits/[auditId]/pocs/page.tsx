@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Modal } from '@/components/ui/Modal';
 import { apiUrl } from '@/lib/utils';
 import { PocListTable, type GlobalPOC } from '@/components/pocs/PocListTable';
-import { generatePocReportHtml } from '@/lib/pocReport';
+import { downloadPocReport } from '@/lib/pocReport';
 
 
 export default function POCsPage() {
@@ -349,22 +349,7 @@ ${body}
 
   const handleDownloadHtmlReport = async () => {
     try {
-      // Fetch POCs with mockups for report (respects showArchived toggle like table)
-      const res = await fetch(
-        apiUrl(`/api/pocs?auditId=${auditId}&include=mockups${showArchived ? '&archived=true' : ''}`),
-        { credentials: 'include' }
-      );
-      if (!res.ok) throw new Error('Failed to fetch POCs with mockups');
-      const pocsWithMockups = await res.json();
-
-      const { html, filename } = generatePocReportHtml(pocsWithMockups, auditName);
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
+      await downloadPocReport(auditId, auditName, { archived: showArchived });
       toast.success('Report downloaded');
     } catch (err) {
       console.error('Failed to generate report:', err);
