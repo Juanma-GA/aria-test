@@ -174,6 +174,19 @@ export function generatePocReportHtml(pocs: any[], auditName: string): { html: s
       margin: 20px 0 12px 0;
       color: var(--ink-soft);
     }
+    .uc-roi-block {
+      margin: 16px 0;
+      padding: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+    .uc-roi-title {
+      font-family: var(--serif);
+      font-size: 1rem;
+      font-weight: 500;
+      margin: 0 0 12px 0;
+      color: var(--ink-soft);
+    }
     .exec-summary-table {
       width: 100%;
       border-collapse: collapse;
@@ -438,40 +451,117 @@ function generatePocDetailBlock(poc: any, num: number, auditName: string): strin
 function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, num: number): string {
   if (!assignedUCs.length) return '';
 
+  // Build a UC table per UC with per-activity, per-profile rows
+  const ucTables = assignedUCs.map((uc: any, ucIdx: number) => {
+    const isRef = !uc.isInstance;
+    const type = isRef ? 'Reference' : 'Instance';
+    const audit = isRef ? auditName : (uc.audit?.name ?? '—');
+
+    // Resolve process: reference uses POC's, instance uses its own
+    const process = isRef
+      ? (typeof uc.processId === 'object' ? uc.processId : null)
+      : uc.process;
+
+    if (!process) {
+      return `
+    <div class="uc-roi-block">
+      <h4 class="uc-roi-title">${type}: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+      <p style="color: var(--muted); margin-top: 8px;">Process not available.</p>
+    </div>
+      `;
+    }
+
+    // Filter activities by targetActivities
+    const targetActivityIds = new Set(uc.targetActivities ?? []);
+    const activitiesForUC = (process.b3?.activities ?? []).filter((a: any) =>
+      targetActivityIds.has(a.id)
+    );
+
+    if (!activitiesForUC.length) {
+      return `
+    <div class="uc-roi-block">
+      <h4 class="uc-roi-title">${type}: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+      <p style="color: var(--muted); margin-top: 8px;">No target steps defined.</p>
+    </div>
+      `;
+    }
+
+    // Build rows: activity × profileHours
+    const rows: any[] = [];
+    activitiesForUC.forEach((activity: any) => {
+      const profileHours = activity.profileHours ?? [];
+      if (profileHours.length === 0) {
+        rows.push({
+          step: activity.name,
+          profile: '—',
+          current: 0,
+          saved: 0,
+        });
+      } else {
+        profileHours.forEach((ph: any) => {
+          const saved =
+            uc.timeSavedPerProfile?.find((t: any) => t.profileId === ph.profileId)
+              ?.hoursPerExecution ?? 0;
+          rows.push({
+            step: activity.name,
+            profile: ph.role,
+            current: ph.hours,
+            saved,
+          });
+        });
+      }
+    });
+
+    const totalRows = rows.length;
+    const procName = process.procId ? `${process.procId} / ${process.name}` : process.name;
+    const implWeeks = uc.estimatedImplWeeks ?? 0;
+
+    const rowsHtml = rows
+      .map((row, idx) => {
+        let html = '<tr>';
+        // Process (rowspan on first row)
+        if (idx === 0) {
+          html += `<td rowspan="${totalRows}">${escapeHtml(procName)}</td>`;
+        }
+        html += `
+      <td>${escapeHtml(row.step)}</td>
+      <td>${escapeHtml(row.profile)}</td>
+      <td>${row.current}</td>
+      <td>${row.saved}</td>`;
+        // Impl. Time (rowspan on first row)
+        if (idx === 0) {
+          html += `<td rowspan="${totalRows}">${implWeeks}</td>`;
+        }
+        html += '</tr>';
+        return html;
+      })
+      .join('');
+
+    return `
+    <div class="uc-roi-block">
+      <h4 class="uc-roi-title">${type}: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+      <table class="roi-table" style="margin-top: 12px;">
+        <thead>
+          <tr>
+            <th>Process</th>
+            <th>Target Steps</th>
+            <th>Profiles</th>
+            <th>Current Hours/run</th>
+            <th>Saved Hours/run</th>
+            <th>Impl. Time (weeks)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    </div>
+    `;
+  }).join('');
+
   return `
     <h3>2.${num}.3 ROI Estimation Breakdown per Use Case</h3>
-    <table class="roi-table">
-      <thead>
-        <tr>
-          <th>Use Case ID</th>
-          <th>Description</th>
-          <th>Type</th>
-          <th>Audit</th>
-          <th>Impl. Time (weeks)</th>
-          <th>Net (€/yr)</th>
-          <th>Dev (€)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${roi.breakdown.map((item: any, idx: number) => {
-          const uc = assignedUCs[idx];
-          const isRef = !uc.isInstance;
-          const type = isRef ? 'Reference' : 'Instance';
-          const audit = isRef ? auditName : (uc.audit?.name ?? '—');
-          return `
-        <tr>
-          <td><code>${escapeHtml(item.cuId)}</code></td>
-          <td>${escapeHtml(uc.description ?? '—')}</td>
-          <td><span class="badge ${isRef ? 'badge-ref' : 'badge-inst'}">${type}</span></td>
-          <td>${escapeHtml(audit)}</td>
-          <td>${isRef ? (uc.estimatedImplWeeks ?? '—') : 0}</td>
-          <td>${formatEur(item.net)}</td>
-          <td>${formatEur(item.dev)} <small>${escapeHtml(item.devLabel)}</small></td>
-        </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
+    ${ucTables}
   `;
 }
 
