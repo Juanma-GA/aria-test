@@ -13,7 +13,6 @@ import {
   Map,
   FlaskConical,
   Factory,
-  Download,
   FileText,
   Settings,
   LogOut,
@@ -200,16 +199,6 @@ export function Sidebar() {
           href: `/audits/${auditId}/roadmap`,
           label: 'Roadmap',
           icon: <Map size={16} />,
-        },
-      ]
-    : [];
-
-  const auditNavBottom: NavItem[] = auditId
-    ? [
-        {
-          href: `/audits/${auditId}/export`,
-          label: 'Export',
-          icon: <Download size={16} />,
         },
       ]
     : [];
@@ -503,7 +492,7 @@ export function Sidebar() {
                     }}
                   />
                   <DownloadNavItem
-                    label="Detailed POC Report"
+                    label="POC Report"
                     icon={<FlaskConical size={16} />}
                     onRun={async () => {
                       try {
@@ -518,13 +507,6 @@ export function Sidebar() {
                   />
                   <NavLink
                     item={{
-                      label: 'POC Report',
-                      icon: <FlaskConical size={16} />,
-                      disabled: true,
-                    }}
-                  />
-                  <NavLink
-                    item={{
                       label: 'Individual POC Report',
                       icon: <FlaskConical size={16} />,
                       disabled: true,
@@ -533,10 +515,6 @@ export function Sidebar() {
                 </div>
               )}
             </div>
-
-            {auditNavBottom.map((item) => (
-              <NavLink key={item.href} item={item} />
-            ))}
           </>
         )}
       </nav>
