@@ -136,3 +136,141 @@ export function computePocRoi(assignedUCs: any[], process: any): RoiResult {
     hasData: grossSaving > 0,
   };
 }
+
+export interface UCRoiTableRow {
+  step: string;
+  profile: string;
+  current: number;
+  saved: number;
+}
+
+export interface UCRoiTableData {
+  type: 'Reference' | 'Instance';
+  isRef: boolean;
+  cuId: string;
+  description: string;
+  auditName: string;
+  status: 'ok' | 'no_process' | 'no_steps';
+  procName: string;
+  implWeeks: number;
+  rows: UCRoiTableRow[];
+}
+
+export function computeUCRoiTableData(
+  assignedUCs: any[],
+  auditName: string,
+  pocProcess: any,
+): UCRoiTableData[] {
+  return (assignedUCs ?? []).map((uc: any) => {
+    const isRef = !uc.isInstance;
+    const type: 'Reference' | 'Instance' = isRef ? 'Reference' : 'Instance';
+    const audit = isRef ? auditName : (uc.audit?.name ?? '—');
+    const process = isRef ? pocProcess : uc.process;
+
+    if (!process) {
+      return {
+        type,
+        isRef,
+        cuId: uc.cuId,
+        description: uc.description || '—',
+        auditName: audit,
+        status: 'no_process',
+        procName: '',
+        implWeeks: 0,
+        rows: [],
+      };
+    }
+
+    const targetActivityIds = new Set(uc.targetActivities ?? []);
+    const activitiesForUC = (process.b3?.activities ?? []).filter((a: any) =>
+      targetActivityIds.has(a.id),
+    );
+
+    if (!activitiesForUC.length) {
+      return {
+        type,
+        isRef,
+        cuId: uc.cuId,
+        description: uc.description || '—',
+        auditName: audit,
+        status: 'no_steps',
+        procName: '',
+        implWeeks: 0,
+        rows: [],
+      };
+    }
+
+    // Build rows: activity × profileHours
+    const rows: any[] = [];
+    activitiesForUC.forEach((activity: any) => {
+      const profileHours = activity.profileHours ?? [];
+      if (profileHours.length === 0) {
+        rows.push({
+          step: activity.name,
+          profile: '—',
+          current: 0,
+          saved: 0,
+        });
+      } else {
+        profileHours.forEach((ph: any) => {
+          rows.push({
+            step: activity.name,
+            profile: ph.role,
+            current: ph.hours,
+            profileId: ph.profileId,
+          });
+        });
+      }
+    });
+
+    // Distribute saved hours proportionally by current hours within each profile group
+    const profileGroups: Record<string, (typeof rows)> = {};
+    rows.forEach(row => {
+      if (row.profileId) {
+        if (!profileGroups[row.profileId]) profileGroups[row.profileId] = [];
+        profileGroups[row.profileId].push(row);
+      }
+    });
+
+    rows.forEach(row => {
+      if (!row.profileId) {
+        row.saved = 0;
+        return;
+      }
+      const totalProfile =
+        uc.timeSavedPerProfile?.find((t: any) => t.profileId === row.profileId)
+          ?.hoursPerExecution ?? 0;
+      const groupRows = profileGroups[row.profileId];
+      const sumCurrent = groupRows.reduce((s: number, r: any) => s + r.current, 0);
+      row.saved =
+        sumCurrent > 0
+          ? Math.round((totalProfile * (row.current / sumCurrent)) * 10) / 10
+          : totalProfile / groupRows.length;
+      delete row.profileId;
+    });
+
+    const procName = process.procId
+      ? `${process.procId} / ${process.name}`
+      : process.name;
+    let implWeeks;
+    if (uc.isInstance) {
+      const rate = uc.devRateEur ?? 450;
+      const addCost = uc.additionalDevCostEur ?? 0;
+      implWeeks = rate > 0 ? Math.round((addCost / rate / 5) * 10) / 10 : 0;
+    } else {
+      implWeeks = uc.estimatedImplWeeks ?? 0;
+    }
+
+    return {
+      type,
+      isRef,
+      cuId: uc.cuId,
+      description: uc.description || '—',
+      auditName: audit,
+      status: 'ok',
+      procName,
+      implWeeks,
+      rows: rows as UCRoiTableRow[],
+    };
+  });
+}

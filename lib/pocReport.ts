@@ -1,4 +1,4 @@
-import { computePocRoi } from './pocRoi';
+import { computePocRoi, computeUCRoiTableData } from './pocRoi';
 import { apiUrl } from './utils';
 
 /** Escape HTML special characters safely */
@@ -576,125 +576,43 @@ function generatePocDetailBlock(poc: any, num: number, auditName: string, opts?:
 function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, num: number, pocProcess: any, opts?: { individual?: boolean }): string {
   if (!assignedUCs.length) return '';
 
-  // Build a UC table per UC with per-activity, per-profile rows
-  const ucTables = assignedUCs.map((uc: any, ucIdx: number) => {
-    const isRef = !uc.isInstance;
-    const type = isRef ? 'Reference' : 'Instance';
-    const audit = isRef ? auditName : (uc.audit?.name ?? '—');
-
-    // Resolve process: reference uses POC's, instance uses its own
-    const process = isRef
-      ? pocProcess
-      : uc.process;
-
-    if (!process) {
-      return `
-    <div class="uc-roi-block uc-roi-block--${isRef ? 'ref' : 'inst'}">
-      <h4 class="uc-roi-title"><span class="uc-type-${isRef ? 'ref' : 'inst'}">${type}</span>: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+  const ucData = computeUCRoiTableData(assignedUCs, auditName, pocProcess);
+  const ucTables = ucData
+    .map((d) => {
+      if (d.status === 'no_process') {
+        return `
+    <div class="uc-roi-block uc-roi-block--${d.isRef ? 'ref' : 'inst'}">
+      <h4 class="uc-roi-title"><span class="uc-type-${d.isRef ? 'ref' : 'inst'}">${d.type}</span>: ${escapeHtml(d.cuId)} – ${escapeHtml(d.description)} from ${escapeHtml(d.auditName)}</h4>
       <p style="color: var(--muted); margin-top: 8px;">Process not available.</p>
     </div>
       `;
-    }
-
-    // Filter activities by targetActivities
-    const targetActivityIds = new Set(uc.targetActivities ?? []);
-    const activitiesForUC = (process.b3?.activities ?? []).filter((a: any) =>
-      targetActivityIds.has(a.id)
-    );
-
-    if (!activitiesForUC.length) {
-      return `
-    <div class="uc-roi-block uc-roi-block--${isRef ? 'ref' : 'inst'}">
-      <h4 class="uc-roi-title"><span class="uc-type-${isRef ? 'ref' : 'inst'}">${type}</span>: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+      }
+      if (d.status === 'no_steps') {
+        return `
+    <div class="uc-roi-block uc-roi-block--${d.isRef ? 'ref' : 'inst'}">
+      <h4 class="uc-roi-title"><span class="uc-type-${d.isRef ? 'ref' : 'inst'}">${d.type}</span>: ${escapeHtml(d.cuId)} – ${escapeHtml(d.description)} from ${escapeHtml(d.auditName)}</h4>
       <p style="color: var(--muted); margin-top: 8px;">No target steps defined.</p>
     </div>
       `;
-    }
-
-    // Build rows: activity × profileHours
-    const rows: any[] = [];
-    activitiesForUC.forEach((activity: any) => {
-      const profileHours = activity.profileHours ?? [];
-      if (profileHours.length === 0) {
-        rows.push({
-          step: activity.name,
-          profile: '—',
-          current: 0,
-          saved: 0,
-        });
-      } else {
-        profileHours.forEach((ph: any) => {
-          rows.push({
-            step: activity.name,
-            profile: ph.role,
-            current: ph.hours,
-            profileId: ph.profileId,
-          });
-        });
       }
-    });
-
-    // Distribute saved hours proportionally by current hours within each profile group
-    const profileGroups: Record<string, (typeof rows)> = {};
-    rows.forEach(row => {
-      if (row.profileId) {
-        if (!profileGroups[row.profileId]) profileGroups[row.profileId] = [];
-        profileGroups[row.profileId].push(row);
-      }
-    });
-
-    rows.forEach(row => {
-      if (!row.profileId) {
-        row.saved = 0;
-        return;
-      }
-      const totalProfile =
-        uc.timeSavedPerProfile?.find((t: any) => t.profileId === row.profileId)
-          ?.hoursPerExecution ?? 0;
-      const groupRows = profileGroups[row.profileId];
-      const sumCurrent = groupRows.reduce((s: number, r: any) => s + r.current, 0);
-      row.saved =
-        sumCurrent > 0
-          ? Math.round((totalProfile * (row.current / sumCurrent)) * 10) / 10
-          : totalProfile / groupRows.length;
-      delete row.profileId;
-    });
-
-    const totalRows = rows.length;
-    const procName = process.procId ? `${process.procId} / ${process.name}` : process.name;
-    let implWeeks;
-    if (uc.isInstance) {
-      const rate = uc.devRateEur ?? 450;
-      const addCost = uc.additionalDevCostEur ?? 0;
-      implWeeks = rate > 0 ? Math.round((addCost / rate / 5) * 10) / 10 : 0;
-    } else {
-      implWeeks = uc.estimatedImplWeeks ?? 0;
-    }
-
-    const rowsHtml = rows
-      .map((row, idx) => {
-        let html = '<tr>';
-        // Process (rowspan on first row)
-        if (idx === 0) {
-          html += `<td rowspan="${totalRows}">${escapeHtml(procName)}</td>`;
-        }
-        html += `
+      const totalRows = d.rows.length;
+      const rowsHtml = d.rows
+        .map((row, idx) => {
+          let html = '<tr>';
+          if (idx === 0) html += `<td rowspan="${totalRows}">${escapeHtml(d.procName)}</td>`;
+          html += `
       <td>${escapeHtml(row.step)}</td>
       <td>${escapeHtml(row.profile)}</td>
       <td>${row.current}</td>
       <td>${row.saved}</td>`;
-        // Impl. Time (rowspan on first row)
-        if (idx === 0) {
-          html += `<td rowspan="${totalRows}">${implWeeks}</td>`;
-        }
-        html += '</tr>';
-        return html;
-      })
-      .join('');
-
-    return `
-    <div class="uc-roi-block uc-roi-block--${isRef ? 'ref' : 'inst'}">
-      <h4 class="uc-roi-title"><span class="uc-type-${isRef ? 'ref' : 'inst'}">${type}</span>: ${escapeHtml(uc.cuId)} – ${escapeHtml(uc.description || '—')} from ${escapeHtml(audit)}</h4>
+          if (idx === 0) html += `<td rowspan="${totalRows}">${d.implWeeks}</td>`;
+          html += '</tr>';
+          return html;
+        })
+        .join('');
+      return `
+    <div class="uc-roi-block uc-roi-block--${d.isRef ? 'ref' : 'inst'}">
+      <h4 class="uc-roi-title"><span class="uc-type-${d.isRef ? 'ref' : 'inst'}">${d.type}</span>: ${escapeHtml(d.cuId)} – ${escapeHtml(d.description)} from ${escapeHtml(d.auditName)}</h4>
       <table class="roi-table" style="margin-top: 12px;">
         <thead>
           <tr>
@@ -712,7 +630,8 @@ function generateRoiTableBlock(roi: any, assignedUCs: any[], auditName: string, 
       </table>
     </div>
     `;
-  }).join('');
+    })
+    .join('');
 
   const headingNumber = opts?.individual ? '2.3' : `2.${num}.3`;
   return `
