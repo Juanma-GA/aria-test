@@ -591,5 +591,119 @@ ${ucLines || '  (none identified)'}`;
     indDetail,
     indStatusSummary,
     pocLines,
+    processCount: processes.length,
+    indCount: industrializations.length,
   };
+}
+
+// ─── Deterministic markdown builder (no LLM) ───────────────────────────────────
+
+export function buildDeterministicReportMarkdown(
+  audit: any,
+  data: ReturnType<typeof computeAuditReportData>,
+): string {
+  const {
+    totalPeople, totalAnnualHours, totalAnnualCostEur, eligibleUCs,
+    totalDevCost, netAnnualSaving, paybackMonths, pocActive, pocClosed, pocGo,
+    indWip, indAtRun, totalIndOneTime, totalIndRecurring,
+    totalIndExpectedSaving, totalIndConfirmedSaving, avgSovIndex, sovLevelLabel,
+    sovereigntyTableRows, ucRequiresClientIT, processSections, ucTableRows,
+    totalAnnualSaving, totalComputeCostEur, computeTableRows, pocLines,
+    indTableRows, indDetail,
+  } = data;
+
+  return `# Audit Report — ${audit.name}
+*Generated: ${fmt(new Date())} | Tool: ARIA v2 | Deterministic data report*
+
+---
+
+## 0. Project Fact Sheet
+
+| Field | Value |
+|-------|-------|
+| Client | ${audit.client} |
+| Sector | ${audit.sector} |
+| Project | ${audit.project || '—'} |
+| Audit period | ${fmt(audit.startDate)} → ${fmt(audit.targetEndDate)} |
+| Processes audited | ${data.processCount} |
+| People impacted | ${totalPeople} |
+| Total hours in scope | ${Math.round(totalAnnualHours)}h |
+| Annual labour cost | ${fmtEur(totalAnnualCostEur)} |
+| Eligible use cases | ${eligibleUCs.length} |
+| Total dev investment | ${fmtEur(totalDevCost)} |
+| Projected net saving/yr | ${fmtEur(netAnnualSaving)} |
+| Overall payback | ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'} |
+| POCs | ${pocActive + pocClosed} (${pocActive} active, ${pocClosed} closed, ${pocGo} GO) |
+| Industrializations | ${data.indCount} (${indWip} WIP, ${indAtRun} go-for-run) |
+| Industrialization investment | one-time ${fmtEur(totalIndOneTime)} + ${fmtEur(totalIndRecurring)}/yr |
+| Sovereignty level | ${sovLevelLabel} (${avgSovIndex.toFixed(1)}/5) |
+
+---
+
+## 1. Sovereignty Assessment
+
+Average index: ${avgSovIndex.toFixed(1)}/5 — Level: ${sovLevelLabel}
+Use cases requiring Client IT approval: ${ucRequiresClientIT}
+
+| Axis | ✅ Green | 🟡 Amber | 🔴 Red |
+|------|---------|---------|--------|
+${sovereigntyTableRows}
+
+---
+
+## 2. Process Detail
+
+${processSections}
+
+---
+
+## 3. Use Case Ranking
+
+| ID | Description | AI Types | Score/30 | Category | Saving/yr | Dev Cost | Payback | Status |
+|----|-------------|----------|----------|----------|-----------|----------|---------|--------|
+${ucTableRows || '| — | No use cases | — | — | — | — | — | — | — |'}
+
+---
+
+## 4. ROI & Compute
+
+| Metric | Value |
+|--------|-------|
+| Gross annual saving | ${fmtEur(totalAnnualSaving)} |
+| Annual compute cost | ${fmtEur(totalComputeCostEur)} |
+| Net annual saving | ${fmtEur(netAnnualSaving)} |
+| Total dev investment | ${fmtEur(totalDevCost)} |
+| Overall payback | ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'} |
+
+| UC ID | Deployment | Annual Executions | Estimated Cost/yr |
+|-------|-----------|-------------------|-------------------|
+${computeTableRows || '| — | — | — | — |'}
+
+---
+
+## 5. POC Status
+
+${pocLines || 'No POCs recorded.'}
+
+---
+
+## 6. Industrialization Portfolio
+
+| IND ID | Name | POC | UC | Process | Status | Owner | Target Go-Live | One-time | Recurring | Expected saving | Payback | Progress |
+|--------|------|-----|----|---------|--------|-------|----------------|----------|-----------|-----------------|---------|----------|
+${indTableRows || '| — | No industrializations | — | — | — | — | — | — | — | — | — | — | — |'}
+
+${indDetail || 'No industrializations recorded.'}
+
+| Metric | Value |
+|--------|-------|
+| Total one-time investment | ${fmtEur(totalIndOneTime)} |
+| Total recurring cost / yr | ${fmtEur(totalIndRecurring)} |
+| Expected annual saving (sum) | ${fmtEur(totalIndExpectedSaving)} |
+| Confirmed annual saving (sum) | ${fmtEur(totalIndConfirmedSaving)} |
+| Industrializations at run | ${indAtRun} |
+
+---
+END OF REPORT
+`;
 }

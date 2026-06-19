@@ -364,8 +364,8 @@ export function Sidebar() {
                   />
                   <NavLink
                     item={{
+                      href: `/audits/${auditId}/report-data`,
                       label: 'Audit Report',
-                      disabled: true,
                     }}
                   />
                   <DownloadNavItem
