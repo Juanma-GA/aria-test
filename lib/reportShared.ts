@@ -410,6 +410,19 @@ export const REPORT_STYLES = `
     }
     .sov-finding.amber::before { background: var(--accent-2); }
     .sov-finding.red::before { background: var(--bad); }
+    .section-title { margin-top: 40px; }
+    .proc-context { margin: 12px 0 16px 0; padding-left: 16px; border-left: 2px solid var(--line); }
+    .proc-context .pc-line { font-size: 0.86rem; color: var(--ink-soft); margin: 3px 0; }
+    .proc-context .pc-key { font-weight: 600; color: var(--ink); }
+    .proc-context .pc-block-title { font-family: var(--serif); font-weight: 600; color: var(--ink); margin: 14px 0 6px 0; font-size: 0.98rem; }
+    .proc-context .pc-sublist { margin: 2px 0 2px 14px; }
+    .act-table { width: 100%; border-collapse: collapse; margin: 14px 0 8px 0; font-size: 0.82rem; }
+    .act-table th { background: var(--accent); color: #fff; font-family: var(--sans); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; padding: 9px 12px; text-align: left; }
+    .act-table td { font-family: var(--sans); padding: 9px 12px; color: var(--ink-soft); border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+    .act-table tr:last-child td { border-bottom: none; }
+    .act-table .step-name { font-family: var(--serif); font-weight: 500; color: var(--ink); }
+    .act-table .num { font-family: var(--mono); text-align: center; width: 130px; }
+    .act-table .tools { color: var(--muted); font-size: 0.8rem; }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }

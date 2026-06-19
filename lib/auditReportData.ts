@@ -188,7 +188,7 @@ export function computeAuditReportData(
     for (const act of activities) {
       const hrs = act.estimatedTimeHours ?? 0;
       const stepReps = act.stepRepetitions ?? 1;
-      totalAnnualHours += hrs * stepReps * annualReps;
+      totalAnnualHours += hrs * annualReps;
       for (const ph of act.profileHours ?? []) {
         const profile = profiles.find((pr: any) => pr.id === ph.profileId);
         totalAnnualCostEur +=

@@ -117,7 +117,7 @@ export function generateAuditReportHtml(
       <div class="fact-card"><span class="fact-label">Use cases by status</span><span class="fact-value">${data.eligibleUCs.length} eligible · ${data.inPocUCs.length} in-poc · ${data.discardedUCs.length} discarded</span></div>
       <div class="fact-card"><span class="fact-label">POCs</span><span class="fact-value">${enrichedPocs.length}</span></div>
     </div>
-    <p class="fact-note">Total annual hours in scope = Σ, per process and activity, of estimatedTimeHours × stepRepetitions × annual repetitions.<br>Annual labour cost = Σ, per profile, of profile hours × stepRepetitions × annual repetitions × hourly rate.</p>
+    <p class="fact-note">Total annual hours in scope = Σ, per process and activity, of estimated time per activity (already includes step repetitions) × annual repetitions.<br>Annual labour cost = Σ, per profile, of profile hours × stepRepetitions × annual repetitions × hourly rate.</p>
 
     <h2 class="section-title">2 - Sovereignty Assessment</h2>
     <p><strong>Average index:</strong> ${data.avgSovIndex.toFixed(1)}/5 — Level: ${escapeHtml(data.sovLevelLabel)}</p>
@@ -178,19 +178,19 @@ export function generateAuditReportHtml(
       const norms = (p?.applicableNorms ?? []).filter(Boolean);
       const activities = p?.b3?.activities ?? [];
       const annualReps = p?.b3?.annualRepetitions ?? 0;
-      const hoursPerRun = activities.reduce((s: number, a: any) => s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1), 0);
+      const hoursPerRun = activities.reduce((s: number, a: any) => s + (a.estimatedTimeHours ?? 0), 0);
       const totalHrsYear = hoursPerRun * annualReps;
 
       // Activity Map: per activity, one row per profileHour (rowspan in Target Steps and Tools)
       const activityRows = activities.map((a: any) => {
         const phs = a.profileHours ?? [];
         const tools = (a.tools ?? []).filter(Boolean).join(', ') || '—';
-        if (!phs.length) return `<tr><td>${escapeHtml(a.name)}</td><td>—</td><td>0</td><td>${escapeHtml(tools)}</td></tr>`;
+        if (!phs.length) return `<tr><td class="step-name">${escapeHtml(a.name)}</td><td>—</td><td class="num">0</td><td class="tools">${escapeHtml(tools)}</td></tr>`;
         return phs.map((ph: any, idx: number) => {
           let row = '<tr>';
-          if (idx === 0) row += `<td rowspan="${phs.length}">${escapeHtml(a.name)}</td>`;
-          row += `<td>${escapeHtml(ph.role)}</td><td>${ph.hours ?? 0}</td>`;
-          if (idx === 0) row += `<td rowspan="${phs.length}">${escapeHtml(tools)}</td>`;
+          if (idx === 0) row += `<td rowspan="${phs.length}" class="step-name">${escapeHtml(a.name)}</td>`;
+          row += `<td>${escapeHtml(ph.role)}</td><td class="num">${ph.hours ?? 0}</td>`;
+          if (idx === 0) row += `<td rowspan="${phs.length}" class="tools">${escapeHtml(tools)}</td>`;
           return row + '</tr>';
         }).join('');
       }).join('');
@@ -202,17 +202,21 @@ export function generateAuditReportHtml(
       return `
       <div class="poc-block">
         <h3>${escapeHtml(p.procId)} — ${escapeHtml(p.name)}</h3>
-        <p><strong>Context</strong><br>
-        Responsibles: ${escapeHtml(p?.b1?.clientResponsible || '—')} (Client), ${escapeHtml(p?.b1?.technicalDirectorResponsible || '—')} (Tech Director)<br>
-        Department: ${escapeHtml(p?.b1?.clientDepartment || p?.department || '—')}<br>
-        Profiles:<br>${profilesHtml}<br>
-        Applicable Norms: ${norms.length ? escapeHtml(norms.join(', ')) : '—'}</p>
-        <p><strong>Process Map</strong><br>
-        Repetitions/year: ${annualReps}<br>
-        Hours/run: ${Math.round(hoursPerRun)}<br>
-        Total hours/year: ${Math.round(totalHrsYear).toLocaleString('de-DE')}</p>
-        <table class="roi-table">
-          <thead><tr><th>Target Steps</th><th>Profiles</th><th>Current Hours/run</th><th>Tools</th></tr></thead>
+        <div class="proc-context">
+          <div class="pc-block-title">Context</div>
+          <div class="pc-line"><span class="pc-key">Responsibles:</span> ${escapeHtml(p?.b1?.clientResponsible || '—')} (Client), ${escapeHtml(p?.b1?.technicalDirectorResponsible || '—')} (Tech Director)</div>
+          <div class="pc-line"><span class="pc-key">Department:</span> ${escapeHtml(p?.b1?.clientDepartment || p?.department || '—')}</div>
+          <div class="pc-line"><span class="pc-key">Profiles:</span></div>
+          <div class="pc-sublist">${profiles.length ? profiles.map((pr: any) => `<div class="pc-line">${escapeHtml(pr.role)} (×${pr.count ?? 0}, €${pr.hourlyRateEur ?? 0}/h)</div>`).join('') : '<div class="pc-line">—</div>'}</div>
+          <div class="pc-line"><span class="pc-key">Applicable Norms:</span> ${norms.length ? escapeHtml(norms.join(', ')) : '—'}</div>
+
+          <div class="pc-block-title">Process Map</div>
+          <div class="pc-line"><span class="pc-key">Repetitions/year:</span> ${annualReps}</div>
+          <div class="pc-line"><span class="pc-key">Hours/run:</span> ${Math.round(hoursPerRun)}</div>
+          <div class="pc-line"><span class="pc-key">Total hours/year:</span> ${Math.round(totalHrsYear).toLocaleString('de-DE')}</div>
+        </div>
+        <table class="act-table">
+          <thead><tr><th>Target Steps</th><th>Profiles</th><th class="num">Current Hours/run</th><th>Tools</th></tr></thead>
           <tbody>${activityRows || '<tr><td colspan="4">—</td></tr>'}</tbody>
         </table>
         <h4 style="font-family:var(--serif);margin-top:16px">Use cases</h4>
