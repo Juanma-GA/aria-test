@@ -318,20 +318,6 @@ export function Sidebar() {
               </span>
             </div>
 
-            {/* Audit dashboard + expandable processes */}
-            <Link
-              href={`/audits/${auditId}`}
-              className={clsx(
-                'sidebar-item',
-                pathname === `/audits/${auditId}`
-                  ? 'sidebar-item-active'
-                  : 'sidebar-item-inactive',
-              )}
-            >
-              <LayoutDashboard size={16} />
-              <span className="flex-1">Dashboard</span>
-            </Link>
-
             <div className="px-3 pt-2 pb-0.5">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
                 <GitBranch size={10} /> Processes
