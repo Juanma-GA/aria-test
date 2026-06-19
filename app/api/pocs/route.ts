@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
 
     const pocs = await query
-      .populate('processId', 'procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours')
+      .populate('processId', 'procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours b3.activities.stepRepetitions')
       .sort({ createdAt: -1 })
       .lean();
 

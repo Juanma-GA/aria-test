@@ -23,7 +23,7 @@ export async function GET(
         Process.find({ auditId: params.auditId }).lean(),
         UseCase.find({ auditId: params.auditId }).lean(),
         POC.find({ auditId: params.auditId })
-          .populate('processId', 'procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours')
+          .populate('processId', 'procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours b3.activities.stepRepetitions')
           .lean(),
         Industrialization.find({ auditId: params.auditId })
           .populate('useCaseId', 'cuId description')

@@ -52,7 +52,7 @@ export async function enrichPocs(pocs: any[]): Promise<any[]> {
 
     const instProcessIds = [...new Set(instanceUCs.map(u => String(u.processId)).filter(Boolean))];
     const instProcesses = await Process.find({ _id: { $in: instProcessIds } })
-      .select('_id procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours')
+      .select('_id procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours b3.activities.stepRepetitions')
       .lean() as any[];
     instanceProcessMap = new Map(instProcesses.map(pr => [String(pr._id), pr]));
   }
