@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC, Industrialization } from '@/lib/models';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
-import { computeAuditReportData, buildDeterministicReportMarkdown } from '@/lib/auditReportData';
+import { computeAuditReportData } from '@/lib/auditReportData';
+import { generateAuditReportHtml } from '@/lib/auditReport';
 import { enrichPocs } from '@/lib/pocEnrichment';
 import { computePocRoi } from '@/lib/pocRoi';
 
@@ -49,12 +50,11 @@ export async function GET(
       return proc && assignedUCs.length > 0 ? computePocRoi(assignedUCs, proc) : null;
     });
 
-    const markdown = buildDeterministicReportMarkdown(audit, data, enrichedPocs, pocRois);
+    const { html, filename } = generateAuditReportHtml(
+      audit, data, processes as any[], useCases as any[], enrichedPocs, pocRois,
+    );
 
-    return NextResponse.json({
-      markdown,
-      generatedAt: new Date().toISOString(),
-    });
+    return NextResponse.json({ html, filename });
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(

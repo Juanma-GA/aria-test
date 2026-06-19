@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/Spinner';
 import { apiUrl } from '@/lib/utils';
 import { downloadPocReport, downloadIndividualPocReport } from '@/lib/pocReport';
+import { downloadAuditReport } from '@/lib/auditReport';
 import { toast } from 'sonner';
 import {
   LayoutDashboard,
@@ -362,10 +363,17 @@ export function Sidebar() {
                       label: 'AI Audit Report',
                     }}
                   />
-                  <NavLink
-                    item={{
-                      href: `/audits/${auditId}/report-data`,
-                      label: 'Audit Report',
+                  <DownloadNavItem
+                    label="Audit Report"
+                    onRun={async () => {
+                      try {
+                        await downloadAuditReport(auditId);
+                        toast.success('Report downloaded');
+                      } catch (err) {
+                        console.error('Failed to generate report:', err);
+                        toast.error('Failed to generate report');
+                        throw err;
+                      }
                     }}
                   />
                   <DownloadNavItem

@@ -1,6 +1,7 @@
 import { REPORT_STYLES, escapeHtml, formatEur, slugify } from './reportShared';
 import { computeUCRoiTableData } from './pocRoi';
 import { computeAuditReportData } from './auditReportData';
+import { apiUrl } from './utils';
 
 const AXIS_LABELS: Record<string, string> = {
   axis1_InfoClassification: 'Info Classification',
@@ -227,4 +228,19 @@ export function generateAuditReportHtml(
 </html>`;
 
   return { html, filename };
+}
+
+export async function downloadAuditReport(auditId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/audits/${auditId}/report-data`), {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch audit report');
+  const { html, filename } = await res.json();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || 'audit-report.html';
+  link.click();
+  URL.revokeObjectURL(url);
 }
