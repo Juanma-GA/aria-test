@@ -112,7 +112,7 @@ export function generateAuditReportHtml(
       <div class="fact-card"><span class="fact-label">Audit period</span><span class="fact-value">${audit.startDate ? new Date(audit.startDate).toLocaleDateString('en-GB') : '—'} → ${audit.targetEndDate ? new Date(audit.targetEndDate).toLocaleDateString('en-GB') : '—'}</span></div>
       <div class="fact-card"><span class="fact-label">Processes audited</span><span class="fact-value">${data.processCount}</span></div>
       <div class="fact-card"><span class="fact-label">People impacted</span><span class="fact-value">${data.totalPeople}</span></div>
-      <div class="fact-card"><span class="fact-label">Total annual hours in scope</span><span class="fact-value">${Math.round(data.totalAnnualHours)}h</span></div>
+      <div class="fact-card"><span class="fact-label">Total annual hours in scope</span><span class="fact-value">${Math.round(data.totalAnnualHours).toLocaleString('de-DE')}h</span></div>
       <div class="fact-card"><span class="fact-label">Annual labour cost</span><span class="fact-value">${formatEur(data.totalAnnualCostEur)}</span></div>
       <div class="fact-card"><span class="fact-label">Use cases by status</span><span class="fact-value">${data.eligibleUCs.length} eligible · ${data.inPocUCs.length} in-poc · ${data.discardedUCs.length} discarded</span></div>
       <div class="fact-card"><span class="fact-label">POCs</span><span class="fact-value">${enrichedPocs.length}</span></div>
@@ -120,35 +120,54 @@ export function generateAuditReportHtml(
     <p class="fact-note">Total annual hours in scope = Σ, per process and activity, of estimatedTimeHours × stepRepetitions × annual repetitions.<br>Annual labour cost = Σ, per profile, of profile hours × stepRepetitions × annual repetitions × hourly rate.</p>
 
     <h2 class="section-title">2 - Sovereignty Assessment</h2>
-    <p>Average index: ${data.avgSovIndex.toFixed(1)}/5 — Level: ${escapeHtml(data.sovLevelLabel)}</p>
-    <p>Use cases requiring Client IT approval: ${data.ucRequiresClientIT}</p>
-    <table class="roi-table">
+    <p><strong>Average index:</strong> ${data.avgSovIndex.toFixed(1)}/5 — Level: ${escapeHtml(data.sovLevelLabel)}</p>
+    <p><strong>Use cases requiring Client IT approval:</strong> ${data.ucRequiresClientIT}</p>
+    ${(() => {
+      const axes = Object.keys(AXIS_LABELS).map((key: string) => {
+        const label = AXIS_LABELS[key];
+        let g = 0, a = 0, r = 0;
+        const amberF: string[] = [];
+        const redF: string[] = [];
+        for (const p of processes) {
+          const ax = p?.b2?.axes?.[key as keyof typeof AXIS_LABELS];
+          if (!ax) continue;
+          if (ax.status === 'green') g++;
+          else if (ax.status === 'amber') { a++; if (ax.findings) amberF.push(ax.findings); }
+          else if (ax.status === 'red') { r++; if (ax.findings) redF.push(ax.findings); }
+        }
+        return { label, g, a, r, amberF, redF };
+      });
+
+      const chip = (n: number, cls: string) =>
+        `<span class="sov-chip ${n > 0 ? cls : 'zero'}">${n}</span>`;
+
+      const rows = axes.map(ax =>
+        `<tr>
+          <td class="axis-name">${ax.label}</td>
+          <td class="num">${chip(ax.g, 'green')}</td>
+          <td class="num">${chip(ax.a, 'amber')}</td>
+          <td class="num">${chip(ax.r, 'red')}</td>
+        </tr>`).join('');
+
+      const findingsBlocks = axes
+        .filter(ax => ax.amberF.length || ax.redF.length)
+        .map(ax => {
+          const items = [
+            ...ax.redF.map(f => `<div class="sov-finding red">${escapeHtml(f)}</div>`),
+            ...ax.amberF.map(f => `<div class="sov-finding amber">${escapeHtml(f)}</div>`),
+          ].join('');
+          return `<div class="sov-findings-axis">${ax.label}</div>${items}`;
+        }).join('');
+
+      return `
+    <table class="sov-table">
       <thead><tr>
-        <th>Axis</th><th>✅ Green</th><th>🟡 Amber</th><th>Amber Findings</th><th>🔴 Red</th><th>Red Findings</th>
+        <th>Axis</th><th class="num">✅ Green</th><th class="num">🟡 Amber</th><th class="num">🔴 Red</th>
       </tr></thead>
-      <tbody>
-        ${Object.keys(AXIS_LABELS).map((key: string) => {
-          const label = AXIS_LABELS[key];
-          let g = 0, a = 0, r = 0;
-          const amberF: string[] = [];
-          const redF: string[] = [];
-          for (const p of processes) {
-            const ax = p?.b2?.axes?.[key as keyof typeof AXIS_LABELS];
-            if (!ax) continue;
-            if (ax.status === 'green') g++;
-            else if (ax.status === 'amber') {
-              a++;
-              if (ax.findings) amberF.push(ax.findings);
-            } else if (ax.status === 'red') {
-              r++;
-              if (ax.findings) redF.push(ax.findings);
-            }
-          }
-          const fmtF = (arr: string[]) => arr.length ? arr.map((f, i) => `Finding ${i + 1}: ${escapeHtml(f)}`).join('<br>') : '';
-          return `<tr><td>${label}</td><td>${g}</td><td>${a}</td><td>${fmtF(amberF)}</td><td>${r}</td><td>${fmtF(redF)}</td></tr>`;
-        }).join('')}
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>
+    ${findingsBlocks ? `<div class="sov-findings"><div class="sov-findings-axis" style="border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px">Findings</div>${findingsBlocks}</div>` : ''}`;
+    })()}
 
     <h2 class="section-title">3 - Process Detail</h2>
     ${processes.map((p: any) => {

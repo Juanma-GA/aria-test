@@ -340,9 +340,76 @@ export const REPORT_STYLES = `
       font-size: 0.72rem;
       color: var(--muted);
       font-style: italic;
-      margin: 4px 0 0 0;
+      margin: 4px 0 28px 0;
       line-height: 1.5;
     }
+    .sov-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.82rem;
+    }
+    .sov-table th {
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--sans);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    .sov-table th.num, .sov-table td.num { text-align: center; width: 90px; }
+    .sov-table td {
+      font-family: var(--sans);
+      padding: 10px 12px;
+      color: var(--ink-soft);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .sov-table tr:last-child td { border-bottom: none; }
+    .sov-table .axis-name { font-family: var(--serif); font-weight: 500; color: var(--ink); }
+    .sov-chip {
+      display: inline-block;
+      min-width: 26px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .sov-chip.zero { color: var(--faint); background: var(--surface-2); }
+    .sov-chip.green { color: #fff; background: var(--good); }
+    .sov-chip.amber { color: #fff; background: var(--accent-2); }
+    .sov-chip.red { color: #fff; background: var(--bad); }
+    .sov-findings { margin: 20px 0 0 0; }
+    .sov-findings-axis {
+      font-family: var(--serif);
+      font-weight: 600;
+      color: var(--ink);
+      margin: 16px 0 8px 0;
+      font-size: 0.95rem;
+    }
+    .sov-finding {
+      position: relative;
+      padding-left: 18px;
+      margin: 6px 0;
+      font-size: 0.84rem;
+      color: var(--ink-soft);
+      line-height: 1.55;
+    }
+    .sov-finding::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 7px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .sov-finding.amber::before { background: var(--accent-2); }
+    .sov-finding.red::before { background: var(--bad); }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }
