@@ -14,7 +14,8 @@ const AXIS_LABELS: Record<string, string> = {
 function renderUCRoiTable(ucs: any[], process: any): string {
   if (!ucs.length) return '<p style="color: var(--muted);">No use cases.</p>';
 
-  const ucData = computeUCRoiTableData(ucs, '', process);
+  const ucsWithProcess = ucs.map((uc: any) => ({ ...uc, process }));
+  const ucData = computeUCRoiTableData(ucsWithProcess, '', process);
   const ucTables = ucData
     .map((d) => {
       if (d.status === 'no_process') {
