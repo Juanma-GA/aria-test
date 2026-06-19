@@ -204,6 +204,7 @@ export function computeUCRoiTableData(
     const rows: any[] = [];
     activitiesForUC.forEach((activity: any) => {
       const profileHours = activity.profileHours ?? [];
+      const stepReps = activity.stepRepetitions ?? 1;
       if (profileHours.length === 0) {
         rows.push({
           step: activity.name,
@@ -216,7 +217,7 @@ export function computeUCRoiTableData(
           rows.push({
             step: activity.name,
             profile: ph.role,
-            current: ph.hours,
+            current: (ph.hours ?? 0) * stepReps,
             profileId: ph.profileId,
           });
         });
