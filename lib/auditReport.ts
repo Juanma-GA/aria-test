@@ -185,11 +185,12 @@ export function generateAuditReportHtml(
       const activityRows = activities.map((a: any) => {
         const phs = a.profileHours ?? [];
         const tools = (a.tools ?? []).filter(Boolean).join(', ') || '—';
+        const stepReps = a.stepRepetitions ?? 1;
         if (!phs.length) return `<tr><td class="step-name">${escapeHtml(a.name)}</td><td>—</td><td class="num">0</td><td class="tools">${escapeHtml(tools)}</td></tr>`;
         return phs.map((ph: any, idx: number) => {
           let row = '<tr>';
           if (idx === 0) row += `<td rowspan="${phs.length}" class="step-name">${escapeHtml(a.name)}</td>`;
-          row += `<td>${escapeHtml(ph.role)}</td><td class="num">${ph.hours ?? 0}</td>`;
+          row += `<td>${escapeHtml(ph.role)}</td><td class="num">${(ph.hours ?? 0) * stepReps}</td>`;
           if (idx === 0) row += `<td rowspan="${phs.length}" class="tools">${escapeHtml(tools)}</td>`;
           return row + '</tr>';
         }).join('');
