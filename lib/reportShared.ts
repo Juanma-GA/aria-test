@@ -307,11 +307,48 @@ export const REPORT_STYLES = `
     }
     p { margin: 12px 0; color: var(--ink-soft); }
     code { background: none; color: var(--accent); font-family: var(--mono); font-size: 0.85rem; padding: 0; }
+    .fact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1px;
+      background: var(--line-soft);
+      border: 1px solid var(--line-soft);
+      margin: 16px 0;
+    }
+    .fact-card {
+      background: var(--surface);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .fact-label {
+      font-family: var(--sans);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--faint);
+      font-weight: 600;
+    }
+    .fact-value {
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .fact-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-style: italic;
+      margin: 4px 0 0 0;
+      line-height: 1.5;
+    }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }
       .poc-block { page-break-after: always; }
       h2 { page-break-before: avoid; }
+      .fact-card { break-inside: avoid; }
       .mockups-table button { display: none; }
       .mockups-table tbody tr td:last-child { display: none; }
       .mockups-table thead tr th:last-child { display: none; }

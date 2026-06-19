@@ -105,20 +105,19 @@ export function generateAuditReportHtml(
     </div>
 
     <h2 class="section-title">1 - Project Fact Sheet</h2>
-    <table class="exec-summary-table">
-      <tbody>
-        <tr><td>Client</td><td>${escapeHtml(audit.client || '—')}</td></tr>
-        <tr><td>Sector</td><td>${escapeHtml(audit.sector || '—')}</td></tr>
-        <tr><td>Project</td><td>${escapeHtml(audit.project || '—')}</td></tr>
-        <tr><td>Audit period</td><td>${audit.startDate ? new Date(audit.startDate).toLocaleDateString('en-GB') : '—'} → ${audit.targetEndDate ? new Date(audit.targetEndDate).toLocaleDateString('en-GB') : '—'}</td></tr>
-        <tr><td>Processes audited</td><td>${data.processCount}</td></tr>
-        <tr><td>People impacted</td><td>${data.totalPeople}</td></tr>
-        <tr><td>Total hours in scope</td><td>${Math.round(data.totalAnnualHours)}h</td></tr>
-        <tr><td>Annual labour cost</td><td>${formatEur(data.totalAnnualCostEur)}</td></tr>
-        <tr><td>Use cases by status</td><td>${data.eligibleUCs.length} eligible · ${data.inPocUCs.length} in-poc · ${data.discardedUCs.length} discarded</td></tr>
-        <tr><td>POCs</td><td>${enrichedPocs.length}</td></tr>
-      </tbody>
-    </table>
+    <div class="fact-grid">
+      <div class="fact-card"><span class="fact-label">Client</span><span class="fact-value">${escapeHtml(audit.client || '—')}</span></div>
+      <div class="fact-card"><span class="fact-label">Sector</span><span class="fact-value">${escapeHtml(audit.sector || '—')}</span></div>
+      <div class="fact-card"><span class="fact-label">Project</span><span class="fact-value">${escapeHtml(audit.project || '—')}</span></div>
+      <div class="fact-card"><span class="fact-label">Audit period</span><span class="fact-value">${audit.startDate ? new Date(audit.startDate).toLocaleDateString('en-GB') : '—'} → ${audit.targetEndDate ? new Date(audit.targetEndDate).toLocaleDateString('en-GB') : '—'}</span></div>
+      <div class="fact-card"><span class="fact-label">Processes audited</span><span class="fact-value">${data.processCount}</span></div>
+      <div class="fact-card"><span class="fact-label">People impacted</span><span class="fact-value">${data.totalPeople}</span></div>
+      <div class="fact-card"><span class="fact-label">Total annual hours in scope</span><span class="fact-value">${Math.round(data.totalAnnualHours)}h</span></div>
+      <div class="fact-card"><span class="fact-label">Annual labour cost</span><span class="fact-value">${formatEur(data.totalAnnualCostEur)}</span></div>
+      <div class="fact-card"><span class="fact-label">Use cases by status</span><span class="fact-value">${data.eligibleUCs.length} eligible · ${data.inPocUCs.length} in-poc · ${data.discardedUCs.length} discarded</span></div>
+      <div class="fact-card"><span class="fact-label">POCs</span><span class="fact-value">${enrichedPocs.length}</span></div>
+    </div>
+    <p class="fact-note">Total annual hours in scope = Σ, per process and activity, of estimatedTimeHours × stepRepetitions × annual repetitions.<br>Annual labour cost = Σ, per profile, of profile hours × stepRepetitions × annual repetitions × hourly rate.</p>
 
     <h2 class="section-title">2 - Sovereignty Assessment</h2>
     <p>Average index: ${data.avgSovIndex.toFixed(1)}/5 — Level: ${escapeHtml(data.sovLevelLabel)}</p>
