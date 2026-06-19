@@ -169,7 +169,7 @@ export function generateAuditReportHtml(
     ${findingsBlocks ? `<div class="sov-findings"><div class="sov-findings-axis" style="border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px">Findings</div>${findingsBlocks}</div>` : ''}`;
     })()}
 
-    <h2 class="section-title">3 - Process Detail</h2>
+    <h2 class="section-title section-gap">3 - Process Detail</h2>
     ${processes.map((p: any) => {
       const profiles = p?.b1?.profiles ?? [];
       const profilesHtml = profiles.length
