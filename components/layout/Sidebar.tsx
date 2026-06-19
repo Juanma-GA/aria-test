@@ -39,18 +39,6 @@ interface ProcessStub {
   name: string;
 }
 
-interface UCStub {
-  _id: string;
-  cuId: string;
-  description: string;
-}
-
-const BLOCKS = [
-  { key: 'b1', label: 'B1 Context' },
-  { key: 'b2', label: 'B2 Sovereignty' },
-  { key: 'b3', label: 'B3 Process Map' },
-  { key: 'b5', label: 'B5 Use Cases' },
-];
 
 function DownloadNavItem({
   label,
@@ -99,11 +87,7 @@ export function Sidebar() {
   const procId = params?.procId as string | undefined;
 
   const [processes, setProcesses] = useState<ProcessStub[]>([]);
-  const [expandedProc, setExpandedProc] = useState<string | null>(
-    procId ?? null,
-  );
-  const [ucsByProc, setUcsByProc] = useState<Record<string, UCStub[]>>({});
-  const [expandedUCs, setExpandedUCs] = useState<string | null>(null);
+  const [processesExpanded, setProcessesExpanded] = useState(true);
   const [auditName, setAuditName] = useState('');
   const [reportsExpanded, setReportsExpanded] = useState(false);
   const [individualExpanded, setIndividualExpanded] = useState(false);
@@ -139,35 +123,9 @@ export function Sidebar() {
       .catch(() => {});
   }, [auditId]);
 
-  // Auto-expand the active process and its UC list when on b5
-  useEffect(() => {
-    if (procId) {
-      setExpandedProc(procId);
-      if (pathname?.includes('/b5')) setExpandedUCs(procId);
-    }
-  }, [procId, pathname]);
-
   useEffect(() => {
     if (pathname?.includes('/report')) setReportsExpanded(true);
   }, [pathname]);
-
-  // Fetch use cases when a process is expanded (re-fetch on b5 navigation to pick up new UCs)
-  useEffect(() => {
-    if (!auditId || !expandedProc) return;
-    fetch(apiUrl(`/api/audits/${auditId}/usecases?processId=${expandedProc}`))
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: any[]) =>
-        setUcsByProc((prev) => ({
-          ...prev,
-          [expandedProc]: data.map((u) => ({
-            _id: u._id,
-            cuId: u.cuId,
-            description: u.description,
-          })),
-        })),
-      )
-      .catch(() => {});
-  }, [auditId, expandedProc, pathname]);
 
   // Fetch POCs when Individual POC Report is expanded (lazy)
   useEffect(() => {
@@ -318,150 +276,62 @@ export function Sidebar() {
               </span>
             </div>
 
-            <div className="px-3 pt-2 pb-0.5">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                <GitBranch size={10} /> Processes
-              </span>
-            </div>
-
-            {processes.map((proc) => {
-              const isExpanded = expandedProc === proc._id;
-              const procBase = `/audits/${auditId}/processes/${proc._id}`;
-              const isThisProc = pathname?.startsWith(procBase);
-
-              return (
-                <div key={proc._id}>
-                  <div
-                    className={clsx(
-                      'flex items-center rounded-sm transition-colors',
-                      isThisProc
-                        ? 'text-blue-light bg-white/10'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
-                    )}
-                  >
-                    <Link
-                      href={procBase}
-                      className="flex-1 px-3 py-1.5 text-xs truncate"
-                    >
-                      {proc.procId} – {proc.name}
-                    </Link>
-                    <button
-                      onClick={() =>
-                        setExpandedProc(isExpanded ? null : proc._id)
-                      }
-                      className="px-2 py-1.5 shrink-0"
-                      aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                    >
-                      {isExpanded ? (
-                        <ChevronDown size={11} />
-                      ) : (
-                        <ChevronRight size={11} />
-                      )}
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="ml-5 pl-2 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
-                      {BLOCKS.map((block) => {
-                        const href = `${procBase}/${block.key}`;
-                        const active =
-                          pathname === href || pathname?.startsWith(href);
-
-                        if (block.key === 'b5') {
-                          const ucs = ucsByProc[proc._id] ?? [];
-                          const ucExpanded = expandedUCs === proc._id;
-                          return (
-                            <div key="b5">
-                              <div
-                                className={clsx(
-                                  'flex items-center rounded-sm transition-colors',
-                                  active
-                                    ? 'text-blue-light bg-white/10'
-                                    : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
-                                )}
-                              >
-                                <Link
-                                  href={href}
-                                  className="flex-1 px-2 py-1 text-xs"
-                                >
-                                  {block.label}
-                                </Link>
-                                {ucs.length > 0 && (
-                                  <button
-                                    onClick={() =>
-                                      setExpandedUCs(
-                                        ucExpanded ? null : proc._id,
-                                      )
-                                    }
-                                    className="px-1.5 py-1 shrink-0"
-                                    aria-label={
-                                      ucExpanded
-                                        ? 'Collapse use cases'
-                                        : 'Expand use cases'
-                                    }
-                                  >
-                                    {ucExpanded ? (
-                                      <ChevronDown size={10} />
-                                    ) : (
-                                      <ChevronRight size={10} />
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                              {ucExpanded && ucs.length > 0 && (
-                                <div className="ml-3 pl-2 border-l border-white/10 space-y-0.5 mt-0.5">
-                                  {ucs.map((uc) => {
-                                    const ucHref = `${procBase}/b5?edit=${uc._id}`;
-                                    const ucActive =
-                                      pathname?.includes('/b5') &&
-                                      pathname?.includes(uc._id);
-                                    return (
-                                      <Link
-                                        key={uc._id}
-                                        href={ucHref}
-                                        className={clsx(
-                                          'flex items-center gap-1.5 px-2 py-1 rounded-sm transition-colors text-[11px]',
-                                          ucActive
-                                            ? 'text-blue-light bg-white/10 font-medium'
-                                            : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
-                                        )}
-                                        title={uc.description}
-                                      >
-                                        <span className="font-mono shrink-0">
-                                          {uc.cuId}
-                                        </span>
-                                        <span className="truncate text-slate-600">
-                                          {uc.description}
-                                        </span>
-                                      </Link>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <Link
-                            key={block.key}
-                            href={href}
-                            className={clsx(
-                              'block px-2 py-1 text-xs rounded-sm transition-colors',
-                              active
-                                ? 'text-blue-light bg-white/10 font-medium'
-                                : 'text-slate-500 hover:text-slate-200 hover:bg-white/5',
-                            )}
-                          >
-                            {block.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
+            <div>
+              <div
+                className={clsx(
+                  'sidebar-item cursor-pointer',
+                  pathname === `/audits/${auditId}`
+                    ? 'sidebar-item-active'
+                    : 'sidebar-item-inactive',
+                )}
+              >
+                <Link
+                  href={`/audits/${auditId}`}
+                  className="flex-1 flex items-center gap-3"
+                >
+                  <GitBranch size={16} />
+                  <span>Processes</span>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProcessesExpanded(!processesExpanded);
+                  }}
+                  className="px-1.5 py-1 shrink-0"
+                  aria-label={processesExpanded ? 'Collapse' : 'Expand'}
+                >
+                  {processesExpanded ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} />
                   )}
+                </button>
+              </div>
+              {processesExpanded && (
+                <div className="ml-5 pl-2 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
+                  {processes.map((proc) => {
+                    const isThisProc = pathname?.startsWith(
+                      `/audits/${auditId}/processes/${proc._id}`
+                    );
+                    return (
+                      <Link
+                        key={proc._id}
+                        href={`/audits/${auditId}/processes/${proc._id}`}
+                        className={clsx(
+                          'block px-3 py-1 text-xs rounded-sm transition-colors truncate',
+                          isThisProc
+                            ? 'text-blue-light bg-white/10 font-medium'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
+                        )}
+                        title={proc.name}
+                      >
+                        {proc.name}
+                      </Link>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              )}
+            </div>
 
             {auditNavTop.map((item) => (
               <NavLink key={item.href} item={item} />
