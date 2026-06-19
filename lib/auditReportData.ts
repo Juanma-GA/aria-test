@@ -20,6 +20,13 @@ export const fmtEur = (n: number) =>
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+function implWeeksForUC(uc: any): number {
+  if (uc.isInstance) {
+    return Math.round(((uc.additionalDevCostEur ?? 0) / (uc.devRateEur ?? 450)) / 5 * 10) / 10;
+  }
+  return uc.estimatedImplWeeks ?? 0;
+}
+
 function scoreTotal(score: any): number {
   if (!score?.dimensions) return 0;
   return Object.values(score.dimensions).reduce(
@@ -556,6 +563,74 @@ ${ucLines || '  (none identified)'}`;
     })
     .join('\n\n');
 
+  // Build processDetail array for Process Detail section
+  const processDetail = processes.map((proc: any) => {
+    const pcsUCs = ucByProcess[String(proc._id)] ?? [];
+    const m = processMetrics[String(proc._id)] ?? {};
+
+    // Calculate peopleCount from profiles
+    const profiles: any[] = proc.b1?.profiles ?? [];
+    const peopleCount = profiles.reduce(
+      (s: number, pr: any) => s + (pr.count ?? 0),
+      0,
+    );
+
+    // Calculate totalHrsRun from activities
+    const activities: any[] = proc.b3?.activities ?? [];
+    const totalHrsRun = activities.reduce(
+      (s: number, a: any) =>
+        s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1),
+      0,
+    );
+
+    // Extract decision points
+    const b2Restrictions = proc.b2?.restrictions ?? [];
+    const decisionPoints = b2Restrictions
+      .filter((r: any) => r.isDecisionPoint)
+      .map((r: any) => r.description)
+      .filter(Boolean);
+
+    const ucs = pcsUCs.map((uc: any) => {
+      // Calculate ROI metrics for this UC
+      const timeSaved = (uc.timeSavedPerProfile ?? []).reduce(
+        (s: number, e: any) => s + (e.hoursPerExecution ?? 0),
+        0,
+      );
+      const grossSaving = timeSaved * (m?.avgRate ?? 0) * (m?.annualReps ?? 0);
+      const computeCost = computeAnnualCostForUC(uc);
+      const netSaving = Math.max(grossSaving - computeCost, 0);
+      const devCost = uc.isInstance
+        ? (uc.additionalDevCostEur ?? 0)
+        : (uc.estimatedDevCostEur ?? 0);
+
+      const costLabel = devCost > 0 ? `€${Math.round(devCost / 1000)}k` : '—';
+
+      return {
+        cuId: uc.cuId,
+        name: uc.description ?? '—',
+        hSaved: netSaving > 0 ? Math.round(netSaving / (m?.avgRate ?? 1)) : 0,
+        costLabel,
+        costEur: devCost,
+        implWeeks: implWeeksForUC(uc),
+      };
+    });
+
+    return {
+      procId: proc.procId,
+      name: proc.name,
+      department: proc.department ?? 'Other',
+      clientContact: proc.b1?.clientContact ?? '—',
+      techDirector: proc.b1?.techDirector ?? '—',
+      peopleCount,
+      annualReps: m?.annualReps ?? 0,
+      activitiesCount: activities.length,
+      decisionPoints,
+      totalHrsRun: Math.round(totalHrsRun),
+      activitiesNames: activities.map((a: any) => a.name).filter(Boolean),
+      ucs,
+    };
+  });
+
   return {
     totalPeople,
     totalAnnualHours,
@@ -591,6 +666,7 @@ ${ucLines || '  (none identified)'}`;
     indDetail,
     indStatusSummary,
     pocLines,
+    processDetail,
     processCount: processes.length,
     indCount: industrializations.length,
   };
@@ -598,19 +674,62 @@ ${ucLines || '  (none identified)'}`;
 
 // ─── Deterministic markdown builder (no LLM) ───────────────────────────────────
 
+function fmtEurDe(n: number): string {
+  return `€${Math.round(n).toLocaleString('de-DE')}`;
+}
+
 export function buildDeterministicReportMarkdown(
   audit: any,
   data: ReturnType<typeof computeAuditReportData>,
+  enrichedPocs: any[],
+  pocRois: any[],
 ): string {
   const {
     totalPeople, totalAnnualHours, totalAnnualCostEur, eligibleUCs,
     totalDevCost, netAnnualSaving, paybackMonths, pocActive, pocClosed, pocGo,
-    indWip, indAtRun, totalIndOneTime, totalIndRecurring,
-    totalIndExpectedSaving, totalIndConfirmedSaving, avgSovIndex, sovLevelLabel,
-    sovereigntyTableRows, ucRequiresClientIT, processSections, ucTableRows,
-    totalAnnualSaving, totalComputeCostEur, computeTableRows, pocLines,
-    indTableRows, indDetail,
+    totalAnnualSaving, totalComputeCostEur, avgSovIndex, sovLevelLabel,
+    sovereigntyTableRows, ucRequiresClientIT, processDetail, processCount,
   } = data;
+
+  // Build Process Detail section
+  const processDetailSection = (processDetail ?? [])
+    .map((proc: any) => {
+      const ucsLines = proc.ucs
+        .map((uc: any) =>
+          `- **${uc.cuId}**: ${uc.name} | ${uc.hSaved}h saved | ${uc.costLabel} dev | ${uc.implWeeks}w impl`
+        )
+        .join('\n');
+
+      return `
+### ${proc.procId} — ${proc.name}
+**Department:** ${proc.department} | **People:** ${proc.peopleCount} | **Annual runs:** ${proc.annualReps} | **Total hours:** ${proc.totalHrsRun}h
+
+**B1 Contact:** ${proc.clientContact} | **Tech Director:** ${proc.techDirector}
+
+**Decision points:** ${proc.decisionPoints.length > 0 ? proc.decisionPoints.join('; ') : 'None'}
+
+**Use cases:**
+${ucsLines || '- No use cases assigned'}
+`;
+    })
+    .join('\n');
+
+  // Build ROI & POCs section
+  const pocTableRows = enrichedPocs
+    .map((poc: any, idx: number) => {
+      const roi = pocRois[idx];
+      const ucRef = poc.useCase?.cuId ?? '—';
+      const procRef = poc.processId?.procId ?? '—';
+      const phaseLabel = poc.phase || '—';
+      const decision = poc.decision?.decision || 'pending';
+
+      if (!roi) {
+        return `| ${poc.pocId} | ${ucRef} | ${procRef} | ${phaseLabel} | ${decision} | — | — | — |`;
+      }
+
+      return `| ${poc.pocId} | ${ucRef} | ${procRef} | ${phaseLabel} | ${decision} | ${fmtEurDe(roi.gross)} | ${fmtEurDe(roi.compute)} | ${fmtEurDe(roi.net)} |`;
+    })
+    .join('\n');
 
   return `# Audit Report — ${audit.name}
 *Generated: ${fmt(new Date())} | Tool: ARIA v2 | Deterministic data report*
@@ -625,7 +744,7 @@ export function buildDeterministicReportMarkdown(
 | Sector | ${audit.sector} |
 | Project | ${audit.project || '—'} |
 | Audit period | ${fmt(audit.startDate)} → ${fmt(audit.targetEndDate)} |
-| Processes audited | ${data.processCount} |
+| Processes audited | ${processCount} |
 | People impacted | ${totalPeople} |
 | Total hours in scope | ${Math.round(totalAnnualHours)}h |
 | Annual labour cost | ${fmtEur(totalAnnualCostEur)} |
@@ -634,8 +753,6 @@ export function buildDeterministicReportMarkdown(
 | Projected net saving/yr | ${fmtEur(netAnnualSaving)} |
 | Overall payback | ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'} |
 | POCs | ${pocActive + pocClosed} (${pocActive} active, ${pocClosed} closed, ${pocGo} GO) |
-| Industrializations | ${data.indCount} (${indWip} WIP, ${indAtRun} go-for-run) |
-| Industrialization investment | one-time ${fmtEur(totalIndOneTime)} + ${fmtEur(totalIndRecurring)}/yr |
 | Sovereignty level | ${sovLevelLabel} (${avgSovIndex.toFixed(1)}/5) |
 
 ---
@@ -653,55 +770,15 @@ ${sovereigntyTableRows}
 
 ## 2. Process Detail
 
-${processSections}
+${processDetailSection || 'No processes audited.'}
 
 ---
 
-## 3. Use Case Ranking
+## 3. ROI & POCs
 
-| ID | Description | AI Types | Score/30 | Category | Saving/yr | Dev Cost | Payback | Status |
-|----|-------------|----------|----------|----------|-----------|----------|---------|--------|
-${ucTableRows || '| — | No use cases | — | — | — | — | — | — | — |'}
-
----
-
-## 4. ROI & Compute
-
-| Metric | Value |
-|--------|-------|
-| Gross annual saving | ${fmtEur(totalAnnualSaving)} |
-| Annual compute cost | ${fmtEur(totalComputeCostEur)} |
-| Net annual saving | ${fmtEur(netAnnualSaving)} |
-| Total dev investment | ${fmtEur(totalDevCost)} |
-| Overall payback | ${paybackMonths !== null ? `${paybackMonths} months` : 'N/A'} |
-
-| UC ID | Deployment | Annual Executions | Estimated Cost/yr |
-|-------|-----------|-------------------|-------------------|
-${computeTableRows || '| — | — | — | — |'}
-
----
-
-## 5. POC Status
-
-${pocLines || 'No POCs recorded.'}
-
----
-
-## 6. Industrialization Portfolio
-
-| IND ID | Name | POC | UC | Process | Status | Owner | Target Go-Live | One-time | Recurring | Expected saving | Payback | Progress |
-|--------|------|-----|----|---------|--------|-------|----------------|----------|-----------|-----------------|---------|----------|
-${indTableRows || '| — | No industrializations | — | — | — | — | — | — | — | — | — | — | — |'}
-
-${indDetail || 'No industrializations recorded.'}
-
-| Metric | Value |
-|--------|-------|
-| Total one-time investment | ${fmtEur(totalIndOneTime)} |
-| Total recurring cost / yr | ${fmtEur(totalIndRecurring)} |
-| Expected annual saving (sum) | ${fmtEur(totalIndExpectedSaving)} |
-| Confirmed annual saving (sum) | ${fmtEur(totalIndConfirmedSaving)} |
-| Industrializations at run | ${indAtRun} |
+| POC ID | UC | Process | Phase | Decision | Gross Saving/yr | Compute Cost/yr | Net Saving/yr |
+|--------|-----|---------|-------|----------|---------|---------|-----------|
+${pocTableRows || '| — | — | — | — | — | — | — | — |'}
 
 ---
 END OF REPORT

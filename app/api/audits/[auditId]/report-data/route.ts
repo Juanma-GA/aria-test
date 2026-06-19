@@ -3,6 +3,8 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC, Industrialization } from '@/lib/models';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
 import { computeAuditReportData, buildDeterministicReportMarkdown } from '@/lib/auditReportData';
+import { enrichPocs } from '@/lib/pocEnrichment';
+import { computePocRoi } from '@/lib/pocRoi';
 
 export async function GET(
   req: NextRequest,
@@ -20,8 +22,7 @@ export async function GET(
         Process.find({ auditId: params.auditId }).lean(),
         UseCase.find({ auditId: params.auditId }).lean(),
         POC.find({ auditId: params.auditId })
-          .populate('useCaseId', 'cuId description aiTypes')
-          .populate('processId', 'procId name')
+          .populate('processId', 'procId name b1.profiles b3.annualRepetitions b3.activities.id b3.activities.name b3.activities.profileHours')
           .lean(),
         Industrialization.find({ auditId: params.auditId })
           .populate('useCaseId', 'cuId description')
@@ -40,7 +41,15 @@ export async function GET(
       pocs as any[],
       industrializations as any[],
     );
-    const markdown = buildDeterministicReportMarkdown(audit, data);
+
+    const enrichedPocs = await enrichPocs(pocs as any[]);
+    const pocRois = enrichedPocs.map((poc: any) => {
+      const assignedUCs = [poc.useCase, ...(poc.instances ?? [])].filter(Boolean);
+      const proc = typeof poc.processId === 'object' ? poc.processId : null;
+      return proc && assignedUCs.length > 0 ? computePocRoi(assignedUCs, proc) : null;
+    });
+
+    const markdown = buildDeterministicReportMarkdown(audit, data, enrichedPocs, pocRois);
 
     return NextResponse.json({
       markdown,
