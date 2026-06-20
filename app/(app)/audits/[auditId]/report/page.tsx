@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/Spinner';
@@ -11,6 +11,11 @@ import { Bot, RefreshCw, FileText, AlertTriangle } from 'lucide-react';
 interface ReportMeta {
   generatedAt: string;
   model: string;
+}
+
+interface SectionDef {
+  key: string;
+  title: string;
 }
 
 const AUDIT_REPORT_STEPS = [
@@ -148,26 +153,39 @@ function mdToHtml(md: string): string {
   return out.join('\n');
 }
 
+// ─── Section definitions ──────────────────────────────────────────────────────
+
+const SECTION_DEFS: SectionDef[] = [
+  { key: 'executiveSummary', title: 'Executive Summary' },
+  { key: 'sovInterpretation', title: 'Sovereignty Interpretation' },
+  { key: 'roiInterpretation', title: 'ROI Interpretation' },
+  { key: 'risks', title: 'Risks & Constraints' },
+  { key: 'conclusion', title: 'Conclusion' },
+];
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AuditReportPage() {
   const params = useParams();
   const auditId = params?.auditId as string;
 
-  const [markdown, setMarkdown] = useState('');
+  const [sections, setSections] = useState<Record<string, string> | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
   const [meta, setMeta] = useState<ReportMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const html = useMemo(() => (markdown ? mdToHtml(markdown) : ''), [markdown]);
+  const hasSections = !!(sections && SECTION_DEFS.some(s => sections[s.key]?.trim()));
 
   useEffect(() => {
     fetch(apiUrl(`/api/audits/${auditId}/report`), { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
-        if (data.exists && data.report?.markdown) {
-          setMarkdown(data.report.markdown);
+        if (data.exists && data.report?.sections) {
+          setSections(data.report.sections);
           setMeta({
             generatedAt: data.report.generatedAt,
             model: data.report.model,
@@ -179,9 +197,14 @@ export default function AuditReportPage() {
   }, [auditId]);
 
   async function generate() {
+    if (sections && !window.confirm('Regenerar sobrescribirá las 5 secciones, incluidas tus ediciones manuales. ¿Continuar?')) {
+      return;
+    }
+
     setError('');
-    setMarkdown('');
+    setSections(null);
     setMeta(null);
+    setEditing(null);
     setGenerating(true);
 
     try {
@@ -194,7 +217,7 @@ export default function AuditReportPage() {
 
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
 
-      setMarkdown(data.markdown);
+      setSections(data.sections);
       setMeta({
         generatedAt: new Date().toISOString(),
         model: data.model || 'mistral-medium-latest',
@@ -207,6 +230,37 @@ export default function AuditReportPage() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  async function saveSection(key: string) {
+    setSaving(true);
+    try {
+      const res = await fetch(apiUrl(`/api/audits/${auditId}/report`), {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: key, content: draft }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setSections((prev: Record<string, string> | null) => ({ ...(prev ?? {}), [key]: draft }));
+      setEditing(null);
+      toast.success('Sección guardada');
+    } catch (e: any) {
+      toast.error('Error al guardar', { description: e.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEdit(key: string) {
+    setDraft(sections?.[key] ?? '');
+    setEditing(key);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setDraft('');
   }
 
   if (loading) {
@@ -262,7 +316,7 @@ export default function AuditReportPage() {
               de la auditoría
             </p>
           </div>
-          {markdown && !generating && (
+          {hasSections && !generating && (
             <button
               onClick={generate}
               className="flex items-center gap-2 px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text hover:border-blue-aria transition-colors"
@@ -301,10 +355,62 @@ export default function AuditReportPage() {
           </div>
         )}
 
-        {/* Report */}
-        {html ? (
-          <div className="bg-white border border-border rounded-sm p-10">
-            <div className="rpt" dangerouslySetInnerHTML={{ __html: html }} />
+        {/* Report Sections */}
+        {hasSections ? (
+          <div className="space-y-6">
+            {SECTION_DEFS.map(({ key, title }) => (
+              <div key={key} className="bg-white border border-border rounded-sm p-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display text-lg font-semibold text-text">{title}</h2>
+                  {editing !== key && (
+                    <button
+                      onClick={() => startEdit(key)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-sm border border-border text-xs text-muted hover:text-text hover:border-blue-aria transition-colors"
+                    >
+                      Editar
+                    </button>
+                  )}
+                </div>
+
+                {editing === key ? (
+                  <div>
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <textarea
+                        value={draft}
+                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDraft(e.target.value)}
+                        className="w-full h-80 border border-border rounded-sm p-3 font-mono text-xs text-text resize-y"
+                        spellCheck={false}
+                      />
+                      <div
+                        className="rpt border border-border rounded-sm p-3 overflow-auto h-80 bg-slate-50"
+                        dangerouslySetInnerHTML={{ __html: mdToHtml(draft) }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => saveSection(key)}
+                        disabled={saving}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {saving ? 'Guardando…' : 'Guardar'}
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        disabled={saving}
+                        className="px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text transition-colors disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="rpt"
+                    dangerouslySetInnerHTML={{ __html: mdToHtml(sections?.[key] ?? '') }}
+                  />
+                )}
+              </div>
+            ))}
           </div>
         ) : !generating && !error ? (
           <div className="bg-white border border-border rounded-sm p-16 text-center">
