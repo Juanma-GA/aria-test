@@ -302,3 +302,18 @@ export async function downloadAuditReport(auditId: string): Promise<void> {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export async function downloadFullReport(auditId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/audits/${auditId}/report-data?withAi=1`), {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch full report');
+  const { html, filename } = await res.json();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || 'ai-audit-report.html';
+  link.click();
+  URL.revokeObjectURL(url);
+}

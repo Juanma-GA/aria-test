@@ -7,7 +7,8 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 import { apiUrl } from '@/lib/utils';
 import { mdToHtml } from '@/lib/mdToHtml';
-import { Bot, RefreshCw, FileText, AlertTriangle } from 'lucide-react';
+import { downloadFullReport } from '@/lib/auditReport';
+import { Bot, RefreshCw, FileText, AlertTriangle, Download } from 'lucide-react';
 
 interface ReportMeta {
   generatedAt: string;
@@ -214,13 +215,29 @@ export default function AuditReportPage() {
             </p>
           </div>
           {hasSections && !generating && (
-            <button
-              onClick={generate}
-              className="flex items-center gap-2 px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text hover:border-blue-aria transition-colors"
-            >
-              <RefreshCw size={14} />
-              Regenerar
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={generate}
+                className="flex items-center gap-2 px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text hover:border-blue-aria transition-colors"
+              >
+                <RefreshCw size={14} />
+                Regenerar
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await downloadFullReport(auditId);
+                    toast.success('Informe completo descargado');
+                  } catch (e: any) {
+                    toast.error('Error al descargar', { description: e.message });
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text hover:border-blue-aria transition-colors"
+              >
+                <Download size={14} />
+                Descargar informe completo
+              </button>
+            </div>
           )}
         </div>
 

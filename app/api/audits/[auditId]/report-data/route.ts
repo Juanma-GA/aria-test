@@ -14,6 +14,7 @@ export async function GET(
   try {
     await dbConnect();
     const params = await Promise.resolve(context.params);
+    const withAi = new URL(req.url).searchParams.get('withAi') === '1';
     const access = await requireAuditAccess(req, params.auditId, 'view');
     if (!isAccessGranted(access)) return access;
 
@@ -50,11 +51,13 @@ export async function GET(
       return proc && assignedUCs.length > 0 ? computePocRoi(assignedUCs, proc) : null;
     });
 
+    const aiSections = withAi ? (audit as any).report?.sections : undefined;
     const { html, filename } = generateAuditReportHtml(
       audit, data, processes as any[], useCases as any[], enrichedPocs, pocRois,
+      aiSections,
     );
-
-    return NextResponse.json({ html, filename });
+    const finalName = withAi ? `ai-${filename}` : filename;
+    return NextResponse.json({ html, filename: finalName });
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(
