@@ -201,7 +201,7 @@ export function generateAuditReportHtml(
 
       // UCs for this process (by processId)
       const procUCs = useCases.filter((uc: any) => String(uc.processId) === String(p._id));
-      const roiTablesHtml = procUCs.length ? renderUCRoiTable(procUCs, p) : '<p style="color:var(--muted)">No use cases.</p>';
+      const roiTablesHtml = procUCs.length ? `<div class="audit-roi">${renderUCRoiTable(procUCs, p)}</div>` : '<p style="color:var(--muted)">No use cases.</p>';
 
       return `
       <div class="poc-block">

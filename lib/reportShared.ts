@@ -427,6 +427,11 @@ export const REPORT_STYLES = `
     .act-table .num { font-family: var(--mono); text-align: center; width: 130px; }
     .act-table .tools { color: var(--muted); font-size: 0.8rem; }
     .roi-table .uc-cell { font-family: var(--serif); font-weight: 500; color: var(--ink); line-height: 1.5; max-width: 320px; }
+    .audit-roi .uc-roi-block { margin: 12px 0; padding: 6px 10px; }
+    .audit-roi .roi-table { margin: 8px 0; }
+    .audit-roi .roi-table th { padding: 7px 8px; }
+    .audit-roi .roi-table td { padding: 5px 8px; }
+    .audit-roi .roi-table .uc-cell { max-width: 240px; }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }
