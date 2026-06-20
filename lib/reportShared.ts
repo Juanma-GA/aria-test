@@ -122,6 +122,7 @@ export const REPORT_STYLES = `
       padding-top: 0;
       margin-top: 0;
     }
+    h2.poc-title { border-top: none; padding-top: 0; }
     h3 {
       font-family: var(--serif);
       font-size: 1.12rem;
@@ -432,6 +433,8 @@ export const REPORT_STYLES = `
     .audit-roi .roi-table th { padding: 7px 8px; }
     .audit-roi .roi-table td { padding: 5px 8px; }
     .audit-roi .roi-table .uc-cell { max-width: 240px; }
+    .report-container a { color: var(--ink); text-decoration: underline; }
+    .report-container a:hover { color: var(--accent); }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }
