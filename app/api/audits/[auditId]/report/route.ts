@@ -339,6 +339,15 @@ END OF REPORT
 `;
 }
 
+// ─── stripCodeFence — remove markdown code fence wrapper ───────────────────
+
+function stripCodeFence(s: string): string {
+  const t = (s ?? '').trim();
+  // Quita un fence que envuelva TODO el contenido: ```lang\n ... \n```
+  const m = t.match(/^```[a-zA-Z]*\n([\s\S]*?)\n```$/);
+  return m ? m[1].trim() : t;
+}
+
 // ─── buildBaseContext — deterministic audit data without industrializations ───
 
 function buildBaseContext(
@@ -597,7 +606,7 @@ ${ucRefs}
           return '';
         }
         const data = await res.json();
-        return (data.choices?.[0]?.message?.content ?? '') as string;
+        return stripCodeFence((data.choices?.[0]?.message?.content ?? '') as string);
       } catch (e) {
         console.error(`Mistral block ${blockKey} exception:`, e);
         return '';
@@ -659,7 +668,7 @@ export async function PATCH(
     }
 
     await Audit.findByIdAndUpdate(params.auditId, {
-      [`report.sections.${section}`]: content,
+      [`report.sections.${section}`]: stripCodeFence(content),
     });
 
     return NextResponse.json({ ok: true, section });
