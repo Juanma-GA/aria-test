@@ -520,37 +520,6 @@ export async function POST(
 
     const isTechpubs = (processes as any[]).some((p) => p?.department === 'Technical Publications');
 
-    let basePrompt = buildPrompt(
-      audit,
-      processes as any[],
-      useCases as any[],
-      pocs as any[],
-      industrializations as any[],
-    );
-
-    // Inject TechPubs reference context if applicable
-    let prompt = basePrompt;
-    if (isTechpubs) {
-      const [stateOfTheArt, useCases] = await Promise.all([
-        getStateOfTheArt(),
-        getUseCases(),
-      ]);
-
-      const techpubsSection = `## TECHPUBS KNOWLEDGE BASE
-==========================
-
-### State of the Art Technology
-${stateOfTheArt}
-
-### TechPubs Use Cases
-${useCases}
-
----
-
-`;
-      prompt = techpubsSection + basePrompt;
-    }
-
     if (!process.env.MISTRAL_API_KEY) {
       return NextResponse.json(
         { error: 'MISTRAL_API_KEY no configurada en .env.local' },
@@ -558,42 +527,90 @@ ${useCases}
       );
     }
 
-    const mistralRes = await fetch(
-      'https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'mistral-medium-latest',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: isTechpubs ? 8000 : 6000,
-          temperature: 0.2,
-        }),
-      },
-    );
+    // TechPubs reference context (shared across all blocks)
+    let techpubsContext = '';
+    if (isTechpubs) {
+      const [stateOfTheArt, ucRefs] = await Promise.all([
+        getStateOfTheArt(),
+        getUseCases(),
+      ]);
+      techpubsContext = `## TECHPUBS KNOWLEDGE BASE
+==========================
 
-    if (!mistralRes.ok) {
-      const errText = await mistralRes.text();
-      return NextResponse.json(
-        { error: `Mistral API error: ${errText}` },
-        { status: 500 },
-      );
+### State of the Art Technology
+${stateOfTheArt}
+
+### TechPubs Use Cases
+${ucRefs}
+
+---
+
+`;
     }
 
-    const mistralData = await mistralRes.json();
-    const markdown = (mistralData.choices?.[0]?.message?.content ??
-      '') as string;
+    const baseContext = buildBaseContext(
+      audit,
+      processes as any[],
+      useCases as any[],
+      pocs as any[],
+    );
+
+    // Call Mistral for a single block; returns markdown or '' on failure
+    async function callBlock(blockKey: string): Promise<string> {
+      const content = buildBlockPrompt(blockKey, baseContext, techpubsContext);
+      try {
+        const res = await fetch(
+          'https://api.2a91ec1812a1.dc.mistral.ai/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'mistral-medium-latest',
+              messages: [{ role: 'user', content }],
+              max_tokens: 4000,
+              temperature: 0.3,
+            }),
+          },
+        );
+        if (!res.ok) {
+          console.error(`Mistral block ${blockKey} error:`, await res.text());
+          return '';
+        }
+        const data = await res.json();
+        return (data.choices?.[0]?.message?.content ?? '') as string;
+      } catch (e) {
+        console.error(`Mistral block ${blockKey} exception:`, e);
+        return '';
+      }
+    }
+
+    const blockKeys = [
+      'executiveSummary',
+      'sovInterpretation',
+      'roiInterpretation',
+      'risks',
+      'conclusion',
+    ];
+
+    const results = await Promise.all(blockKeys.map((k) => callBlock(k)));
+    const sections = {
+      executiveSummary: results[0],
+      sovInterpretation: results[1],
+      roiInterpretation: results[2],
+      risks: results[3],
+      conclusion: results[4],
+    };
 
     await Audit.findByIdAndUpdate(auditId, {
       'report.generatedAt': new Date(),
       'report.model': 'mistral-medium-latest',
-      'report.markdown': markdown,
+      'report.sections': sections,
     });
 
-    return NextResponse.json({ markdown, model: 'mistral-medium-latest' });
+    return NextResponse.json({ sections, model: 'mistral-medium-latest' });
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(
