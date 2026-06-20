@@ -474,8 +474,25 @@ export async function GET(
       .lean()) as any;
     if (!audit)
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (!audit.report?.markdown) return NextResponse.json({ exists: false });
-    return NextResponse.json({ exists: true, report: audit.report });
+
+    const sections = audit.report?.sections;
+    const hasSections = !!(sections && (sections.executiveSummary || sections.sovInterpretation || sections.roiInterpretation || sections.risks || sections.conclusion));
+    if (!hasSections) return NextResponse.json({ exists: false });
+
+    return NextResponse.json({
+      exists: true,
+      report: {
+        generatedAt: audit.report?.generatedAt ?? null,
+        model: audit.report?.model ?? '',
+        sections: {
+          executiveSummary: sections?.executiveSummary ?? '',
+          sovInterpretation: sections?.sovInterpretation ?? '',
+          roiInterpretation: sections?.roiInterpretation ?? '',
+          risks: sections?.risks ?? '',
+          conclusion: sections?.conclusion ?? '',
+        },
+      },
+    });
   } catch (err) {
     console.error('[API]', err);
     return NextResponse.json(
@@ -617,5 +634,37 @@ ${ucRefs}
       { error: 'Internal server error' },
       { status: 500 },
     );
+  }
+}
+
+// ─── PATCH — save single edited section ──────────────────────────────────────
+
+const VALID_SECTIONS = ['executiveSummary', 'sovInterpretation', 'roiInterpretation', 'risks', 'conclusion'];
+
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ auditId: string }> | { auditId: string } },
+) {
+  try {
+    await dbConnect();
+    const params = await Promise.resolve(context.params);
+    const access = await requireAuditAccess(req, params.auditId, 'edit');
+    if (!isAccessGranted(access)) return access;
+
+    const body = await req.json().catch(() => null);
+    const section = body?.section;
+    const content = body?.content;
+    if (!section || !VALID_SECTIONS.includes(section) || typeof content !== 'string') {
+      return NextResponse.json({ error: 'Invalid section or content' }, { status: 400 });
+    }
+
+    await Audit.findByIdAndUpdate(params.auditId, {
+      [`report.sections.${section}`]: content,
+    });
+
+    return NextResponse.json({ ok: true, section });
+  } catch (err) {
+    console.error('[API]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
