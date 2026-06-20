@@ -436,6 +436,13 @@ export const REPORT_STYLES = `
     .audit-roi .roi-table .uc-cell { max-width: 240px; }
     .report-container a { color: var(--ink); text-decoration: underline; }
     .report-container a:hover { color: var(--accent); }
+    .ai-md { margin: 12px 0 8px 0; }
+    .ai-md table { width:100%; border-collapse:collapse; margin:12px 0; font-size:0.82rem; }
+    .ai-md th { background: var(--accent); color:#fff; font-family:var(--sans); font-size:0.62rem; text-transform:uppercase; letter-spacing:0.08em; padding:8px 10px; text-align:left; }
+    .ai-md td { padding:8px 10px; border-bottom:1px solid var(--line-soft); color:var(--ink-soft); font-size:0.84rem; vertical-align:top; }
+    .ai-md tr:last-child td { border-bottom:none; }
+    .ai-md p { color: var(--ink-soft); }
+    .ai-md strong { color: var(--ink); }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }

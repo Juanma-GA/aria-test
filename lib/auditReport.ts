@@ -2,6 +2,7 @@ import { REPORT_STYLES, escapeHtml, formatEur, slugify } from './reportShared';
 import { computeUCRoiTableData } from './pocRoi';
 import { computeAuditReportData } from './auditReportData';
 import { apiUrl } from './utils';
+import { mdToHtml } from './mdToHtml';
 
 const AXIS_LABELS: Record<string, string> = {
   axis1_InfoClassification: 'Info Classification',
@@ -81,8 +82,30 @@ export function generateAuditReportHtml(
   useCases: any[],
   enrichedPocs: any[],
   pocRois: any[],
+  aiSections?: {
+    executiveSummary?: string;
+    sovInterpretation?: string;
+    roiInterpretation?: string;
+    risks?: string;
+    conclusion?: string;
+  },
 ): { html: string; filename: string } {
   const filename = `audit-report-${slugify(audit.name)}-${new Date().toISOString().slice(0, 10)}.html`;
+
+  let __n = 0;
+  const sectionNum = () => ++__n;
+  const ai = aiSections ?? {};
+  const hasAi = !!(ai.executiveSummary || ai.sovInterpretation || ai.roiInterpretation || ai.risks || ai.conclusion);
+
+  const aiSection = (title: string, md?: string, gap = false) =>
+    md && md.trim()
+      ? `<h2 class="section-title${gap ? ' section-gap' : ''}">${sectionNum()} - ${title}</h2><div class="ai-md">${mdToHtml(md)}</div>`
+      : '';
+
+  const aiSubBlock = (title: string, md?: string) =>
+    md && md.trim()
+      ? `<h3 style="font-family:var(--serif);margin-top:24px">${title}</h3><div class="ai-md">${mdToHtml(md)}</div>`
+      : '';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -103,7 +126,7 @@ export function generateAuditReportHtml(
       </div>
     </div>
 
-    <h2 class="section-title">1 - Project Fact Sheet</h2>
+    <h2 class="section-title">${sectionNum()} - Project Fact Sheet</h2>
     <div class="fact-grid">
       <div class="fact-card"><span class="fact-label">Client</span><span class="fact-value">${escapeHtml(audit.client || '—')}</span></div>
       <div class="fact-card"><span class="fact-label">Sector</span><span class="fact-value">${escapeHtml(audit.sector || '—')}</span></div>
@@ -118,7 +141,9 @@ export function generateAuditReportHtml(
     </div>
     <p class="fact-note">Total annual hours in scope = Σ, per process and activity, of estimated time per activity (already includes step repetitions) × annual repetitions.<br>Annual labour cost = Σ, per profile, of profile hours × stepRepetitions × annual repetitions × hourly rate.</p>
 
-    <h2 class="section-title">2 - Sovereignty Assessment</h2>
+    ${aiSection('Executive Summary', ai.executiveSummary)}
+
+    <h2 class="section-title">${sectionNum()} - Sovereignty Assessment</h2>
     <p><strong>Average index:</strong> ${data.avgSovIndex.toFixed(1)}/5 — Level: ${escapeHtml(data.sovLevelLabel)}</p>
     <p><strong>Use cases requiring Client IT approval:</strong> ${data.ucRequiresClientIT}</p>
     <p class="sov-legend">The table below shows, per sovereignty axis, the number of processes assessed at each level (Green / Amber / Red).</p>
@@ -172,7 +197,9 @@ export function generateAuditReportHtml(
     ${findingsBlocks ? `<div class="sov-findings"><div class="sov-findings-axis" style="border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px">Findings</div>${findingsBlocks}</div>` : ''}`;
     })()}
 
-    <h2 class="section-title section-gap">3 - Process Detail</h2>
+    ${aiSubBlock('Global Sovereignty Interpretation', ai.sovInterpretation)}
+
+    <h2 class="section-title section-gap">${sectionNum()} - Process Detail</h2>
     ${processes.map((p: any) => {
       const profiles = p?.b1?.profiles ?? [];
       const profilesHtml = profiles.length
@@ -228,7 +255,7 @@ export function generateAuditReportHtml(
       </div>`;
     }).join('')}
 
-    <h2 class="section-title">4 - ROI & POCs</h2>
+    <h2 class="section-title">${sectionNum()} - ROI & POCs</h2>
     <table class="exec-summary-table">
       <thead><tr>
         <th>POC Name</th><th>Net Annual Saving (€)</th><th>Dev Cost (€)</th><th>Payback Period (months)</th>
@@ -249,6 +276,10 @@ export function generateAuditReportHtml(
       const tn = pocRois.reduce((s: number, r: any) => s + (r?.net ?? 0), 0);
       return tn > 0 ? `<p style="font-size:0.8rem;color:var(--muted);margin-top:8px"><em>Note: Payback period calculated as Total Dev Cost ÷ (Total Net Annual Saving ÷ 12).</em></p>` : '';
     })()}
+
+    ${aiSubBlock('ROI Interpretation', ai.roiInterpretation)}
+    ${aiSection('Risks & Constraints', ai.risks)}
+    ${aiSection('Conclusion', ai.conclusion)}
 
   </div>
 </body>
