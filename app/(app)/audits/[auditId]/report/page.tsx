@@ -177,6 +177,9 @@ export default function AuditReportPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeterministic, setShowDeterministic] = useState(false);
+  const [deterministicHtml, setDeterministicHtml] = useState<string | null>(null);
+  const [loadingDet, setLoadingDet] = useState(false);
 
   const hasSections = !!(sections && SECTION_DEFS.some(s => sections[s.key]?.trim()));
 
@@ -261,6 +264,26 @@ export default function AuditReportPage() {
   function cancelEdit() {
     setEditing(null);
     setDraft('');
+  }
+
+  async function toggleDeterministic() {
+    const next = !showDeterministic;
+    setShowDeterministic(next);
+    if (next && deterministicHtml === null && !loadingDet) {
+      setLoadingDet(true);
+      try {
+        const res = await fetch(apiUrl(`/api/audits/${auditId}/report-data`), {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (res.ok && data.html) setDeterministicHtml(data.html);
+        else setDeterministicHtml('<p style="padding:16px">No se pudieron cargar los datos del informe.</p>');
+      } catch {
+        setDeterministicHtml('<p style="padding:16px">Error al cargar los datos del informe.</p>');
+      } finally {
+        setLoadingDet(false);
+      }
+    }
   }
 
   if (loading) {
@@ -358,6 +381,35 @@ export default function AuditReportPage() {
         {/* Report Sections */}
         {hasSections ? (
           <div className="space-y-6">
+            <div className="bg-white border border-border rounded-sm overflow-hidden">
+              <button
+                onClick={toggleDeterministic}
+                className="w-full flex items-center justify-between px-8 py-4 text-left hover:bg-slate-50 transition-colors"
+              >
+                <span className="font-display text-lg font-semibold text-text">
+                  Datos del informe (Audit Report)
+                </span>
+                <span className="text-muted text-sm">
+                  {showDeterministic ? '▲ Ocultar' : '▼ Mostrar'}
+                </span>
+              </button>
+              {showDeterministic && (
+                <div className="border-t border-border">
+                  {loadingDet ? (
+                    <div className="flex justify-center py-10">
+                      <Spinner size="lg" className="text-blue-aria" />
+                    </div>
+                  ) : deterministicHtml ? (
+                    <iframe
+                      srcDoc={deterministicHtml}
+                      title="Audit Report data"
+                      className="w-full"
+                      style={{ height: '600px', border: 'none' }}
+                    />
+                  ) : null}
+                </div>
+              )}
+            </div>
             {SECTION_DEFS.map(({ key, title }) => (
               <div key={key} className="bg-white border border-border rounded-sm p-8">
                 <div className="flex items-center justify-between mb-4">
