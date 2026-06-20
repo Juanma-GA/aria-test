@@ -311,7 +311,7 @@ export function computeAuditReportData(
       const annualReps = p.b3?.annualRepetitions ?? 0;
       const totalHrsRun = activities.reduce(
         (s: number, a: any) =>
-          s + (a.estimatedTimeHours ?? 0) * (a.stepRepetitions ?? 1),
+          s + (a.estimatedTimeHours ?? 0),
         0,
       );
       const decisionPoints = activities.filter((a) => a.isDecisionPoint).length;
