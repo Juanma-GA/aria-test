@@ -247,7 +247,7 @@ function generatePocDetailBlock(poc: any, num: number, auditName: string, opts?:
   }
 
   return `
-    <details class="poc-block" id="poc-${num}">
+    <details class="poc-block" id="poc-${num}" open>
       <summary><h2 class="poc-title">2.${num} ${escapeHtml(poc.name || 'Untitled')}</h2></summary>
       ${body}
     </details>
