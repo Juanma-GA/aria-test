@@ -426,6 +426,7 @@ export const REPORT_STYLES = `
     .act-table .step-name { font-family: var(--serif); font-weight: 500; color: var(--ink); }
     .act-table .num { font-family: var(--mono); text-align: center; width: 130px; }
     .act-table .tools { color: var(--muted); font-size: 0.8rem; }
+    .roi-table .uc-cell { font-family: var(--serif); font-weight: 500; color: var(--ink); line-height: 1.5; max-width: 320px; }
     @media print {
       body { background: white; }
       .report-container { padding: 20px; }

@@ -38,7 +38,7 @@ function renderUCRoiTable(ucs: any[], process: any): string {
       const rowsHtml = d.rows
         .map((row, idx) => {
           let html = '<tr>';
-          if (idx === 0) html += `<td rowspan="${totalRows}">${escapeHtml(d.procName)}</td>`;
+          if (idx === 0) html += `<td rowspan="${totalRows}" class="uc-cell"><span class="uc-type-${d.isRef ? 'ref' : 'inst'}">${d.type}</span>: ${escapeHtml(d.cuId)} – ${escapeHtml(d.description)}</td>`;
           html += `
       <td>${escapeHtml(row.step)}</td>
       <td>${escapeHtml(row.profile)}</td>
@@ -51,11 +51,10 @@ function renderUCRoiTable(ucs: any[], process: any): string {
         .join('');
       return `
     <div class="uc-roi-block uc-roi-block--${d.isRef ? 'ref' : 'inst'}">
-      <h4 class="uc-roi-title"><span class="uc-type-${d.isRef ? 'ref' : 'inst'}">${d.type}</span>: ${escapeHtml(d.cuId)} – ${escapeHtml(d.description)}</h4>
       <table class="roi-table" style="margin-top: 12px;">
         <thead>
           <tr>
-            <th>Process</th>
+            <th>UC</th>
             <th>Target Steps</th>
             <th>Profiles</th>
             <th>Current Hours/run</th>
