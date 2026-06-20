@@ -122,20 +122,20 @@ export function generateAuditReportHtml(
     <h2 class="section-title">2 - Sovereignty Assessment</h2>
     <p><strong>Average index:</strong> ${data.avgSovIndex.toFixed(1)}/5 — Level: ${escapeHtml(data.sovLevelLabel)}</p>
     <p><strong>Use cases requiring Client IT approval:</strong> ${data.ucRequiresClientIT}</p>
+    <p class="sov-legend">The table below shows, per sovereignty axis, the number of processes assessed at each level (Green / Amber / Red).</p>
     ${(() => {
       const axes = Object.keys(AXIS_LABELS).map((key: string) => {
         const label = AXIS_LABELS[key];
         let g = 0, a = 0, r = 0;
-        const amberF: string[] = [];
-        const redF: string[] = [];
+        const findings: { procName: string; severity: 'amber' | 'red'; text: string }[] = [];
         for (const p of processes) {
           const ax = p?.b2?.axes?.[key as keyof typeof AXIS_LABELS];
           if (!ax) continue;
           if (ax.status === 'green') g++;
-          else if (ax.status === 'amber') { a++; if (ax.findings) amberF.push(ax.findings); }
-          else if (ax.status === 'red') { r++; if (ax.findings) redF.push(ax.findings); }
+          else if (ax.status === 'amber') { a++; if (ax.findings) findings.push({ procName: p.name, severity: 'amber', text: ax.findings }); }
+          else if (ax.status === 'red') { r++; if (ax.findings) findings.push({ procName: p.name, severity: 'red', text: ax.findings }); }
         }
-        return { label, g, a, r, amberF, redF };
+        return { label, g, a, r, findings };
       });
 
       const chip = (n: number, cls: string) =>
@@ -150,12 +150,16 @@ export function generateAuditReportHtml(
         </tr>`).join('');
 
       const findingsBlocks = axes
-        .filter(ax => ax.amberF.length || ax.redF.length)
+        .filter(ax => ax.findings.length)
         .map(ax => {
-          const items = [
-            ...ax.redF.map(f => `<div class="sov-finding red">${escapeHtml(f)}</div>`),
-            ...ax.amberF.map(f => `<div class="sov-finding amber">${escapeHtml(f)}</div>`),
-          ].join('');
+          // rojos primero, luego amber
+          const ordered = [
+            ...ax.findings.filter(f => f.severity === 'red'),
+            ...ax.findings.filter(f => f.severity === 'amber'),
+          ];
+          const items = ordered.map(f =>
+            `<div class="sov-finding ${f.severity}"><span class="sov-finding-proc">${escapeHtml(f.procName)}</span> — ${escapeHtml(f.text)}</div>`
+          ).join('');
           return `<div class="sov-findings-axis">${ax.label}</div>${items}`;
         }).join('');
 

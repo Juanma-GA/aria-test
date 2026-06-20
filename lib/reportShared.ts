@@ -410,8 +410,10 @@ export const REPORT_STYLES = `
     }
     .sov-finding.amber::before { background: var(--accent-2); }
     .sov-finding.red::before { background: var(--bad); }
+    .sov-legend { font-size: 0.78rem; color: var(--muted); font-style: italic; margin: 4px 0 0 0; }
+    .sov-finding-proc { font-style: italic; color: var(--faint); }
     .section-title { margin-top: 56px; }
-    .section-title.section-gap { margin-top: 112px; }
+    .section-title.section-gap { margin-top: 80px; }
     .proc-context { margin: 12px 0 16px 0; padding-left: 16px; border-left: 2px solid var(--line); }
     .proc-context .pc-line { font-size: 0.86rem; color: var(--ink-soft); margin: 3px 0; }
     .proc-context .pc-key { font-weight: 600; color: var(--ink); }
