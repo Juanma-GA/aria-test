@@ -56,7 +56,6 @@ const AuditSchema = new Schema<IAudit>({
   report: {
     generatedAt: { type: Date },
     model: { type: String, default: '' },
-    markdown: { type: String, default: '' },
     sections: {
       executiveSummary: { type: String, default: '' },
       sovInterpretation: { type: String, default: '' },
