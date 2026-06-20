@@ -105,9 +105,6 @@ export const REPORT_STYLES = `
       margin-bottom: 48px;
       padding-bottom: 32px;
     }
-    details:not(:last-child) {
-      border-bottom: 1px solid var(--line);
-    }
     h2 {
       font-family: var(--serif);
       font-size: 1.85rem;
@@ -169,10 +166,10 @@ export const REPORT_STYLES = `
       text-transform: uppercase;
       letter-spacing: 0.12em;
       color: var(--faint);
-      font-weight: 400;
+      font-weight: 600;
       padding: 12px 8px;
       text-align: left;
-      border-bottom: 1px solid var(--line-soft);
+      border-bottom: 1.5px solid var(--line);
       background: none;
     }
     .exec-summary-table td {
@@ -181,10 +178,14 @@ export const REPORT_STYLES = `
       color: var(--ink-soft);
       border-bottom: 1px solid var(--line-soft);
     }
+    .exec-summary-table th:not(:first-child),
+    .exec-summary-table td:not(:first-child) { text-align: right; }
     .exec-summary-table tr.total-row {
       font-weight: bold;
       background: var(--surface-2);
+      border-top: 2px solid var(--line);
     }
+    .exec-summary-table tr.total-row td { padding-top: 12px; padding-bottom: 12px; }
     .roi-table {
       width: 100%;
       border-collapse: collapse;
