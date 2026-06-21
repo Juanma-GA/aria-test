@@ -48,23 +48,27 @@ export async function GET(_req: NextRequest) {
     for (const uc of allUseCases) {
       ucAuditMap.set(String((uc as any)._id), String((uc as any).auditId));
     }
-    // Group POCs by the audit of their REFERENCE UC (useCaseIds[0], fallback useCaseId).
-    // Mirrors requirePocEditAccess / enrichPocs: poc.auditId is NOT reliable because
-    // instances can be cross-audit, so audit is derived from the reference UC.
+    // Group POCs by EVERY audit any of their UCs (parent or instance) belongs to.
+    // Mirrors the /pocs view ($in over the whole useCaseIds array): a POC with
+    // instances in multiple audits is counted in each of them — but only once per
+    // audit (dedupe via a Set), since multiple UCs may share the same audit.
     const pocsByAudit = new Map<string, { design: number; execution: number; evaluation: number; closed: number }>();
     for (const poc of allPocs) {
-      const refUcId =
-        ((poc as any).useCaseIds ?? []).length > 0
-          ? String((poc as any).useCaseIds[0])
-          : (poc as any).useCaseId
-            ? String((poc as any).useCaseId)
-            : null;
-      const aid = refUcId ? ucAuditMap.get(refUcId) : undefined;
-      if (!aid) continue;
-      if (!pocsByAudit.has(aid)) pocsByAudit.set(aid, { design: 0, execution: 0, evaluation: 0, closed: 0 });
-      const entry = pocsByAudit.get(aid)!;
+      const ucIds: string[] = [
+        ...((poc as any).useCaseIds ?? []).map((id: any) => String(id)),
+        ...((poc as any).useCaseId ? [String((poc as any).useCaseId)] : []),
+      ];
+      const auditsForPoc = new Set<string>();
+      for (const ucId of ucIds) {
+        const aid = ucAuditMap.get(ucId);
+        if (aid) auditsForPoc.add(aid);
+      }
       const phase = (poc as any).phase as string;
-      if (phase in entry) (entry as any)[phase]++;
+      for (const aid of auditsForPoc) {
+        if (!pocsByAudit.has(aid)) pocsByAudit.set(aid, { design: 0, execution: 0, evaluation: 0, closed: 0 });
+        const entry = pocsByAudit.get(aid)!;
+        if (phase in entry) (entry as any)[phase]++;
+      }
     }
 
     // Group processes by audit
