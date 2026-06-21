@@ -22,7 +22,7 @@ function getSovereigntyIndex(b2: any): number | null {
 
 function getCompletion(process: any, ucCount: number) {
   const b1Done = !!(
-    process.b1?.formalName?.trim() &&
+    process.name?.trim() &&
     (process.b1?.stakeholders?.length ?? 0) > 0
   );
   const b2Done = !!(
