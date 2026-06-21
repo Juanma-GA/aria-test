@@ -8,6 +8,7 @@ import { nextSequence } from '@/lib/models/Counter';
 import { createAuditSchema, validationErrorResponse } from '@/lib/validators';
 import { requireRole } from '@/lib/auth';
 import { visibilityFilter } from '@/lib/auditAccess';
+import { countPocsByAuditPhase } from '@/lib/pocHelpers';
 
 export async function GET(_req: NextRequest) {
   try {
@@ -43,45 +44,7 @@ export async function GET(_req: NextRequest) {
         .lean(),
     ]);
 
-    // Build ucId → auditId map from ALL UCs referenced by POCs, INCLUDING archived ones.
-    // A POC whose reference/instance UC is archived must still resolve its audit, otherwise
-    // it is dropped from the count (allUseCases excludes archived, so it can't be used here).
-    const referencedUcIds = new Set<string>();
-    for (const poc of allPocs) {
-      for (const id of ((poc as any).useCaseIds ?? [])) referencedUcIds.add(String(id));
-      if ((poc as any).useCaseId) referencedUcIds.add(String((poc as any).useCaseId));
-    }
-    const ucAuditMap = new Map<string, string>();
-    if (referencedUcIds.size > 0) {
-      const refUcs = await UseCase.find({ _id: { $in: [...referencedUcIds] } })
-        .select('auditId')
-        .lean();
-      for (const uc of refUcs) {
-        ucAuditMap.set(String((uc as any)._id), String((uc as any).auditId));
-      }
-    }
-    // Group POCs by EVERY audit any of their UCs (parent or instance) belongs to.
-    // Mirrors the /pocs view ($in over the whole useCaseIds array): a POC with
-    // instances in multiple audits is counted in each of them — but only once per
-    // audit (dedupe via a Set), since multiple UCs may share the same audit.
-    const pocsByAudit = new Map<string, { design: number; execution: number; evaluation: number; closed: number }>();
-    for (const poc of allPocs) {
-      const ucIds: string[] = [
-        ...((poc as any).useCaseIds ?? []).map((id: any) => String(id)),
-        ...((poc as any).useCaseId ? [String((poc as any).useCaseId)] : []),
-      ];
-      const auditsForPoc = new Set<string>();
-      for (const ucId of ucIds) {
-        const aid = ucAuditMap.get(ucId);
-        if (aid) auditsForPoc.add(aid);
-      }
-      const phase = (poc as any).phase as string;
-      for (const aid of auditsForPoc) {
-        if (!pocsByAudit.has(aid)) pocsByAudit.set(aid, { design: 0, execution: 0, evaluation: 0, closed: 0 });
-        const entry = pocsByAudit.get(aid)!;
-        if (phase in entry) (entry as any)[phase]++;
-      }
-    }
+    const pocsByAudit = await countPocsByAuditPhase(allPocs as any[], auditIds);
 
     // Group processes by audit
     const processesByAudit = new Map<string, any[]>();

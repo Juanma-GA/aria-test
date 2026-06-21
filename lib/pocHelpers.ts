@@ -220,3 +220,46 @@ export async function requirePocEditAccess(
   if (!isAccessGranted(access)) return access as NextResponse;
   return null;
 }
+
+/**
+ * Count POCs per audit using the SAME membership rule as GET /api/pocs?auditId=X:
+ * a POC belongs to an audit if any of its useCaseIds (or legacy useCaseId) is a UC
+ * whose auditId === that audit. Instances are cross-audit, so a POC can count in
+ * several audits (once per audit). Archived UCs are included in membership (matching
+ * the Tracker, which does not filter UCs by isArchived when building effectiveUCIds).
+ *
+ * @param pocs   POC docs with fields: phase, useCaseIds[], useCaseId? (non-archived POCs)
+ * @param auditIds the audits to compute counts for
+ * @returns Map<auditIdString, { design, execution, evaluation, closed }>
+ */
+export async function countPocsByAuditPhase(
+  pocs: any[],
+  auditIds: mongoose.Types.ObjectId[],
+): Promise<Map<string, { design: number; execution: number; evaluation: number; closed: number }>> {
+  // ucId -> auditId for ALL UCs in the target audits (archived included, like the Tracker)
+  const ucs = await UseCase.find({ auditId: { $in: auditIds } }).select('_id auditId').lean();
+  const ucAuditMap = new Map<string, string>();
+  for (const uc of ucs as any[]) {
+    ucAuditMap.set(String(uc._id), String(uc.auditId));
+  }
+
+  const result = new Map<string, { design: number; execution: number; evaluation: number; closed: number }>();
+  for (const poc of pocs) {
+    const ucIds: string[] = [
+      ...((poc.useCaseIds ?? []).map((id: any) => String(id?._id ?? id))),
+      ...(poc.useCaseId ? [String(poc.useCaseId?._id ?? poc.useCaseId)] : []),
+    ];
+    const auditsForPoc = new Set<string>();
+    for (const ucId of ucIds) {
+      const aid = ucAuditMap.get(ucId);
+      if (aid) auditsForPoc.add(aid);
+    }
+    const phase = poc.phase as string;
+    for (const aid of auditsForPoc) {
+      if (!result.has(aid)) result.set(aid, { design: 0, execution: 0, evaluation: 0, closed: 0 });
+      const entry = result.get(aid)!;
+      if (phase in entry) (entry as any)[phase]++;
+    }
+  }
+  return result;
+}
