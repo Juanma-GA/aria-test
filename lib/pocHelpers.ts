@@ -235,7 +235,7 @@ export async function requirePocEditAccess(
 export async function countPocsByAuditPhase(
   pocs: any[],
   auditIds: mongoose.Types.ObjectId[],
-): Promise<Map<string, { design: number; execution: number; evaluation: number; closed: number }>> {
+): Promise<Map<string, { design: number; execution: number; evaluation: number; decision: number; closed: number }>> {
   // ucId -> auditId for ALL UCs in the target audits (archived included, like the Tracker)
   const ucs = await UseCase.find({ auditId: { $in: auditIds } }).select('_id auditId').lean();
   const ucAuditMap = new Map<string, string>();
@@ -243,7 +243,7 @@ export async function countPocsByAuditPhase(
     ucAuditMap.set(String(uc._id), String(uc.auditId));
   }
 
-  const result = new Map<string, { design: number; execution: number; evaluation: number; closed: number }>();
+  const result = new Map<string, { design: number; execution: number; evaluation: number; decision: number; closed: number }>();
   for (const poc of pocs) {
     const ucIds: string[] = [
       ...((poc.useCaseIds ?? []).map((id: any) => String(id?._id ?? id))),
@@ -256,7 +256,7 @@ export async function countPocsByAuditPhase(
     }
     const phase = poc.phase as string;
     for (const aid of auditsForPoc) {
-      if (!result.has(aid)) result.set(aid, { design: 0, execution: 0, evaluation: 0, closed: 0 });
+      if (!result.has(aid)) result.set(aid, { design: 0, execution: 0, evaluation: 0, decision: 0, closed: 0 });
       const entry = result.get(aid)!;
       if (phase in entry) (entry as any)[phase]++;
     }
