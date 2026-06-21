@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest) {
     const auditIds = audits.map((a) => a._id);
     const notArchived = { isArchived: { $ne: true } };
     const [allPocs, allProcesses, allUseCases] = await Promise.all([
-      POC.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId phase').lean(),
+      POC.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId phase useCaseIds useCaseId').lean(),
       Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
       UseCase.find({ auditId: { $in: auditIds } })
         .select('auditId processId status isArchived score timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
@@ -43,10 +43,24 @@ export async function GET(_req: NextRequest) {
         .lean(),
     ]);
 
-    // Group POCs by audit → phase counts
+    // Map each UC id → its audit id (UCs already loaded for all visible audits, includes instances)
+    const ucAuditMap = new Map<string, string>();
+    for (const uc of allUseCases) {
+      ucAuditMap.set(String((uc as any)._id), String((uc as any).auditId));
+    }
+    // Group POCs by the audit of their REFERENCE UC (useCaseIds[0], fallback useCaseId).
+    // Mirrors requirePocEditAccess / enrichPocs: poc.auditId is NOT reliable because
+    // instances can be cross-audit, so audit is derived from the reference UC.
     const pocsByAudit = new Map<string, { design: number; execution: number; evaluation: number; closed: number }>();
     for (const poc of allPocs) {
-      const aid = String((poc as any).auditId);
+      const refUcId =
+        ((poc as any).useCaseIds ?? []).length > 0
+          ? String((poc as any).useCaseIds[0])
+          : (poc as any).useCaseId
+            ? String((poc as any).useCaseId)
+            : null;
+      const aid = refUcId ? ucAuditMap.get(refUcId) : undefined;
+      if (!aid) continue;
       if (!pocsByAudit.has(aid)) pocsByAudit.set(aid, { design: 0, execution: 0, evaluation: 0, closed: 0 });
       const entry = pocsByAudit.get(aid)!;
       const phase = (poc as any).phase as string;
