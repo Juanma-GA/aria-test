@@ -75,7 +75,7 @@ export default function AuditReportPage() {
   }, [auditId]);
 
   async function generate() {
-    if (sections && !window.confirm('Regenerar sobrescribirá las 5 secciones, incluidas tus ediciones manuales. ¿Continuar?')) {
+    if (sections && !window.confirm('Regenerating will overwrite all 5 sections, including your manual edits. Continue?')) {
       return;
     }
 
@@ -100,11 +100,11 @@ export default function AuditReportPage() {
         generatedAt: new Date().toISOString(),
         model: data.model || 'mistral-medium-latest',
       });
-      toast.success('Informe generado correctamente');
+      toast.success('Report generated successfully');
     } catch (e: any) {
-      const msg = e.message || 'Error generando el informe';
+      const msg = e.message || 'Error generating report';
       setError(msg);
-      toast.error('Error al generar el informe', { description: msg });
+      toast.error('Error generating report', { description: msg });
     } finally {
       setGenerating(false);
     }
@@ -123,9 +123,9 @@ export default function AuditReportPage() {
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
       setSections((prev: Record<string, string> | null) => ({ ...(prev ?? {}), [key]: draft }));
       setEditing(null);
-      toast.success('Sección guardada');
+      toast.success('Section saved');
     } catch (e: any) {
-      toast.error('Error al guardar', { description: e.message });
+      toast.error('Error saving', { description: e.message });
     } finally {
       setSaving(false);
     }
@@ -152,9 +152,9 @@ export default function AuditReportPage() {
         });
         const data = await res.json();
         if (res.ok && data.html) setDeterministicHtml(data.html);
-        else setDeterministicHtml('<p style="padding:16px">No se pudieron cargar los datos del informe.</p>');
+        else setDeterministicHtml('<p style="padding:16px">Could not load report data.</p>');
       } catch {
-        setDeterministicHtml('<p style="padding:16px">Error al cargar los datos del informe.</p>');
+        setDeterministicHtml('<p style="padding:16px">Error loading report data.</p>');
       } finally {
         setLoadingDet(false);
       }
@@ -170,7 +170,7 @@ export default function AuditReportPage() {
   }
 
   const formattedDate = meta?.generatedAt
-    ? new Date(meta.generatedAt).toLocaleString('es-ES', {
+    ? new Date(meta.generatedAt).toLocaleString('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -207,11 +207,10 @@ export default function AuditReportPage() {
           <div>
             <h1 className="font-display text-2xl font-bold text-text flex items-center gap-2">
               <Bot size={22} className="text-blue-aria" />
-              Informe IA
+              AI Report
             </h1>
             <p className="text-sm text-muted mt-0.5">
-              Informe ejecutivo generado automáticamente a partir de los datos
-              de la auditoría
+              Automated executive report generated from audit data
             </p>
           </div>
           {hasSections && !generating && (
@@ -221,21 +220,21 @@ export default function AuditReportPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text hover:border-blue-aria transition-colors"
               >
                 <RefreshCw size={14} />
-                Regenerar
+                Regenerate
               </button>
               <button
                 onClick={async () => {
                   try {
                     await downloadFullReport(auditId);
-                    toast.success('Informe completo descargado');
+                    toast.success('Full report downloaded');
                   } catch (e: any) {
-                    toast.error('Error al descargar', { description: e.message });
+                    toast.error('Download error', { description: e.message });
                   }
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text hover:border-blue-aria transition-colors"
               >
                 <Download size={14} />
-                Descargar informe completo
+                Download full report
               </button>
             </div>
           )}
@@ -245,11 +244,11 @@ export default function AuditReportPage() {
         {meta && !generating && (
           <div className="flex items-center gap-3 text-xs text-muted bg-slate-50 border border-border rounded-sm px-4 py-2">
             <span>
-              Generado el <strong className="text-text">{formattedDate}</strong>
+              Generated on <strong className="text-text">{formattedDate}</strong>
             </span>
             <span className="text-border">·</span>
             <span>
-              Modelo: <strong className="text-text">{meta.model}</strong>
+              Model: <strong className="text-text">{meta.model}</strong>
             </span>
           </div>
         )}
@@ -278,10 +277,10 @@ export default function AuditReportPage() {
                 className="w-full flex items-center justify-between px-8 py-4 text-left hover:bg-slate-50 transition-colors"
               >
                 <span className="font-display text-lg font-semibold text-text">
-                  Datos del informe (Audit Report)
+                  Report data (Audit Report)
                 </span>
                 <span className="text-muted text-sm">
-                  {showDeterministic ? '▲ Ocultar' : '▼ Mostrar'}
+                  {showDeterministic ? '▲ Hide' : '▼ Show'}
                 </span>
               </button>
               {showDeterministic && (
@@ -310,7 +309,7 @@ export default function AuditReportPage() {
                       onClick={() => startEdit(key)}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-sm border border-border text-xs text-muted hover:text-text hover:border-blue-aria transition-colors"
                     >
-                      Editar
+                      Edit
                     </button>
                   )}
                 </div>
@@ -335,14 +334,14 @@ export default function AuditReportPage() {
                         disabled={saving}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
                       >
-                        {saving ? 'Guardando…' : 'Guardar'}
+                        {saving ? 'Saving…' : 'Save'}
                       </button>
                       <button
                         onClick={cancelEdit}
                         disabled={saving}
                         className="px-4 py-2 rounded-sm border border-border text-sm text-muted hover:text-text transition-colors disabled:opacity-50"
                       >
-                        Cancelar
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -363,21 +362,19 @@ export default function AuditReportPage() {
               </div>
             </div>
             <h2 className="font-display text-lg font-semibold text-text mb-2">
-              Sin informe generado
+              No report generated yet
             </h2>
             <p className="text-sm text-muted max-w-md mx-auto mb-8">
-              Genera un informe ejecutivo completo analizando todos los
-              procesos, casos de uso, evaluaciones de soberanía y POCs
-              registrados en esta auditoría.
+              Generate a complete executive report by analyzing all processes, use cases, sovereignty assessments, and POCs recorded in this audit.
             </p>
             <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto mb-8 text-left">
               {[
-                'Resumen ejecutivo',
-                'Evaluación de soberanía',
-                'Ranking de casos de uso',
-                'Análisis de ROI',
-                'Riesgos y restricciones',
-                'Recomendaciones',
+                'Executive summary',
+                'Sovereignty assessment',
+                'Use case ranking',
+                'ROI analysis',
+                'Risks & constraints',
+                'Recommendations',
               ].map((s) => (
                 <div
                   key={s}
@@ -393,7 +390,7 @@ export default function AuditReportPage() {
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-aria text-white text-sm font-medium rounded-sm hover:bg-blue-700 transition-colors"
             >
               <Bot size={16} />
-              Generar Informe IA
+              Generate AI Report
             </button>
           </div>
         ) : null}
