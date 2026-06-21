@@ -17,20 +17,12 @@ import {
   Save,
   X,
   Upload,
-  FileText,
-  Download,
-  ClipboardCopy,
-  Globe,
-  Printer,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
-import { ProgressIndicator } from '@/components/ai/ProgressIndicator';
 import { TagInput } from '@/components/ui/TagInput';
-import { Modal } from '@/components/ui/Modal';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type {
   ProcessActivity,
@@ -192,21 +184,6 @@ export default function B3Page() {
   const [annualRepetitions, setAnnualRepetitions] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // ── AI Process Report ────────────────────────────────────────────────────────
-
-  const PROCESS_REPORT_STEPS = [
-    { text: "Analyzing process context...", startPercent: 0, endPercent: 20 },
-    { text: "Evaluating sovereignty constraints...", startPercent: 20, endPercent: 40 },
-    { text: "Analyzing process map and bottlenecks...", startPercent: 40, endPercent: 75 },
-    { text: "Applying context...", startPercent: 75, endPercent: 90 },
-    { text: "Finalizing report...", startPercent: 90, endPercent: 100 },
-  ];
-
-  // AI Report
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportMarkdown, setReportMarkdown] = useState<string | null>(null);
-
   // Suggestions for predictive autocomplete
   const [toolsSuggestions, setToolsSuggestions] = useState<Suggestion[]>([]);
   const [inputsSuggestions, setInputsSuggestions] = useState<Suggestion[]>([]);
@@ -297,255 +274,6 @@ export default function B3Page() {
       })
       .catch(() => setLoading(false));
   }, [auditId, procId]);
-
-  const generateReport = async () => {
-    setReportOpen(true);
-    setReportMarkdown(null);
-    setReportLoading(true);
-    try {
-      const res = await fetch(
-        apiUrl(`/api/audits/${auditId}/processes/${procId}/ai/process-report`),
-        {
-          method: 'POST',
-          credentials: 'include',
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? 'Error generating report');
-        setReportOpen(false);
-        return;
-      }
-      setReportMarkdown(data.markdown);
-    } catch {
-      toast.error('Could not connect to AI service');
-      setReportOpen(false);
-    } finally {
-      setReportLoading(false);
-    }
-  };
-
-  const downloadReport = () => {
-    if (!reportMarkdown) return;
-    const blob = new Blob([reportMarkdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `process-report-${processName.replace(/\s+/g, '-').toLowerCase()}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const copyReport = async () => {
-    if (!reportMarkdown) return;
-    await navigator.clipboard.writeText(reportMarkdown);
-    toast.success('Report copied to clipboard');
-  };
-
-  const mdToHtmlContent = (md: string): string => {
-    const lines = md.split('\n');
-    let html = '';
-    let inUl = false;
-    let inOl = false;
-    let inTable = false;
-    let tableHeader = true;
-
-    const closeList = () => {
-      if (inUl) {
-        html += '</ul>';
-        inUl = false;
-      }
-      if (inOl) {
-        html += '</ol>';
-        inOl = false;
-      }
-    };
-    const closeTable = () => {
-      if (inTable) {
-        html += '</tbody></table>';
-        inTable = false;
-        tableHeader = true;
-      }
-    };
-
-    const inline = (s: string) =>
-      s
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`(.+?)`/g, '<code>$1</code>');
-
-    for (const raw of lines) {
-      const line = raw.trimEnd();
-
-      // Table row
-      if (/^\|.+\|/.test(line)) {
-        if (!inTable) {
-          closeList();
-          html += '<table>';
-          inTable = true;
-          tableHeader = true;
-        }
-        if (/^\|[-| :]+\|$/.test(line)) {
-          html += '<tbody>';
-          tableHeader = false;
-          continue;
-        }
-        const cells = line
-          .replace(/^\||\|$/g, '')
-          .split('|')
-          .map((c) => inline(c.trim()));
-        if (tableHeader) {
-          html += `<thead><tr>${cells.map((c) => `<th>${c}</th>`).join('')}</tr></thead>`;
-        } else {
-          html += `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
-        }
-        continue;
-      }
-      if (inTable) closeTable();
-
-      // Headings
-      const hm = line.match(/^(#{1,4})\s+(.+)/);
-      if (hm) {
-        closeList();
-        html += `<h${hm[1].length}>${inline(hm[2])}</h${hm[1].length}>`;
-        continue;
-      }
-
-      // Unordered list
-      const ulm = line.match(/^[-*+]\s+(.+)/);
-      if (ulm) {
-        if (!inUl) {
-          closeList();
-          html += '<ul>';
-          inUl = true;
-        }
-        html += `<li>${inline(ulm[1])}</li>`;
-        continue;
-      }
-
-      // Ordered list
-      const olm = line.match(/^\d+\.\s+(.+)/);
-      if (olm) {
-        if (!inOl) {
-          closeList();
-          html += '<ol>';
-          inOl = true;
-        }
-        html += `<li>${inline(olm[1])}</li>`;
-        continue;
-      }
-
-      // Blockquote
-      const bqm = line.match(/^>\s*(.*)/);
-      if (bqm) {
-        closeList();
-        html += `<blockquote>${inline(bqm[1])}</blockquote>`;
-        continue;
-      }
-
-      // HR
-      if (/^---+$/.test(line)) {
-        closeList();
-        html += '<hr>';
-        continue;
-      }
-
-      // Empty line
-      if (line === '') {
-        closeList();
-        html += '<br>';
-        continue;
-      }
-
-      // Paragraph
-      closeList();
-      html += `<p>${inline(line)}</p>`;
-    }
-    closeList();
-    closeTable();
-    return html;
-  };
-
-  const exportHtml = () => {
-    if (!reportMarkdown) return;
-    const body = mdToHtmlContent(reportMarkdown);
-    const slug = processName.replace(/\s+/g, '-').toLowerCase();
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Process Report — ${processName}</title>
-<style>
-  body{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.5rem;color:#1e293b;line-height:1.6}
-  h1{font-size:1.75rem;margin-top:2rem;border-bottom:2px solid #6d28d9;padding-bottom:.5rem;color:#3730a3}
-  h2{font-size:1.3rem;margin-top:1.5rem;color:#4c1d95}
-  h3{font-size:1.1rem;margin-top:1.2rem;color:#5b21b6}
-  h4{font-size:1rem;margin-top:1rem}
-  p,li{color:#334155}
-  code{background:#f3e8ff;color:#6d28d9;padding:2px 5px;border-radius:3px;font-size:.875em}
-  table{border-collapse:collapse;width:100%;margin:1rem 0}
-  th{background:#6d28d9;color:#fff;padding:.5rem .75rem;text-align:left;font-size:.85rem}
-  td{border:1px solid #e2e8f0;padding:.5rem .75rem;font-size:.85rem}
-  tr:nth-child(even) td{background:#f8fafc}
-  blockquote{border-left:4px solid #a78bfa;margin:1rem 0;padding:.5rem 1rem;background:#faf5ff;color:#5b21b6}
-  hr{border:none;border-top:1px solid #e2e8f0;margin:1.5rem 0}
-  @media print{body{margin:0}}
-</style>
-</head>
-<body>
-${body}
-</body>
-</html>`;
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `process-report-${slug}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportPdf = () => {
-    if (!reportMarkdown) return;
-    const body = mdToHtmlContent(reportMarkdown);
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>AI Process Report — ${processName}</title>
-<style>
-  body{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.5rem;color:#1e293b;line-height:1.6}
-  h1{font-size:1.5rem;margin-top:1.5rem;border-bottom:2px solid #6d28d9;padding-bottom:.4rem;color:#3730a3}
-  h2{font-size:1.2rem;margin-top:1.2rem;color:#4c1d95}
-  h3{font-size:1rem;margin-top:1rem;color:#5b21b6}
-  p,li{color:#334155;font-size:.9rem}
-  code{background:#f3e8ff;color:#6d28d9;padding:1px 4px;border-radius:3px;font-size:.85em}
-  table{border-collapse:collapse;width:100%;margin:.75rem 0}
-  th{background:#6d28d9;color:#fff;padding:.4rem .6rem;text-align:left;font-size:.8rem}
-  td{border:1px solid #e2e8f0;padding:.4rem .6rem;font-size:.8rem}
-  tr:nth-child(even) td{background:#f8fafc}
-  blockquote{border-left:4px solid #a78bfa;margin:.75rem 0;padding:.4rem .75rem;background:#faf5ff}
-  hr{border:none;border-top:1px solid #e2e8f0;margin:1rem 0}
-  @media print{body{margin:0;padding:0 1cm}}
-</style>
-</head>
-<body>
-${body}
-</body>
-</html>`;
-    const win = window.open('', '_blank');
-    if (!win) {
-      toast.error('Allow pop-ups to export PDF');
-      return;
-    }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => {
-      win.print();
-    }, 400);
-  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -768,12 +496,6 @@ ${body}
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={generateReport}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-sm hover:bg-purple-700 transition-colors"
-          >
-            <FileText size={14} /> AI Report
-          </button>
           <button
             onClick={handleSave}
             disabled={saving || saved}
@@ -1239,51 +961,6 @@ ${body}
         </div>
       )}
 
-      {/* AI Report modal */}
-      <Modal
-        isOpen={reportOpen}
-        onClose={() => setReportOpen(false)}
-        title={`AI Process Report — ${processName}`}
-        size="xl"
-      >
-        {reportLoading ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <ProgressIndicator steps={PROCESS_REPORT_STEPS} completionTimeMs={45000} showBar={false} />
-          </div>
-        ) : reportMarkdown ? (
-          <div>
-            <div className="flex flex-wrap justify-end gap-2 mb-4">
-              <button
-                onClick={copyReport}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-sm text-muted hover:text-text hover:border-text transition-colors"
-              >
-                <ClipboardCopy size={14} /> Copiar MD
-              </button>
-              <button
-                onClick={downloadReport}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-sm text-muted hover:text-text hover:border-text transition-colors"
-              >
-                <Download size={14} /> Descargar .md
-              </button>
-              <button
-                onClick={exportHtml}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-sm text-muted hover:text-text hover:border-text transition-colors"
-              >
-                <Globe size={14} /> Exportar HTML
-              </button>
-              <button
-                onClick={exportPdf}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-sm hover:bg-purple-700 transition-colors"
-              >
-                <Printer size={14} /> Exportar PDF
-              </button>
-            </div>
-            <div className="prose prose-sm max-w-none prose-headings:text-text prose-headings:font-semibold prose-h2:text-base prose-h3:text-sm prose-p:text-muted prose-li:text-muted prose-strong:text-text prose-code:text-purple-700 prose-code:bg-purple-50 prose-code:px-1 prose-code:rounded">
-              <ReactMarkdown>{reportMarkdown}</ReactMarkdown>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
     </div>
   );
 }
