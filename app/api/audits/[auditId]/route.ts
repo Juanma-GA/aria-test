@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { Audit, Process, UseCase, POC, Roadmap } from '@/lib/models';
 import { Industrialization } from '@/lib/models';
 import { requireAuditAccess, isAccessGranted } from '@/lib/auditAccess';
+import { countPocsByAuditPhase } from '@/lib/pocHelpers';
 
 function getSovereigntyIndex(b2: any): number | null {
   if (!b2?.axes) return null;
@@ -45,18 +46,25 @@ export async function GET(
     const [
       processCount,
       useCaseCount,
-      pocCount,
       industrializationCount,
       processes,
       allUseCases,
+      allPocsForCount,
     ] = await Promise.all([
       Process.countDocuments({ auditId }),
       UseCase.countDocuments({ auditId, ...notArchived }),
-      POC.countDocuments({ auditId, ...notArchived }),
       Industrialization.countDocuments({ auditId, ...notArchived }),
       Process.find({ auditId }).lean(),
       UseCase.find({ auditId, status: 'eligible', ...notArchived }).lean(),
+      POC.find({ ...notArchived }).select('auditId phase useCaseIds useCaseId').lean(),
     ]);
+
+    // Count POCs the SAME way as the dashboard and the POC Tracker: a POC belongs
+    // to this audit if any of its UCs (parent or instance) lives in it. Uses the
+    // shared helper so all three views stay consistent.
+    const pocPhaseMap = await countPocsByAuditPhase(allPocsForCount as any[], [audit._id as any]);
+    const pocPhases = pocPhaseMap.get(String(audit._id)) ?? { design: 0, execution: 0, evaluation: 0, decision: 0, closed: 0 };
+    const pocCount = Object.values(pocPhases).reduce((s: number, n: any) => s + n, 0);
 
     const ucByProcess: Record<string, any[]> = {};
     for (const uc of allUseCases) {
