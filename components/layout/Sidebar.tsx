@@ -357,12 +357,6 @@ export function Sidebar() {
               </div>
               {reportsExpanded && (
                 <div className="ml-5 pl-2 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
-                  <NavLink
-                    item={{
-                      href: `/audits/${auditId}/report`,
-                      label: 'AI Audit Report',
-                    }}
-                  />
                   <DownloadNavItem
                     label="Audit Report"
                     onRun={async () => {
@@ -374,6 +368,12 @@ export function Sidebar() {
                         toast.error('Failed to generate report');
                         throw err;
                       }
+                    }}
+                  />
+                  <NavLink
+                    item={{
+                      href: `/audits/${auditId}/report`,
+                      label: 'AI Audit Report',
                     }}
                   />
                   <DownloadNavItem
