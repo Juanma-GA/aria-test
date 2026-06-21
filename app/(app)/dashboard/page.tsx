@@ -312,6 +312,13 @@ function SavingsInfographic({
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Value by Audit
           </p>
+          {auditsWithSaving.length > 0 && (
+            <div className="flex justify-end">
+              <span className="text-[9px] text-slate-500 uppercase tracking-wider">
+                Net Annual Saving
+              </span>
+            </div>
+          )}
           {auditsWithSaving.length === 0 ? (
             <p className="text-slate-500 text-xs mt-2">
               No savings computed yet — add process profiles and use cases.
@@ -409,10 +416,10 @@ const DEFAULT_VISIBLE: ColKey[] = [
   'status',
   'procs',
   'ucs',
-  'saving',
+  'pocs',
   'updated',
 ];
-const COLUMN_STORAGE_KEY = 'aria.dashboard.columns.v1';
+const COLUMN_STORAGE_KEY = 'aria.dashboard.columns.v2';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -803,20 +810,6 @@ export default function DashboardPage() {
                       <span className="text-xs font-semibold text-text">
                         {audit.pocCount ?? 0}
                       </span>
-                      {(audit.pocCount ?? 0) > 0 && (
-                        <div className="flex justify-center gap-1 mt-0.5 flex-wrap">
-                          {(audit.pocsByPhase?.execution ?? 0) > 0 && (
-                            <span className="text-[9px] text-blue-aria font-bold">
-                              E{audit.pocsByPhase.execution}
-                            </span>
-                          )}
-                          {(audit.pocsByPhase?.closed ?? 0) > 0 && (
-                            <span className="text-[9px] text-green-600 font-bold">
-                              C{audit.pocsByPhase.closed}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </td>
                   )}
                   {isVisible('saving') && (
