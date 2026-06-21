@@ -35,15 +35,15 @@ export async function GET(_req: NextRequest) {
     const auditIds = audits.map((a) => a._id);
     const notArchived = { isArchived: { $ne: true } };
     const [allPocs, allProcesses, allUseCases] = await Promise.all([
-      POC.find({ auditId: { $in: auditIds }, ...notArchived }).select('auditId phase useCaseIds useCaseId').lean(),
+      POC.find({ ...notArchived }).select('auditId phase useCaseIds useCaseId').lean(),
       Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
-      UseCase.find({ auditId: { $in: auditIds } })
+      UseCase.find({ ...notArchived })
         .select('auditId processId status isArchived score timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
         .populate('processId', 'b1.profiles b3.annualRepetitions')
         .lean(),
     ]);
 
-    // Map each UC id → its audit id (UCs already loaded for all visible audits, includes instances)
+    // Map each UC id → its audit id (all non-archived UCs loaded, including cross-audit instances)
     const ucAuditMap = new Map<string, string>();
     for (const uc of allUseCases) {
       ucAuditMap.set(String((uc as any)._id), String((uc as any).auditId));
