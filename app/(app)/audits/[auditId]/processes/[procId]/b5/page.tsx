@@ -1852,7 +1852,7 @@ export default function B5Page() {
       {/* Filter tabs */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex gap-1 bg-white rounded-md border border-border p-1 w-fit">
-          {(['all', 'eligible', 'in_poc', 'discarded'] as const).map(
+          {(['all', 'eligible', 'in_poc'] as const).map(
             (f) => (
               <button
                 key={f}
@@ -1871,7 +1871,7 @@ export default function B5Page() {
             onChange={(e) => setShowArchived(e.target.checked)}
             className="accent-blue-aria"
           />
-          Show archived
+          Show discarded
         </label>
       </div>
 
