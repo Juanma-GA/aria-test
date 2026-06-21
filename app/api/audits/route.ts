@@ -37,16 +37,28 @@ export async function GET(_req: NextRequest) {
     const [allPocs, allProcesses, allUseCases] = await Promise.all([
       POC.find({ ...notArchived }).select('auditId phase useCaseIds useCaseId').lean(),
       Process.find({ auditId: { $in: auditIds } }).select('auditId _id b1 b3').lean(),
-      UseCase.find({ ...notArchived })
+      UseCase.find({ auditId: { $in: auditIds }, ...notArchived })
         .select('auditId processId status isArchived score timeSavedPerProfile computeBreakdown estimatedDevCostEur additionalDevCostEur isInstance')
         .populate('processId', 'b1.profiles b3.annualRepetitions')
         .lean(),
     ]);
 
-    // Map each UC id → its audit id (all non-archived UCs loaded, including cross-audit instances)
+    // Build ucId → auditId map from ALL UCs referenced by POCs, INCLUDING archived ones.
+    // A POC whose reference/instance UC is archived must still resolve its audit, otherwise
+    // it is dropped from the count (allUseCases excludes archived, so it can't be used here).
+    const referencedUcIds = new Set<string>();
+    for (const poc of allPocs) {
+      for (const id of ((poc as any).useCaseIds ?? [])) referencedUcIds.add(String(id));
+      if ((poc as any).useCaseId) referencedUcIds.add(String((poc as any).useCaseId));
+    }
     const ucAuditMap = new Map<string, string>();
-    for (const uc of allUseCases) {
-      ucAuditMap.set(String((uc as any)._id), String((uc as any).auditId));
+    if (referencedUcIds.size > 0) {
+      const refUcs = await UseCase.find({ _id: { $in: [...referencedUcIds] } })
+        .select('auditId')
+        .lean();
+      for (const uc of refUcs) {
+        ucAuditMap.set(String((uc as any)._id), String((uc as any).auditId));
+      }
     }
     // Group POCs by EVERY audit any of their UCs (parent or instance) belongs to.
     // Mirrors the /pocs view ($in over the whole useCaseIds array): a POC with
